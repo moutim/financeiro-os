@@ -1,0 +1,181 @@
+'use client';
+
+import { useState } from 'react';
+import { Inbox, Trash2, Pencil } from 'lucide-react';
+
+import type { Transaction, Category } from '@/lib/types';
+import { getCategoryConfig } from '@/lib/categories';
+import { formatCurrency } from '@/lib/currency';
+import { useFinanceStore } from '@/lib/store';
+import TransactionEditModal from './TransactionEditModal';
+
+interface TransactionListProps {
+  transactions: Transaction[];
+  showDelete?: boolean;
+}
+
+export default function TransactionList({ transactions, showDelete = true }: TransactionListProps) {
+  const { deleteTransaction } = useFinanceStore();
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+
+  if (transactions.length === 0) {
+    return (
+      <div style={{
+        textAlign: 'center',
+        padding: '48px 0',
+        color: 'var(--text-tertiary)',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12, color: 'var(--text-tertiary)' }}>
+          <Inbox size={48} strokeWidth={1.5} />
+        </div>
+        <div style={{ fontSize: 17, fontWeight: 600 }}>Nenhuma transação</div>
+        <div style={{ fontSize: 15, marginTop: 4 }}>Adicione uma nova transação</div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {transactions.map((tx, i) => {
+        const cfg = getCategoryConfig(tx.category);
+        return (
+          <div
+            key={tx.id}
+            className="transaction-item animate-fade-in-up"
+            style={{ animationDelay: `${i * 40}ms`, opacity: 0, padding: '8px 0', alignItems: 'center' }}
+          >
+            <div
+              className="transaction-icon"
+              style={{ background: cfg.bgColor, color: cfg.color, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 8 }}
+            >
+              <cfg.icon size={14} />
+            </div>
+            
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div className="transaction-name" style={{
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  fontSize: 14,
+                  display: 'flex',
+                  alignItems: 'center'
+                }}>
+                  {(() => {
+                    const nameMatch = tx.name.match(/^(.*?)\s*\(?(?:2025|2026)-\d{2}-\d{2}(?: 00:00:00)?\)?$/);
+                    const baseName = nameMatch ? nameMatch[1] : tx.name;
+                    
+                    let inst = tx.installments;
+                    
+                    // Se a parcela ou o nome contiverem a data maluca do excel (ex: 2026-04-01), formatamos pra 1/4 no visual
+                    const rawInst = inst || tx.name;
+                    const dateMatch = rawInst.match(/(?:2025|2026)-(\d{2})-(\d{2})/);
+                    if (dateMatch) {
+                      inst = `${parseInt(dateMatch[2], 10)}/${parseInt(dateMatch[1], 10)}`;
+                    } else if (!inst) {
+                      const fractionMatch = tx.name.match(/(\d+\/\d+)$/);
+                      if (fractionMatch) inst = fractionMatch[1];
+                    }
+
+                    // Limpa qualquer (1/4) do baseName caso a parcela já tenha sido extraída
+                    const cleanName = baseName.replace(/\s*\(\d+\/\d+\)$/, '').replace(/\s+\d+\/\d+$/, '');
+
+                    return (
+                      <>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{cleanName}</span>
+                        {inst && (
+                          <span style={{ 
+                            fontSize: 10, 
+                            fontWeight: 700, 
+                            background: 'var(--blue-light)', 
+                            color: 'var(--blue)', 
+                            padding: '2px 6px', 
+                            borderRadius: 4, 
+                            marginLeft: 6,
+                            flexShrink: 0
+                          }}>
+                            {inst}
+                          </span>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+                <span style={{ fontSize: 12, color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>
+                  • {cfg.label}
+                </span>
+              </div>
+              
+              {tx.subTransactions && tx.subTransactions.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', marginTop: 2, gap: 1 }}>
+                  {tx.subTransactions.map((st, idx) => (
+                    <span key={idx} style={{ fontSize: 11, color: 'var(--text-tertiary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      ↳ {st.name}{st.installments ? ` (${st.installments})` : ''} • {formatCurrency(st.amount)}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div
+                className="transaction-amount"
+                style={{ color: tx.amount < 0 ? 'var(--green)' : 'var(--text-primary)', fontSize: 14 }}
+              >
+                {tx.amount < 0 ? '+' : ''}{formatCurrency(Math.abs(tx.amount))}
+              </div>
+              {showDelete && (
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <button
+                    onClick={() => setEditingTransaction(tx)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-quaternary)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '2px',
+                      transition: 'color 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.color = 'var(--blue)'}
+                    onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-quaternary)'}
+                    title="Editar transação"
+                  >
+                    <Pencil size={14} />
+                  </button>
+                  <button
+                    onClick={() => deleteTransaction(tx.id)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--red)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '2px',
+                      opacity: 0.7,
+                      transition: 'opacity 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+                    onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.7')}
+                    title="Excluir transação"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+
+      {editingTransaction && (
+        <TransactionEditModal
+          transaction={editingTransaction}
+          onClose={() => setEditingTransaction(null)}
+        />
+      )}
+    </div>
+  );
+}

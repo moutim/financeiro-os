@@ -1,0 +1,130 @@
+'use client';
+
+import { useState } from 'react';
+import { X } from 'lucide-react';
+import { formatMask, parseMask } from '@/lib/currency';
+
+export interface GoalData {
+  id: string;
+  name: string;
+  current: number;
+  target: number;
+  monthlyPrediction: number;
+}
+
+interface GoalFormModalProps {
+  initialData?: GoalData | null;
+  onSave: (data: GoalData) => void;
+  onClose: () => void;
+  onDelete?: (id: string) => void;
+}
+
+export default function GoalFormModal({ initialData, onSave, onClose, onDelete }: GoalFormModalProps) {
+  const [name, setName] = useState(initialData?.name ?? '');
+  const [target, setTarget] = useState(initialData?.target ? String(Math.round(initialData.target * 100)) : '');
+  const [current, setCurrent] = useState(initialData?.current ? String(Math.round(initialData.current * 100)) : '0');
+  const [monthlyPrediction, setMonthlyPrediction] = useState(initialData?.monthlyPrediction ? String(Math.round(initialData.monthlyPrediction * 100)) : '0');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const goal: GoalData = {
+      id: initialData?.id ?? Date.now().toString(),
+      name,
+      target: parseInt(target || '0', 10) / 100,
+      current: parseInt(current || '0', 10) / 100,
+      monthlyPrediction: parseInt(monthlyPrediction || '0', 10) / 100,
+    };
+    
+    onSave(goal);
+  };
+
+  return (
+    <div className="modal-overlay animate-fade-in" onClick={onClose}>
+      <div 
+        className="modal-sheet animate-slide-in-sheet" 
+        onClick={e => e.stopPropagation()}
+        style={{ padding: 24, maxWidth: 400, width: '100%', borderRadius: 24 }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h2 style={{ fontSize: 20, fontWeight: 700 }}>
+            {initialData ? 'Editar Meta' : 'Nova Meta'}
+          </h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)' }}>
+            <X size={24} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <div className="form-group" style={{ marginBottom: 16 }}>
+            <label className="form-label">Nome da Meta</label>
+            <input 
+              type="text" 
+              className="form-input" 
+              required 
+              value={name} 
+              onChange={e => setName(e.target.value)} 
+              placeholder="Ex: Reserva de Emergência, Viagem..." 
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
+            <div className="form-group" style={{ flex: 1 }}>
+              <label className="form-label">Valor Alvo (R$)</label>
+              <input 
+                type="text" 
+                inputMode="numeric"
+                className="form-input" 
+                required 
+                value={formatMask(target)} 
+                onChange={e => setTarget(parseMask(e.target.value))} 
+              />
+            </div>
+            <div className="form-group" style={{ flex: 1 }}>
+              <label className="form-label">Já Guardado (R$)</label>
+              <input 
+                type="text" 
+                inputMode="numeric"
+                className="form-input" 
+                required 
+                value={formatMask(current)} 
+                onChange={e => setCurrent(parseMask(e.target.value))} 
+              />
+            </div>
+          </div>
+          
+          <div className="form-group" style={{ marginBottom: 16 }}>
+            <label className="form-label">Previsão Mensal (R$/mês)</label>
+            <input 
+              type="text" 
+              inputMode="numeric"
+              className="form-input" 
+              value={formatMask(monthlyPrediction)} 
+              onChange={e => setMonthlyPrediction(parseMask(e.target.value))} 
+              placeholder="R$ 0,00"
+            />
+            <p style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 4 }}>
+              Usado para calcular quando você vai atingir essa meta.
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
+            {initialData && onDelete && (
+              <button 
+                type="button"
+                className="btn-ghost" 
+                style={{ color: 'var(--red)', background: 'var(--red-light)', flex: 1, padding: '14px' }}
+                onClick={() => onDelete(initialData.id)}
+              >
+                Excluir
+              </button>
+            )}
+            <button type="submit" className="btn-primary" style={{ flex: 2, padding: '14px' }}>
+              Salvar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
