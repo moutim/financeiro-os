@@ -69,6 +69,8 @@ export interface SavingsGoal {
   monthlyPrediction: number;
   deadline?: string | null; // "YYYY-MM" alvo para atingir a meta
   notes?: string | null;
+  isShared?: boolean;
+  ownerSpreadsheetId?: string | null;
 }
 
 // ─── Cartões de Crédito ───────────────────────────────────────────────────────

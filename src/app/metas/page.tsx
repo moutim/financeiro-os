@@ -8,9 +8,11 @@ import GlassCard from '@/components/ui/GlassCard';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import PendingEditModal from '@/components/transactions/PendingEditModal';
 import GoalFormModal, { GoalData } from '@/components/goals/GoalFormModal';
+import ShareGoalModal from '@/components/goals/ShareGoalModal';
+import JoinGoalModal from '@/components/goals/JoinGoalModal';
 import { useFinanceStore } from '@/lib/store';
 import { formatCurrency } from '@/lib/currency';
-import type { Pending } from '@/lib/types';
+import type { Pending, SavingsGoal } from '@/lib/types';
 
 export default function MetasPage() {
   const { pending, transactions, goals, deletePending, addGoal, updateGoal, deleteGoal, loadingState } = useFinanceStore();
@@ -20,6 +22,9 @@ export default function MetasPage() {
   // Goals Modals
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [goalToEdit, setGoalToEdit] = useState<GoalData | null>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [goalToShare, setGoalToShare] = useState<SavingsGoal | null>(null);
+  const [showJoinModal, setShowJoinModal] = useState(false);
 
   // Filter state for Investment History
   const [startMonth, setStartMonth] = useState<string>('');
@@ -55,18 +60,26 @@ export default function MetasPage() {
     }
   }
 
-  const handleSaveGoal = (goal: GoalData) => {
-    if (goalToEdit || goals.find(g => g.id === goal.id)) {
-      updateGoal(goal.id, goal);
-    } else {
-      addGoal(goal);
+  const handleSaveGoal = async (goal: GoalData) => {
+    try {
+      if (goalToEdit || goals.find(g => g.id === goal.id)) {
+        await updateGoal(goal.id, goal);
+      } else {
+        await addGoal(goal);
+      }
+      setShowGoalModal(false);
+    } catch (err) {
+      alert(String(err));
     }
-    setShowGoalModal(false);
   };
 
-  const handleDeleteGoal = (id: string) => {
-    deleteGoal(id);
-    setShowGoalModal(false);
+  const handleDeleteGoal = async (id: string) => {
+    try {
+      await deleteGoal(id);
+      setShowGoalModal(false);
+    } catch (err) {
+      alert(String(err));
+    }
   };
 
   const historyTxs = startMonth ? investmentTxs.filter(t => t.monthKey >= startMonth) : investmentTxs;
@@ -81,6 +94,10 @@ export default function MetasPage() {
 
   // Função para calcular o total de uma meta
   const getGoalCurrent = (goalId: string, initialCurrent: number) => {
+    const goal = goals.find(g => g.id === goalId);
+    if (goal?.isShared) {
+      return initialCurrent; // Synced value is the absolute truth
+    }
     const linkedTxs = investmentTxs.filter(t => t.goalId === goalId);
     const linkedSum = linkedTxs.reduce((sum, tx) => sum + tx.amount, 0);
     return initialCurrent + linkedSum;
@@ -109,13 +126,22 @@ export default function MetasPage() {
             </p>
             <h1 className="text-title-1">Metas</h1>
           </div>
-          <button 
-            className="btn-primary" 
-            onClick={() => { setGoalToEdit(null); setShowGoalModal(true); }}
-            style={{ display: 'flex', alignItems: 'center', gap: 8 }}
-          >
-            <Plus size={18} /> Nova Meta
-          </button>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <button 
+              className="btn-ghost" 
+              onClick={() => setShowJoinModal(true)}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px' }}
+            >
+              Entrar em Meta
+            </button>
+            <button 
+              className="btn-primary" 
+              onClick={() => { setGoalToEdit(null); setShowGoalModal(true); }}
+              style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+            >
+              <Plus size={18} /> Nova Meta
+            </button>
+          </div>
         </div>
 
         {/* Goals List */}
@@ -163,13 +189,24 @@ export default function MetasPage() {
                       <p style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>Meta de poupança</p>
                     </div>
                   </div>
-                  <button 
-                    onClick={() => { setGoalToEdit(goal); setShowGoalModal(true); }}
-                    style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: 4 }}
-                    title="Editar Meta"
-                  >
-                    <Pencil size={16} />
-                  </button>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {!goal.isShared && (
+                      <button 
+                        onClick={() => { setGoalToShare(goal); setShowShareModal(true); }}
+                        style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: 4, fontSize: 13, fontWeight: 500 }}
+                        title="Compartilhar Meta"
+                      >
+                        Compartilhar
+                      </button>
+                    )}
+                    <button 
+                      onClick={() => { setGoalToEdit(goal); setShowGoalModal(true); }}
+                      style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: 4 }}
+                      title="Editar Meta"
+                    >
+                      <Pencil size={16} />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Big Numbers */}
@@ -453,6 +490,22 @@ export default function MetasPage() {
           onSave={handleSaveGoal}
           onClose={() => setShowGoalModal(false)}
           onDelete={handleDeleteGoal}
+        />
+      )}
+
+      {showShareModal && goalToShare && (
+        <ShareGoalModal
+          goal={goalToShare}
+          onClose={() => {
+            setShowShareModal(false);
+            setGoalToShare(null);
+          }}
+        />
+      )}
+
+      {showJoinModal && (
+        <JoinGoalModal
+          onClose={() => setShowJoinModal(false)}
         />
       )}
     </>

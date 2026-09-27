@@ -14,9 +14,9 @@ export interface GoalData {
 
 interface GoalFormModalProps {
   initialData?: GoalData | null;
-  onSave: (data: GoalData) => void;
+  onSave: (data: GoalData) => void | Promise<void>;
   onClose: () => void;
-  onDelete?: (id: string) => void;
+  onDelete?: (id: string) => void | Promise<void>;
 }
 
 export default function GoalFormModal({ initialData, onSave, onClose, onDelete }: GoalFormModalProps) {
@@ -24,9 +24,13 @@ export default function GoalFormModal({ initialData, onSave, onClose, onDelete }
   const [target, setTarget] = useState(initialData?.target ? String(Math.round(initialData.target * 100)) : '');
   const [current, setCurrent] = useState(initialData?.current ? String(Math.round(initialData.current * 100)) : '0');
   const [monthlyPrediction, setMonthlyPrediction] = useState(initialData?.monthlyPrediction ? String(Math.round(initialData.monthlyPrediction * 100)) : '0');
+  
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
     
     const goal: GoalData = {
       id: initialData?.id ?? Date.now().toString(),
@@ -36,11 +40,25 @@ export default function GoalFormModal({ initialData, onSave, onClose, onDelete }
       monthlyPrediction: parseInt(monthlyPrediction || '0', 10) / 100,
     };
     
-    onSave(goal);
+    try {
+      await onSave(goal);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!initialData || !onDelete) return;
+    setIsDeleting(true);
+    try {
+      await onDelete(initialData.id);
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
-    <div className="modal-overlay animate-fade-in" onClick={onClose}>
+    <div className="modal-overlay animate-fade-in" onClick={(!isSubmitting && !isDeleting) ? onClose : undefined}>
       <div 
         className="modal-sheet animate-slide-in-sheet" 
         onClick={e => e.stopPropagation()}
@@ -50,7 +68,7 @@ export default function GoalFormModal({ initialData, onSave, onClose, onDelete }
           <h2 style={{ fontSize: 20, fontWeight: 700 }}>
             {initialData ? 'Editar Meta' : 'Nova Meta'}
           </h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)' }}>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)' }} disabled={isSubmitting || isDeleting}>
             <X size={24} />
           </button>
         </div>
@@ -64,7 +82,8 @@ export default function GoalFormModal({ initialData, onSave, onClose, onDelete }
               required 
               value={name} 
               onChange={e => setName(e.target.value)} 
-              placeholder="Ex: Reserva de Emergência, Viagem..." 
+              placeholder="Ex: Reserva de Emergência, Viagem..."
+              disabled={isSubmitting || isDeleting}
             />
           </div>
 
@@ -78,6 +97,7 @@ export default function GoalFormModal({ initialData, onSave, onClose, onDelete }
                 required 
                 value={formatMask(target)} 
                 onChange={e => setTarget(parseMask(e.target.value))} 
+                disabled={isSubmitting || isDeleting}
               />
             </div>
             <div className="form-group" style={{ flex: 1 }}>
@@ -89,6 +109,7 @@ export default function GoalFormModal({ initialData, onSave, onClose, onDelete }
                 required 
                 value={formatMask(current)} 
                 onChange={e => setCurrent(parseMask(e.target.value))} 
+                disabled={isSubmitting || isDeleting}
               />
             </div>
           </div>
@@ -102,6 +123,7 @@ export default function GoalFormModal({ initialData, onSave, onClose, onDelete }
               value={formatMask(monthlyPrediction)} 
               onChange={e => setMonthlyPrediction(parseMask(e.target.value))} 
               placeholder="R$ 0,00"
+              disabled={isSubmitting || isDeleting}
             />
             <p style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 4 }}>
               Usado para calcular quando você vai atingir essa meta.
@@ -113,14 +135,15 @@ export default function GoalFormModal({ initialData, onSave, onClose, onDelete }
               <button 
                 type="button"
                 className="btn-ghost" 
-                style={{ color: 'var(--red)', background: 'var(--red-light)', flex: 1, padding: '14px' }}
-                onClick={() => onDelete(initialData.id)}
+                style={{ color: 'var(--red)', background: 'var(--red-light)', flex: 1, padding: '14px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+                onClick={handleDelete}
+                disabled={isSubmitting || isDeleting}
               >
-                Excluir
+                {isDeleting ? <div className="btn-spinner" style={{ borderColor: 'var(--red)', borderTopColor: 'transparent' }} /> : 'Excluir'}
               </button>
             )}
-            <button type="submit" className="btn-primary" style={{ flex: 2, padding: '14px' }}>
-              Salvar
+            <button type="submit" className="btn-primary" style={{ flex: 2, padding: '14px', display: 'flex', justifyContent: 'center', alignItems: 'center' }} disabled={isSubmitting || isDeleting}>
+              {isSubmitting ? <div className="btn-spinner" /> : 'Salvar'}
             </button>
           </div>
         </form>

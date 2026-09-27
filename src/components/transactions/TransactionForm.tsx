@@ -150,7 +150,7 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
             installments: s.installments > 1 ? `1/${s.installments}` : undefined
           })) : null;
           
-          await addTransaction({
+          const transactionData = {
             name: name.trim(),
             amount: numAmount,
             category,
@@ -158,7 +158,28 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
             installments: installments || null,
             goalId: goalId || null,
             subTransactions: currentSubs,
-          });
+          };
+          
+          await addTransaction(transactionData);
+
+          // If the goal is shared, we must also write this transaction to the owner's spreadsheet
+          if (goalId && category === 'Investimentos') {
+            const goal = goals.find(g => g.id === goalId);
+            if (goal && goal.isShared && goal.ownerSpreadsheetId) {
+              await fetch('/api/transacoes/shared', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  ownerSpreadsheetId: goal.ownerSpreadsheetId,
+                  // Include the user's name in the transaction so the owner knows who deposited
+                  transaction: {
+                    ...transactionData,
+                    name: `${transactionData.name} (Compartilhado)`
+                  }
+                })
+              });
+            }
+          }
         }
       } else {
         // Receitas

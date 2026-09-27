@@ -21,8 +21,8 @@ export async function GET() {
     const rows = (res.data.values ?? []) as string[][];
     const allTxs = rows.filter(r => r[0]).map(rowToTransaction);
     
-    const macros = allTxs.filter(t => !t.parentId);
-    const subs = allTxs.filter(t => t.parentId);
+    const macros = allTxs.filter(t => !t.parentId || t.parentId === 'SHARED');
+    const subs = allTxs.filter(t => t.parentId && t.parentId !== 'SHARED');
     
     macros.forEach(macro => {
       const children = subs.filter(sub => sub.parentId === macro.id);

@@ -12,3 +12,12 @@ export function getUserSheetsClient(accessToken: string) {
   auth.setCredentials({ access_token: accessToken });
   return google.sheets({ version: 'v4', auth });
 }
+
+export function getUserDriveClient(accessToken: string) {
+  const auth = new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+  );
+  auth.setCredentials({ access_token: accessToken });
+  return google.drive({ version: 'v3', auth });
+}

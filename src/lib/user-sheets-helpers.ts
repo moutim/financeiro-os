@@ -61,8 +61,10 @@ export async function deleteUserRowById(
     range: `${tab}!A:A`,
   });
   const col = (colRes.data.values ?? []) as string[][];
-  const rowIndex = col.findIndex(row => row[0] === id);
-  if (rowIndex < 1) return;
+  const rowIndex = col.findIndex(row => row[0]?.trim() === id.trim());
+  if (rowIndex < 1) {
+    throw new Error(`Row with ID ${id} not found in ${tab}`);
+  }
 
   const metaRes = await sheets.spreadsheets.get({ spreadsheetId });
   const sheetMeta = metaRes.data.sheets?.find(s => s.properties?.title === tab);
@@ -146,8 +148,10 @@ export async function updateUserRowById(
     range: `${tab}!A:A`,
   });
   const col = (colRes.data.values ?? []) as string[][];
-  const rowIndex = col.findIndex(row => row[0] === id);
-  if (rowIndex < 1) return;
+  const rowIndex = col.findIndex(row => row[0]?.trim() === id.trim());
+  if (rowIndex < 1) {
+    throw new Error(`Row with ID ${id} not found in ${tab}`);
+  }
 
   const sheetRow = rowIndex + 1;
   await sheets.spreadsheets.values.update({

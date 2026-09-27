@@ -38,9 +38,9 @@ interface FinanceStore {
   addPending: (pending: Omit<Pending, 'id'>) => Promise<Pending>;
   updatePending: (id: string, updates: Partial<Omit<Pending, 'id'>>) => Promise<void>;
   deletePending: (id: string) => Promise<void>;
-  addGoal: (goal: SavingsGoal) => void;
-  updateGoal: (id: string, updates: Partial<SavingsGoal>) => void;
-  deleteGoal: (id: string) => void;
+  addGoal: (goal: SavingsGoal) => Promise<void>;
+  updateGoal: (id: string, updates: Partial<SavingsGoal>) => Promise<void>;
+  deleteGoal: (id: string) => Promise<void>;
   deleteMonth: (monthKey: string) => Promise<void>;
   
   addCard: (card: Omit<CreditCard, 'id'>) => Promise<CreditCard>;
@@ -275,12 +275,48 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
     }
   },
 
-  // ─── Goals Actions (Local State Only) ──────────────────────────────────────
-  addGoal: (goal) => set((state) => ({ goals: [...state.goals, goal] })),
-  updateGoal: (id, updates) => set((state) => ({
-    goals: state.goals.map((g) => g.id === id ? { ...g, ...updates } : g)
-  })),
-  deleteGoal: (id) => set((state) => ({ goals: state.goals.filter((g) => g.id !== id) })),
+  // ─── Goals Actions ──────────────────────────────────────────────────────────
+  addGoal: async (goal) => {
+    const res = await fetch('/api/metas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(goal),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error ?? 'Erro ao adicionar meta');
+    }
+    const created = await res.json() as SavingsGoal;
+    set((state) => ({ goals: [...state.goals, created] }));
+  },
+
+  updateGoal: async (id, updates) => {
+    set((state) => ({
+      goals: state.goals.map((g) => g.id === id ? { ...g, ...updates } : g)
+    }));
+    const updated = get().goals.find((g) => g.id === id);
+    if (!updated) return;
+    
+    const res = await fetch(`/api/metas`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updated),
+    });
+    if (!res.ok) {
+      await get().loadAll();
+      const err = await res.json();
+      throw new Error(err.error ?? 'Erro ao atualizar meta');
+    }
+  },
+
+  deleteGoal: async (id) => {
+    const res = await fetch(`/api/metas?id=${id}`, { method: 'DELETE' }); 
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error ?? 'Erro ao excluir meta');
+    }
+    set((state) => ({ goals: state.goals.filter((g) => g.id !== id) }));
+  },
 
   // ─── Cards Actions ──────────────────────────────────────────────────────────
   addCard: async (card) => {
@@ -375,7 +411,7 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
   },
 
   getMonthSummary: (monthKey) => {
-    const transactions = get().getMonthTransactions(monthKey);
+    const transactions = get().getMonthTransactions(monthKey).filter(t => t.parentId !== 'SHARED');
     const incomes = get().getMonthIncomes(monthKey);
 
     const income = incomes.reduce((s, i) => s + i.amount, 0);

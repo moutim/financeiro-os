@@ -34,8 +34,8 @@ export const SHEET_HEADERS: Record<SheetTab, string[]> = {
   // ID | Nome | Valor | DueDate | Notes
   [SHEET_TABS.PENDENCIAS]:     ['ID', 'Nome', 'Valor', 'DueDate', 'Notes'],
 
-  // ID | Nome | Atual | Meta | Previsao | Deadline | Notes
-  [SHEET_TABS.METAS]:          ['ID', 'Nome', 'Atual', 'Meta', 'Previsao', 'Deadline', 'Notes'],
+  // ID | Nome | Atual | Meta | Previsao | Deadline | Notes | IsShared | OwnerSpreadsheetId
+  [SHEET_TABS.METAS]:          ['ID', 'Nome', 'Atual', 'Meta', 'Previsao', 'Deadline', 'Notes', 'IsShared', 'OwnerSpreadsheetId'],
 
   // ID | Nome | Limite | Usado | Cor | CorClara | Bandeira | DiaPagamento | DiaFechamento | Notes | FreedMonthKey | LastDigits
   [SHEET_TABS.CARTOES]:        ['ID', 'Nome', 'Limite', 'Usado', 'Cor', 'CorClara', 'Bandeira', 'DiaPagamento', 'DiaFechamento', 'Notes', 'FreedMonthKey', 'LastDigits'],

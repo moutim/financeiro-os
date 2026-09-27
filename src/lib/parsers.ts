@@ -60,7 +60,7 @@ export function pendingToRow(p: Pending): (string | number | null)[] {
 }
 
 // ─── Metas ────────────────────────────────────────────────────────────────────
-// Columns: ID | Nome | Atual | Meta | Previsao | Deadline | Notes
+// Columns: ID | Nome | Atual | Meta | Previsao | Deadline | Notes | IsShared | OwnerSpreadsheetId
 export function rowToGoal(row: string[]): SavingsGoal {
   return {
     id:                row[0] || `g-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -70,11 +70,13 @@ export function rowToGoal(row: string[]): SavingsGoal {
     monthlyPrediction: parseFloat(row[4] ?? '0') || 0,
     deadline:          row[5] || null,
     notes:             row[6] || null,
+    isShared:          String(row[7]).toLowerCase() === 'true',
+    ownerSpreadsheetId: row[8] || null,
   };
 }
 
 export function goalToRow(g: SavingsGoal): (string | number | null)[] {
-  return [g.id, g.name, g.current, g.target, g.monthlyPrediction, g.deadline ?? '', g.notes ?? ''];
+  return [g.id, g.name, g.current, g.target, g.monthlyPrediction, g.deadline ?? '', g.notes ?? '', g.isShared ? 'true' : 'false', g.ownerSpreadsheetId ?? ''];
 }
 
 // ─── Cartões ──────────────────────────────────────────────────────────────────
