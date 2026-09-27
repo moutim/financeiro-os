@@ -18,9 +18,9 @@ export interface CardData {
 
 interface CardFormModalProps {
   initialData?: CardData | null;
-  onSave: (data: CardData) => void;
+  onSave: (data: CardData) => Promise<void> | void;
   onClose: () => void;
-  onDelete?: (id: string) => void;
+  onDelete?: (id: string) => Promise<void> | void;
 }
 
 const BRAND_COLORS: Record<string, { color: string; colorLight: string }> = {
@@ -40,8 +40,11 @@ export default function CardFormModal({ initialData, onSave, onClose, onDelete }
   const [freedMonth, setFreedMonth] = useState(initialData?.freedMonthKey ? initialData.freedMonthKey.split('-')[1] : '');
   const [freedYear, setFreedYear] = useState(initialData?.freedMonthKey ? initialData.freedMonthKey.split('-')[0] : '');
   const [lastDigits, setLastDigits] = useState(initialData?.lastDigits ? initialData.lastDigits.split('-').pop() ?? '' : '');
+  
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Auto color based on name or brand
@@ -68,11 +71,30 @@ export default function CardFormModal({ initialData, onSave, onClose, onDelete }
       lastDigits: finalLastDigits,
     };
     
-    onSave(card);
+    setIsSubmitting(true);
+    try {
+      await onSave(card);
+    } catch (err) {
+      console.error(err);
+      setIsSubmitting(false);
+    }
   };
 
+  const handleDelete = async () => {
+    if (!initialData || !onDelete) return;
+    setIsDeleting(true);
+    try {
+      await onDelete(initialData.id);
+    } catch (err) {
+      console.error(err);
+      setIsDeleting(false);
+    }
+  };
+
+  const isLoading = isSubmitting || isDeleting;
+
   return (
-    <div className="modal-overlay animate-fade-in" onClick={onClose}>
+    <div className="modal-overlay animate-fade-in" onClick={!isLoading ? onClose : undefined}>
       <div 
         className="modal-sheet animate-slide-in-sheet" 
         onClick={e => e.stopPropagation()}
@@ -82,7 +104,7 @@ export default function CardFormModal({ initialData, onSave, onClose, onDelete }
           <h2 style={{ fontSize: 20, fontWeight: 700 }}>
             {initialData ? 'Editar Cartão' : 'Novo Cartão'}
           </h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)' }}>
+          <button onClick={onClose} disabled={isLoading} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', opacity: isLoading ? 0.5 : 1 }}>
             <X size={24} />
           </button>
         </div>
@@ -97,13 +119,14 @@ export default function CardFormModal({ initialData, onSave, onClose, onDelete }
               value={name} 
               onChange={e => setName(e.target.value)} 
               placeholder="Ex: Nubank, Itaú..." 
+              disabled={isLoading}
             />
           </div>
           
           <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
             <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
               <label className="form-label">Bandeira</label>
-              <select className="form-select" value={brand} onChange={e => setBrand(e.target.value)}>
+              <select className="form-select" value={brand} onChange={e => setBrand(e.target.value)} disabled={isLoading}>
                 <option value="Mastercard">Mastercard</option>
                 <option value="Visa">Visa</option>
                 <option value="Elo">Elo</option>
@@ -121,6 +144,7 @@ export default function CardFormModal({ initialData, onSave, onClose, onDelete }
                 maxLength={4}
                 value={lastDigits}
                 onChange={e => setLastDigits(e.target.value.replace(/\D/g, ''))} 
+                disabled={isLoading}
               />
             </div>
           </div>
@@ -135,6 +159,7 @@ export default function CardFormModal({ initialData, onSave, onClose, onDelete }
                 required 
                 value={formatMask(limit)} 
                 onChange={e => setLimit(parseMask(e.target.value))} 
+                disabled={isLoading}
               />
             </div>
             <div className="form-group" style={{ flex: 1 }}>
@@ -146,6 +171,7 @@ export default function CardFormModal({ initialData, onSave, onClose, onDelete }
                 required 
                 value={formatMask(used)} 
                 onChange={e => setUsed(parseMask(e.target.value))} 
+                disabled={isLoading}
               />
             </div>
           </div>
@@ -161,6 +187,7 @@ export default function CardFormModal({ initialData, onSave, onClose, onDelete }
                 style={{ flex: 1 }}
                 value={freedMonth}
                 onChange={e => setFreedMonth(e.target.value)}
+                disabled={isLoading}
               >
                 <option value="">Mês</option>
                 <option value="01">Janeiro</option>
@@ -182,6 +209,7 @@ export default function CardFormModal({ initialData, onSave, onClose, onDelete }
                 style={{ flex: 1 }}
                 value={freedYear}
                 onChange={e => setFreedYear(e.target.value)}
+                disabled={isLoading}
               >
                 <option value="">Ano</option>
                 {Array.from({ length: 10 }).map((_, i) => {
@@ -200,14 +228,17 @@ export default function CardFormModal({ initialData, onSave, onClose, onDelete }
               <button 
                 type="button"
                 className="btn-ghost" 
-                style={{ color: 'var(--red)', background: 'var(--red-light)', flex: 1, padding: '14px' }}
-                onClick={() => onDelete(initialData.id)}
+                style={{ color: 'var(--red)', background: 'var(--red-light)', flex: 1, padding: '14px', opacity: isLoading ? 0.5 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                onClick={handleDelete}
+                disabled={isLoading}
               >
-                Excluir
+                {isDeleting && <div className="btn-spinner" style={{ borderColor: 'rgba(255,59,48,0.3)', borderTopColor: 'var(--red)' }} />}
+                {isDeleting ? 'Excluindo...' : 'Excluir'}
               </button>
             )}
-            <button type="submit" className="btn-primary" style={{ flex: 2, padding: '14px' }}>
-              Salvar
+            <button type="submit" className="btn-primary" disabled={isLoading} style={{ flex: 2, padding: '14px', opacity: isLoading ? 0.5 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              {isSubmitting && <div className="btn-spinner" />}
+              {isSubmitting ? 'Salvando...' : 'Salvar'}
             </button>
           </div>
         </form>

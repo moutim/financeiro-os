@@ -319,26 +319,38 @@ export default function DashboardPage() {
               <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12, color: 'var(--text-secondary)' }}>
                 Resumo do Mês
               </h2>
-              {[
-                { label: 'Compras',      value: summary.totalPurchases,   Icon: CATEGORY_CONFIG['Compras'].icon, color: 'var(--blue)'   },
-                { label: 'Fixos',        value: summary.totalFixed,       Icon: CATEGORY_CONFIG['Fixos'].icon, color: 'var(--orange)' },
-                { label: 'Comida',       value: summary.totalFood,        Icon: CATEGORY_CONFIG['Comida'].icon, color: 'var(--red)'    },
-                { label: 'Investimentos', value: summary.totalInvestments, Icon: CATEGORY_CONFIG['Investimentos'].icon, color: 'var(--green)'  },
-              ].map(({ label, value, Icon, color }) => (
-                <div key={label} style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '8px 0',
-                  borderBottom: '1px solid var(--separator)',
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ display: 'flex', alignItems: 'center', color }}><Icon size={18} /></span>
-                    <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{label}</span>
-                  </div>
-                  <span style={{ fontWeight: 700, fontSize: 14, color }}>{formatCurrency(value)}</span>
-                </div>
-              ))}
+              {(() => {
+                const activeCategories = Object.keys(CATEGORY_CONFIG).map((catKey) => {
+                  const config = CATEGORY_CONFIG[catKey];
+                  const value = allTransactions
+                    .filter(t => t.category === catKey)
+                    .reduce((acc, t) => acc + t.amount, 0);
+                  return { key: catKey, config, value };
+                }).filter(cat => cat.value > 0);
+
+                if (activeCategories.length === 0) {
+                  return <p style={{ fontSize: 14, color: 'var(--text-tertiary)' }}>Nenhum gasto registrado neste mês.</p>;
+                }
+
+                return activeCategories.map((cat, index) => {
+                  const isLast = index === activeCategories.length - 1;
+                  return (
+                    <div key={cat.key} style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '8px 0',
+                      borderBottom: isLast ? 'none' : '1px solid var(--separator)',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ display: 'flex', alignItems: 'center', color: cat.config.color }}><cat.config.icon size={18} /></span>
+                        <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{cat.config.label}</span>
+                      </div>
+                      <span style={{ fontWeight: 700, fontSize: 14, color: cat.config.color }}>{formatCurrency(cat.value)}</span>
+                    </div>
+                  );
+                });
+              })()}
             </GlassCard>
           </div>
         </div>

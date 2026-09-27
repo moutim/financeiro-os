@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useFinanceStore } from '@/lib/store';
 import type { Pending } from '@/lib/types';
+import { formatMask, parseMask } from '@/lib/currency';
 
 interface PendingEditModalProps {
   pending?: Pending | null;
@@ -11,22 +12,28 @@ interface PendingEditModalProps {
 export default function PendingEditModal({ pending, onClose }: PendingEditModalProps) {
   const { addPending, updatePending } = useFinanceStore();
   const [name, setName] = useState(pending?.name ?? '');
-  const [amount, setAmount] = useState(pending ? String(pending.amount) : '');
+  
+  const [type, setType] = useState<'payable' | 'receivable'>(
+    pending ? (pending.amount >= 0 ? 'receivable' : 'payable') : 'payable'
+  );
+  const [rawAmount, setRawAmount] = useState(pending ? String(Math.round(Math.abs(pending.amount) * 100)) : '');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !amount) return;
+    if (!name.trim()) return;
     
-    const numAmount = parseFloat(amount.replace(',', '.'));
-    if (isNaN(numAmount)) return;
+    const baseAmount = parseInt(rawAmount || '0', 10) / 100;
+    if (isNaN(baseAmount) || baseAmount === 0) return;
+
+    const numAmount = type === 'payable' ? -baseAmount : baseAmount;
 
     setIsSubmitting(true);
     try {
       if (pending) {
-        await updatePending(pending.id, { name, amount: numAmount });
+        await updatePending(pending.id, { name: name.trim(), amount: numAmount });
       } else {
-        await addPending({ name, amount: numAmount });
+        await addPending({ name: name.trim(), amount: numAmount });
       }
       onClose();
     } catch (err) {
@@ -50,8 +57,51 @@ export default function PendingEditModal({ pending, onClose }: PendingEditModalP
           {isEditing ? 'Editar Pendência' : 'Nova Pendência'}
         </h2>
         <p style={{ fontSize: 14, color: 'var(--text-tertiary)', marginBottom: 20 }}>
-          Valores positivos (ex: 1500) para recebimentos.<br/>Valores negativos (ex: -1500) para pagamentos.
+          Controle o que você tem a receber ou a pagar.
         </p>
+
+        <div style={{ display: 'flex', background: 'var(--bg-2)', padding: 4, borderRadius: 8, marginBottom: 16 }}>
+          <button
+            type="button"
+            onClick={() => setType('payable')}
+            disabled={isSubmitting}
+            style={{
+              flex: 1,
+              padding: '6px 0',
+              border: 'none',
+              background: type === 'payable' ? 'var(--surface)' : 'transparent',
+              borderRadius: 6,
+              fontWeight: type === 'payable' ? 600 : 500,
+              color: type === 'payable' ? 'var(--text-primary)' : 'var(--text-tertiary)',
+              boxShadow: type === 'payable' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              opacity: isSubmitting ? 0.5 : 1
+            }}
+          >
+            A Pagar
+          </button>
+          <button
+            type="button"
+            onClick={() => setType('receivable')}
+            disabled={isSubmitting}
+            style={{
+              flex: 1,
+              padding: '6px 0',
+              border: 'none',
+              background: type === 'receivable' ? 'var(--surface)' : 'transparent',
+              borderRadius: 6,
+              fontWeight: type === 'receivable' ? 600 : 500,
+              color: type === 'receivable' ? 'var(--text-primary)' : 'var(--text-tertiary)',
+              boxShadow: type === 'receivable' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              opacity: isSubmitting ? 0.5 : 1
+            }}
+          >
+            A Receber
+          </button>
+        </div>
 
         <form onSubmit={handleSubmit}>
           <div className="form-group" style={{ marginBottom: 16 }}>
@@ -63,6 +113,7 @@ export default function PendingEditModal({ pending, onClose }: PendingEditModalP
               value={name}
               onChange={(e) => setName(e.target.value)}
               autoFocus={!isEditing}
+              required
             />
           </div>
 
@@ -71,11 +122,12 @@ export default function PendingEditModal({ pending, onClose }: PendingEditModalP
             <input
               className="form-input"
               type="text"
-              inputMode="decimal"
-              placeholder="Ex: 1500 ou -1500"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              autoFocus={isEditing}
+              inputMode="numeric"
+              placeholder="R$ 0,00"
+              value={formatMask(rawAmount)}
+              onChange={(e) => setRawAmount(parseMask(e.target.value))}
+              disabled={isSubmitting}
+              required
             />
           </div>
 
