@@ -18,7 +18,7 @@ export function rowToTransaction(row: string[]): Transaction {
     goalId:       row[7] || null,
     cardId:       row[8] || null,
     parentId:     row[9] || null,
-    isPaid:       row[10] === 'true',
+    isPaid:       String(row[10]).toLowerCase() === 'true',
   };
 }
 
@@ -37,7 +37,7 @@ export function rowToIncome(row: string[]): Income {
     isRecurring: String(row[4]).toLowerCase() === 'true',
     parentId:    row[5] || null,
     installments: row[6] || null,
-    isPaid:      row[7] === 'true',
+    isPaid:       String(row[7]).toLowerCase() === 'true',
   };
 }
 
@@ -112,7 +112,7 @@ export function rowToCardStatement(row: string[]): CardStatement {
     cardId:   row[1] ?? '',
     monthKey: row[2] ?? '',
     amount:   parseFloat(row[3] ?? '0') || 0,
-    isPaid:   row[4] === 'true',
+    isPaid:   String(row[4]).toLowerCase() === 'true',
     paidAt:   row[5] || null,
   };
 }
