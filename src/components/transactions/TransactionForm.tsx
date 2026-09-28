@@ -255,7 +255,6 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
             </p>
           </div>
         </div>
-        </div>
 
         <div style={{ display: 'flex', background: 'var(--bg-2)', padding: 4, borderRadius: 8, marginBottom: 16 }}>
           <button
