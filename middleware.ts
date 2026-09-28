@@ -1,12 +1,22 @@
-import { auth } from '@/lib/auth';
+import NextAuth from 'next-auth';
+import { authConfig } from '@/lib/auth.config';
 import { NextResponse } from 'next/server';
+
+const { auth } = NextAuth(authConfig);
 
 export default auth((req) => {
   const isLoggedIn = !!req.auth;
   const { pathname } = req.nextUrl;
 
-  // Rotas públicas — nunca redirecionar
+  // Rotas públicas
   const isPublic = pathname.startsWith('/login') || pathname.startsWith('/api/auth');
+
+  // Se já estiver logado e tentar acessar /login, manda pro dashboard
+  if (isLoggedIn && pathname === '/login') {
+    return NextResponse.redirect(new URL('/dashboard', req.nextUrl.origin));
+  }
+
+  // Deixa passar se for rota pública
   if (isPublic) return NextResponse.next();
 
   // Sem sessão → manda para login

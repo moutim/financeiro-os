@@ -111,8 +111,11 @@ async function refreshAccessToken(refreshToken: string) {
   };
 }
 
+import { authConfig } from './auth.config';
+
 // ─── NextAuth config ──────────────────────────────────────────────────────────
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  ...authConfig,
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
