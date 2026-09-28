@@ -6,6 +6,7 @@ import type { Category } from '@/lib/types';
 import { useFinanceStore } from '@/lib/store';
 import { CATEGORY_CONFIG } from '@/lib/categories';
 import { monthKeyToLabel, formatMask, parseMask } from '@/lib/currency';
+import { useSwipeToClose } from '@/hooks/useSwipeToClose';
 
 const CATEGORIES = Object.keys(CATEGORY_CONFIG) as Category[];
 
@@ -25,6 +26,8 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
   const [goalId, setGoalId] = useState('');
   const [subTransactions, setSubTransactions] = useState<{name: string, rawAmount: string, installments: string}[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const swipeToClose = useSwipeToClose(onClose);
 
   const hasSubTxs = subTransactions.length > 0;
   const totalSubAmount = subTransactions.reduce((acc, sub) => {
@@ -239,15 +242,19 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
       <div
         className="modal-sheet animate-slide-in-sheet"
         onClick={(e) => e.stopPropagation()}
+        style={swipeToClose.style}
       >
-        <div className="modal-handle" />
-        <div style={{ marginBottom: 16 }}>
-          <h2 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.015em' }}>
-            {type === 'expense' ? 'Nova Saída' : 'Nova Entrada'}
-          </h2>
-          <p style={{ fontSize: 14, color: 'var(--text-tertiary)', marginTop: 2 }}>
-            {type === 'expense' ? 'Adicione um novo gasto ou investimento' : incomeType === 'salary' ? 'Salário ou renda fixa mensal' : 'Dividendos, freelance ou renda extra'}
-          </p>
+        <div {...swipeToClose.handlers} style={{ paddingBottom: 16 }}>
+          <div className="modal-handle" />
+          <div>
+            <h2 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.015em' }}>
+              {type === 'expense' ? 'Nova Saída' : 'Nova Entrada'}
+            </h2>
+            <p style={{ fontSize: 14, color: 'var(--text-tertiary)', marginTop: 2 }}>
+              {type === 'expense' ? 'Adicione um novo gasto ou investimento' : incomeType === 'salary' ? 'Salário ou renda fixa mensal' : 'Dividendos, freelance ou renda extra'}
+            </p>
+          </div>
+        </div>
         </div>
 
         <div style={{ display: 'flex', background: 'var(--bg-2)', padding: 4, borderRadius: 8, marginBottom: 16 }}>
@@ -303,7 +310,6 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
               value={name}
               onChange={(e) => setName(e.target.value)}
               disabled={isSubmitting}
-              autoFocus
               required
             />
           </div>
@@ -371,7 +377,7 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
                     <input
                       className="form-input"
                       style={{ flex: 1, padding: '8px 12px', fontSize: 13 }}
-                      placeholder="Valor da parcela"
+                      placeholder="Valor"
                       inputMode="numeric"
                       value={formatMask(sub.rawAmount)}
                       onChange={(e) => {

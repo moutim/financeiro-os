@@ -4,6 +4,7 @@ import { Trash2 } from 'lucide-react';
 import { useFinanceStore } from '@/lib/store';
 import type { Income } from '@/lib/types';
 import { formatMask, parseMask } from '@/lib/currency';
+import { useSwipeToClose } from '@/hooks/useSwipeToClose';
 
 interface IncomeEditModalProps {
   income: Income;
@@ -20,6 +21,7 @@ export default function IncomeEditModal({ income, onClose }: IncomeEditModalProp
       : []
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const swipeToClose = useSwipeToClose(onClose);
 
   const hasSubTxs = subTransactions.length > 0;
   const totalSubAmount = subTransactions.reduce((acc, sub) => acc + (parseInt(sub.rawAmount || '0', 10) / 100), 0);
@@ -58,13 +60,15 @@ export default function IncomeEditModal({ income, onClose }: IncomeEditModalProp
       <div
         className="modal-sheet animate-slide-in-sheet"
         onClick={(e) => e.stopPropagation()}
-        style={{ padding: '32px 24px', maxWidth: 400, width: '90%', margin: 'auto', borderRadius: 24, marginTop: '20vh' }}
+        style={{ ...swipeToClose.style, padding: '32px 24px', maxWidth: 400, width: '90%', margin: 'auto', borderRadius: 24, marginTop: '20vh' }}
       >
-        <div className="modal-handle" />
-        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Editar Recebimento</h2>
-        <p style={{ fontSize: 14, color: 'var(--text-tertiary)', marginBottom: 20 }}>
-          Atualize o nome ou o valor recebido.
-        </p>
+        <div {...swipeToClose.handlers} style={{ paddingBottom: 16 }}>
+          <div className="modal-handle" />
+          <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Editar Recebimento</h2>
+          <p style={{ fontSize: 14, color: 'var(--text-tertiary)', marginBottom: 0 }}>
+            Atualize o nome ou o valor recebido.
+          </p>
+        </div>
 
         <form onSubmit={handleSubmit}>
           <div className="form-group" style={{ marginBottom: 16 }}>
@@ -133,7 +137,7 @@ export default function IncomeEditModal({ income, onClose }: IncomeEditModalProp
                     <input
                       className="form-input"
                       style={{ flex: 1, padding: '8px 12px', fontSize: 13 }}
-                      placeholder="Valor da parcela"
+                      placeholder="Valor"
                       inputMode="numeric"
                       value={formatMask(sub.rawAmount)}
                       onChange={(e) => {

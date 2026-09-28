@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useFinanceStore } from '@/lib/store';
 import type { Pending } from '@/lib/types';
 import { formatMask, parseMask } from '@/lib/currency';
+import { useSwipeToClose } from '@/hooks/useSwipeToClose';
 
 interface PendingEditModalProps {
   pending?: Pending | null;
@@ -44,21 +45,24 @@ export default function PendingEditModal({ pending, onClose }: PendingEditModalP
   };
 
   const isEditing = !!pending;
+  const swipeToClose = useSwipeToClose(onClose);
 
   return (
     <div className="modal-overlay animate-fade-in" onClick={!isSubmitting ? onClose : undefined}>
       <div
         className="modal-sheet animate-slide-in-sheet"
         onClick={(e) => e.stopPropagation()}
-        style={{ padding: '32px 24px', maxWidth: 400, width: '90%', margin: 'auto', borderRadius: 24, marginTop: '20vh' }}
+        style={{ ...swipeToClose.style, padding: '32px 24px', maxWidth: 400, width: '90%', margin: 'auto', borderRadius: 24, marginTop: '20vh' }}
       >
-        <div className="modal-handle" />
-        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>
-          {isEditing ? 'Editar Pendência' : 'Nova Pendência'}
-        </h2>
-        <p style={{ fontSize: 14, color: 'var(--text-tertiary)', marginBottom: 20 }}>
-          Controle o que você tem a receber ou a pagar.
-        </p>
+        <div {...swipeToClose.handlers} style={{ paddingBottom: 16 }}>
+          <div className="modal-handle" />
+          <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>
+            {isEditing ? 'Editar Pendência' : 'Nova Pendência'}
+          </h2>
+          <p style={{ fontSize: 14, color: 'var(--text-tertiary)', marginBottom: 0 }}>
+            Controle o que você tem a receber ou a pagar.
+          </p>
+        </div>
 
         <div style={{ display: 'flex', background: 'var(--bg-2)', padding: 4, borderRadius: 8, marginBottom: 16 }}>
           <button
@@ -112,7 +116,6 @@ export default function PendingEditModal({ pending, onClose }: PendingEditModalP
               placeholder="Ex: Empréstimo João"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              autoFocus={!isEditing}
               required
             />
           </div>

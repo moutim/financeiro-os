@@ -5,6 +5,7 @@ import { useFinanceStore } from '@/lib/store';
 import type { Category, Transaction } from '@/lib/types';
 import { CATEGORY_CONFIG } from '@/lib/categories';
 import { formatMask, parseMask } from '@/lib/currency';
+import { useSwipeToClose } from '@/hooks/useSwipeToClose';
 
 const CATEGORIES = Object.keys(CATEGORY_CONFIG) as Category[];
 
@@ -24,6 +25,7 @@ export default function TransactionEditModal({ transaction, onClose }: Transacti
       : []
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const swipeToClose = useSwipeToClose(onClose);
 
   const hasSubTxs = subTransactions.length > 0;
   const totalSubAmount = subTransactions.reduce((acc, sub) => acc + (parseInt(sub.rawAmount || '0', 10) / 100), 0);
@@ -63,13 +65,15 @@ export default function TransactionEditModal({ transaction, onClose }: Transacti
       <div
         className="modal-sheet animate-slide-in-sheet"
         onClick={(e) => e.stopPropagation()}
-        style={{ padding: '32px 24px', maxWidth: 400, width: '90%', margin: 'auto', borderRadius: 24, marginTop: '15vh' }}
+        style={{ ...swipeToClose.style, padding: '32px 24px', maxWidth: 400, width: '90%', margin: 'auto', borderRadius: 24, marginTop: '15vh' }}
       >
-        <div className="modal-handle" />
-        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Editar Transação</h2>
-        <p style={{ fontSize: 14, color: 'var(--text-tertiary)', marginBottom: 20 }}>
-          Atualize os dados desta saída.
-        </p>
+        <div {...swipeToClose.handlers} style={{ paddingBottom: 16 }}>
+          <div className="modal-handle" />
+          <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Editar Transação</h2>
+          <p style={{ fontSize: 14, color: 'var(--text-tertiary)', marginBottom: 0 }}>
+            Atualize os dados desta saída.
+          </p>
+        </div>
 
         <form onSubmit={handleSubmit}>
           <div className="form-group" style={{ marginBottom: 16 }}>
@@ -137,7 +141,7 @@ export default function TransactionEditModal({ transaction, onClose }: Transacti
                     <input
                       className="form-input"
                       style={{ flex: 1, padding: '8px 12px', fontSize: 13 }}
-                      placeholder="Valor da parcela"
+                      placeholder="Valor"
                       inputMode="numeric"
                       value={formatMask(sub.rawAmount)}
                       onChange={(e) => {
