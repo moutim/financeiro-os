@@ -128,9 +128,6 @@ export default function CartoesPage() {
               Meus Cartões
             </h1>
           </div>
-          <button className="btn-primary" onClick={openNewCard} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Plus size={18} /> Adicionar Cartão
-          </button>
         </div>
 
         {/* Global Summary */}
@@ -286,6 +283,11 @@ export default function CartoesPage() {
         </GlassCard>
 
       </main>
+
+      {/* FAB - Estilo Padrão do Sistema */}
+      <button className="fab" onClick={openNewCard} aria-label="Novo Cartão">
+        <Plus size={24} strokeWidth={2.5} />
+      </button>
 
       {isModalOpen && (
         <CardFormModal 

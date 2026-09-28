@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useFinanceStore } from '@/lib/store';
 import { monthKeyToLabel, formatMask, parseMask } from '@/lib/currency';
 import { Trash2 } from 'lucide-react';
+import { useSwipeToClose } from '@/hooks/useSwipeToClose';
 
 interface StartMonthWizardProps {
   onClose: () => void;
@@ -28,6 +29,7 @@ export default function StartMonthWizard({ onClose, targetMonth }: StartMonthWiz
   const [incomes, setIncomes] = useState<{ id: string; name: string; amount: string; isRecurring?: boolean }[]>([]);
   const [expenses, setExpenses] = useState<{ id: string; name: string; amount: string }[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const swipeToClose = useSwipeToClose(onClose);
 
   useEffect(() => {
     // Receitas extras (não recorrentes) do mês anterior
@@ -95,16 +97,18 @@ export default function StartMonthWizard({ onClose, targetMonth }: StartMonthWiz
       <div
         className="modal-sheet animate-slide-in-sheet"
         onClick={(e) => e.stopPropagation()}
-        style={{ maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
+        style={{ ...swipeToClose.style, maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
       >
-        <div className="modal-handle" />
-        <div style={{ marginBottom: 16, flexShrink: 0 }}>
-          <h2 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.015em' }}>
-            Iniciar Mês
-          </h2>
-          <p style={{ fontSize: 14, color: 'var(--text-tertiary)', marginTop: 2 }}>
-            Copie suas entradas e despesas fixas de <strong>{monthKeyToLabel(prevMonth)}</strong> para <strong>{monthKeyToLabel(targetMonth)}</strong>. Ajuste os valores se necessário.
-          </p>
+        <div {...swipeToClose.handlers} style={{ paddingBottom: 16, touchAction: 'none' }}>
+          <div className="modal-handle" />
+          <div style={{ flexShrink: 0 }}>
+            <h2 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.015em' }}>
+              Iniciar Mês
+            </h2>
+            <p style={{ fontSize: 14, color: 'var(--text-tertiary)', marginTop: 2 }}>
+              Copie suas entradas e despesas fixas de <strong>{monthKeyToLabel(prevMonth)}</strong> para <strong>{monthKeyToLabel(targetMonth)}</strong>. Ajuste os valores se necessário.
+            </p>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} style={{ overflowY: 'auto', flex: 1, paddingRight: 4 }}>

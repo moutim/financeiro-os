@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Inbox, Trash2, Pencil } from 'lucide-react';
+import { Inbox, Trash2, Pencil, Check } from 'lucide-react';
 
 import type { Transaction, Category } from '@/lib/types';
 import { getCategoryConfig } from '@/lib/categories';
@@ -34,15 +34,32 @@ export default function TransactionList({ transactions, showDelete = true }: Tra
     );
   }
 
+  const sortedTransactions = [...transactions].sort((a, b) => {
+    if (a.category === 'Fixos' && b.category !== 'Fixos') return -1;
+    if (a.category !== 'Fixos' && b.category === 'Fixos') return 1;
+    if (a.category < b.category) return -1;
+    if (a.category > b.category) return 1;
+    return 0;
+  });
+
   return (
     <div>
-      {transactions.map((tx, i) => {
+      {sortedTransactions.map((tx, i) => {
         const cfg = getCategoryConfig(tx.category);
         return (
           <div
             key={tx.id}
             className="transaction-item animate-fade-in-up"
-            style={{ animationDelay: `${i * 40}ms`, opacity: 0, padding: '8px 0', alignItems: 'center' }}
+            style={{ 
+              animationDelay: `${i * 40}ms`, 
+              opacity: 0, 
+              padding: tx.isPaid ? '8px 12px' : '8px 0', 
+              margin: tx.isPaid ? '4px -12px' : '0',
+              borderRadius: tx.isPaid ? 8 : 0,
+              background: tx.isPaid ? 'var(--green-light)' : 'transparent',
+              alignItems: 'center', 
+              filter: tx.isPaid ? 'opacity(0.7)' : 'none' 
+            }}
           >
             <div
               className="transaction-icon"
@@ -96,6 +113,9 @@ export default function TransactionList({ transactions, showDelete = true }: Tra
                           }}>
                             {inst}
                           </span>
+                        )}
+                        {tx.isPaid && (
+                          <Check size={14} color="var(--green)" style={{ marginLeft: 4, flexShrink: 0 }} />
                         )}
                       </>
                     );

@@ -52,9 +52,9 @@ export default function PendingEditModal({ pending, onClose }: PendingEditModalP
       <div
         className="modal-sheet animate-slide-in-sheet"
         onClick={(e) => e.stopPropagation()}
-        style={{ ...swipeToClose.style, padding: '32px 24px', maxWidth: 400, width: '90%', margin: 'auto', borderRadius: 24, marginTop: '20vh' }}
+        style={swipeToClose.style}
       >
-        <div {...swipeToClose.handlers} style={{ paddingBottom: 16 }}>
+        <div {...swipeToClose.handlers} style={{ paddingBottom: 16, touchAction: 'none' }}>
           <div className="modal-handle" />
           <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>
             {isEditing ? 'Editar Pendência' : 'Nova Pendência'}

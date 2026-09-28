@@ -26,6 +26,7 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
   const [goalId, setGoalId] = useState('');
   const [subTransactions, setSubTransactions] = useState<{name: string, rawAmount: string, installments: string}[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPaid, setIsPaid] = useState(false);
 
   const swipeToClose = useSwipeToClose(onClose);
 
@@ -119,6 +120,7 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
               installments: maxMonths > 1 && !hasValidSubTxs ? `${i + 1}/${maxMonths}` : null,
               goalId: goalId || null,
               subTransactions: currentSubs,
+              isPaid: i === 0 ? isPaid : false,
             }));
 
             if (i > 0) {
@@ -161,6 +163,7 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
             installments: installments || null,
             goalId: goalId || null,
             subTransactions: currentSubs,
+            isPaid,
           };
           
           await addTransaction(transactionData);
@@ -207,7 +210,8 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
                 amount: currentParentAmount,
                 monthKey: nextMonthKey,
                 isRecurring: incomeType === 'salary',
-                subTransactions: subsForMonth
+                subTransactions: subsForMonth,
+                isPaid: i === 0 ? isPaid : false,
               }));
             }
           }
@@ -225,6 +229,7 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
             monthKey,
             isRecurring: incomeType === 'salary',
             subTransactions: currentSubs,
+            isPaid,
           });
         }
       }
@@ -244,7 +249,7 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
         onClick={(e) => e.stopPropagation()}
         style={swipeToClose.style}
       >
-        <div {...swipeToClose.handlers} style={{ paddingBottom: 16 }}>
+        <div {...swipeToClose.handlers} style={{ paddingBottom: 16, touchAction: 'none' }}>
           <div className="modal-handle" />
           <div>
             <h2 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.015em' }}>
@@ -512,6 +517,40 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
               />
             </div>
           )}
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'var(--bg-2)', borderRadius: 12, marginBottom: 16 }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>{type === 'expense' ? 'Marcar como pago' : 'Marcar como recebido'}</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsPaid(!isPaid)}
+              style={{
+                width: 44,
+                height: 24,
+                borderRadius: 12,
+                background: isPaid ? 'var(--green)' : 'var(--text-quaternary)',
+                border: 'none',
+                position: 'relative',
+                cursor: 'pointer',
+                transition: 'background 0.2s ease',
+                opacity: isSubmitting ? 0.5 : 1
+              }}
+              disabled={isSubmitting}
+            >
+              <div style={{
+                width: 20,
+                height: 20,
+                borderRadius: '50%',
+                background: '#fff',
+                position: 'absolute',
+                top: 2,
+                left: isPaid ? 22 : 2,
+                transition: 'left 0.2s ease',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+              }} />
+            </button>
+          </div>
 
           <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
             <button

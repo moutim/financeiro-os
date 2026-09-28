@@ -18,11 +18,12 @@ export function rowToTransaction(row: string[]): Transaction {
     goalId:       row[7] || null,
     cardId:       row[8] || null,
     parentId:     row[9] || null,
+    isPaid:       row[10] === 'true',
   };
 }
 
 export function transactionToRow(t: Transaction): (string | number | null)[] {
-  return [t.id, t.name, t.amount, t.category, t.monthKey, t.installments ?? '', t.date ?? '', t.goalId ?? '', t.cardId ?? '', t.parentId ?? ''];
+  return [t.id, t.name, t.amount, t.category, t.monthKey, t.installments ?? '', t.date ?? '', t.goalId ?? '', t.cardId ?? '', t.parentId ?? '', t.isPaid ? 'true' : 'false'];
 }
 
 // ─── Receitas ─────────────────────────────────────────────────────────────────
@@ -36,11 +37,12 @@ export function rowToIncome(row: string[]): Income {
     isRecurring: String(row[4]).toLowerCase() === 'true',
     parentId:    row[5] || null,
     installments: row[6] || null,
+    isPaid:      row[7] === 'true',
   };
 }
 
 export function incomeToRow(i: Income): (string | number | null)[] {
-  return [i.id, i.name, i.amount, i.monthKey, i.isRecurring ? 'true' : 'false', i.parentId ?? '', i.installments ?? ''];
+  return [i.id, i.name, i.amount, i.monthKey, i.isRecurring ? 'true' : 'false', i.parentId ?? '', i.installments ?? '', i.isPaid ? 'true' : 'false'];
 }
 
 // ─── Pendencias ───────────────────────────────────────────────────────────────

@@ -14,6 +14,7 @@ export interface SubTransaction {
   name: string;
   amount: number;
   installments?: string | null;
+  isPaid?: boolean;
 }
 
 export interface Transaction {
@@ -28,6 +29,7 @@ export interface Transaction {
   cardId?: string | null; // vínculo opcional com um cartão
   parentId?: string | null; // ID da transação macro
   subTransactions?: SubTransaction[] | null;
+  isPaid?: boolean;
 }
 
 export interface MonthSummary {
@@ -51,6 +53,7 @@ export interface Income {
   parentId?: string | null;
   installments?: string | null; // For sub-transactions or even regular incomes spread over months
   subTransactions?: SubTransaction[] | null;
+  isPaid?: boolean;
 }
 
 export interface Pending {

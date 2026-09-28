@@ -6,14 +6,12 @@ import { useState } from 'react';
 import Sidebar from '@/components/layout/Sidebar';
 import GlassCard from '@/components/ui/GlassCard';
 import MonthSelector from '@/components/transactions/MonthSelector';
-import TransactionForm from '@/components/transactions/TransactionForm';
 import { useFinanceStore } from '@/lib/store';
 import { monthKeyToLabel, formatCurrency } from '@/lib/currency';
 import { CATEGORY_CONFIG, getCategoryConfig } from '@/lib/categories';
 import type { Category } from '@/lib/types';
 
 export default function CategoriasPage() {
-  const [showForm, setShowForm] = useState(false);
   const { selectedMonth, getMonthTransactions, setSelectedMonth, availableMonths } = useFinanceStore();
   const transactions = getMonthTransactions(selectedMonth);
 
@@ -171,9 +169,6 @@ export default function CategoriasPage() {
           </GlassCard>
         )}
       </main>
-
-      <button className="fab" onClick={() => setShowForm(true)} aria-label="Nova transação">+</button>
-      {showForm && <TransactionForm onClose={() => setShowForm(false)} />}
     </>
   );
 }

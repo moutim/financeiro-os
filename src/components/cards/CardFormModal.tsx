@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { X } from 'lucide-react';
 import { formatMask, parseMask } from '@/lib/currency';
+import { useSwipeToClose } from '@/hooks/useSwipeToClose';
 
 export interface CardData {
   id: string;
@@ -43,6 +43,7 @@ export default function CardFormModal({ initialData, onSave, onClose, onDelete }
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const swipeToClose = useSwipeToClose(onClose);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,15 +99,13 @@ export default function CardFormModal({ initialData, onSave, onClose, onDelete }
       <div 
         className="modal-sheet animate-slide-in-sheet" 
         onClick={e => e.stopPropagation()}
-        style={{ padding: 24, maxWidth: 400, width: '100%', borderRadius: 24 }}
+        style={swipeToClose.style}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div {...swipeToClose.handlers} style={{ paddingBottom: 16, touchAction: 'none' }}>
+          <div className="modal-handle" />
           <h2 style={{ fontSize: 20, fontWeight: 700 }}>
             {initialData ? 'Editar Cartão' : 'Novo Cartão'}
           </h2>
-          <button onClick={onClose} disabled={isLoading} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', opacity: isLoading ? 0.5 : 1 }}>
-            <X size={24} />
-          </button>
         </div>
 
         <form onSubmit={handleSubmit}>

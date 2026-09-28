@@ -941,3 +941,18 @@ body {
   border-bottom-right-radius: inherit;
   z-index: 10;
 }
+
+/* ─── PWA Standalone adjustments ──────────────────────────────────────────── */
+@media (max-width: 768px) and (display-mode: standalone) {
+  .mobile-nav {
+    /* No modo aplicativo (PWA), a "safe area" é o espaço físico da tela. 
+       Para deixar mais colado, ignoramos a safe area e fixamos em pixels */
+    bottom: 12px;
+  }
+  .fab {
+    bottom: 100px;
+  }
+  .main-content {
+    padding-bottom: 112px;
+  }
+}

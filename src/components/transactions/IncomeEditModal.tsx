@@ -5,6 +5,7 @@ import { useFinanceStore } from '@/lib/store';
 import type { Income } from '@/lib/types';
 import { formatMask, parseMask } from '@/lib/currency';
 import { useSwipeToClose } from '@/hooks/useSwipeToClose';
+import { triggerSuccessConfetti } from '@/lib/confetti';
 
 interface IncomeEditModalProps {
   income: Income;
@@ -21,6 +22,7 @@ export default function IncomeEditModal({ income, onClose }: IncomeEditModalProp
       : []
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPaid, setIsPaid] = useState(income.isPaid || false);
   const swipeToClose = useSwipeToClose(onClose);
 
   const hasSubTxs = subTransactions.length > 0;
@@ -45,8 +47,14 @@ export default function IncomeEditModal({ income, onClose }: IncomeEditModalProp
       await updateIncome(income.id, { 
         name: name.trim(), 
         amount: numAmount,
-        subTransactions: finalSubTransactions
+        subTransactions: finalSubTransactions,
+        isPaid
       });
+      
+      if (isPaid && !income.isPaid) {
+        triggerSuccessConfetti();
+      }
+
       onClose();
     } catch (err) {
       console.error(err);
@@ -60,9 +68,9 @@ export default function IncomeEditModal({ income, onClose }: IncomeEditModalProp
       <div
         className="modal-sheet animate-slide-in-sheet"
         onClick={(e) => e.stopPropagation()}
-        style={{ ...swipeToClose.style, padding: '32px 24px', maxWidth: 400, width: '90%', margin: 'auto', borderRadius: 24, marginTop: '20vh' }}
+        style={swipeToClose.style}
       >
-        <div {...swipeToClose.handlers} style={{ paddingBottom: 16 }}>
+        <div {...swipeToClose.handlers} style={{ paddingBottom: 16, touchAction: 'none' }}>
           <div className="modal-handle" />
           <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Editar Recebimento</h2>
           <p style={{ fontSize: 14, color: 'var(--text-tertiary)', marginBottom: 0 }}>
@@ -158,6 +166,40 @@ export default function IncomeEditModal({ income, onClose }: IncomeEditModalProp
                 ))}
               </div>
             )}
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'var(--bg-2)', borderRadius: 12, marginBottom: 16 }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>Marcar como recebido</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsPaid(!isPaid)}
+              style={{
+                width: 44,
+                height: 24,
+                borderRadius: 12,
+                background: isPaid ? 'var(--green)' : 'var(--text-quaternary)',
+                border: 'none',
+                position: 'relative',
+                cursor: 'pointer',
+                transition: 'background 0.2s ease',
+                opacity: isSubmitting ? 0.5 : 1
+              }}
+              disabled={isSubmitting}
+            >
+              <div style={{
+                width: 20,
+                height: 20,
+                borderRadius: '50%',
+                background: '#fff',
+                position: 'absolute',
+                top: 2,
+                left: isPaid ? 22 : 2,
+                transition: 'left 0.2s ease',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+              }} />
+            </button>
           </div>
 
           <div style={{ display: 'flex', gap: 12 }}>

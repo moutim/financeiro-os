@@ -4,6 +4,7 @@ import { Trash2 } from 'lucide-react';
 import { useFinanceStore } from '@/lib/store';
 import type { Income } from '@/lib/types';
 import { formatCurrency } from '@/lib/currency';
+import { useSwipeToClose } from '@/hooks/useSwipeToClose';
 
 interface IncomeDeleteModalProps {
   income: Income;
@@ -13,6 +14,7 @@ interface IncomeDeleteModalProps {
 export default function IncomeDeleteModal({ income, onClose }: IncomeDeleteModalProps) {
   const { deleteIncome } = useFinanceStore();
   const [isDeleting, setIsDeleting] = useState(false);
+  const swipeToClose = useSwipeToClose(onClose);
 
   const handleDelete = async () => {
     setIsDeleting(true);
@@ -30,9 +32,11 @@ export default function IncomeDeleteModal({ income, onClose }: IncomeDeleteModal
       <div
         className="modal-sheet animate-slide-in-sheet"
         onClick={(e) => e.stopPropagation()}
-        style={{ padding: '32px 24px', maxWidth: 380, width: '90%', margin: 'auto', borderRadius: 24, marginTop: '28vh', textAlign: 'center' }}
+        style={{ ...swipeToClose.style, textAlign: 'center' }}
       >
-        <div className="modal-handle" />
+        <div {...swipeToClose.handlers} style={{ paddingBottom: 16, touchAction: 'none' }}>
+          <div className="modal-handle" />
+        </div>
 
         {/* Ícone */}
         <div style={{

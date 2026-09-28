@@ -33,8 +33,39 @@ export default function MonthSelector() {
     setSelectedMonth(nextMonthKey);
   };
 
+  const handleAddPrevMonth = () => {
+    const firstMonth = monthsToRender[0];
+    const [y, m] = firstMonth.split('-').map(Number);
+    let prevM = m - 1;
+    let prevY = y;
+    if (prevM < 1) {
+      prevM = 12;
+      prevY -= 1;
+    }
+    const prevMonthKey = `${prevY}-${prevM.toString().padStart(2, '0')}`;
+    addAvailableMonth(prevMonthKey);
+    setSelectedMonth(prevMonthKey);
+  };
+
   return (
     <div className="month-selector">
+      <button
+        className="month-chip"
+        onClick={handleAddPrevMonth}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '0 16px',
+          color: 'var(--blue)',
+          background: 'var(--blue-light)',
+          minWidth: 48,
+        }}
+        title="Adicionar mês anterior"
+      >
+        <span style={{ fontSize: 18, fontWeight: 600 }}>+</span>
+      </button>
+
       {monthsToRender.map((mk) => {
         const active = mk === selectedMonth;
         const [year, month] = mk.split('-').map(Number);

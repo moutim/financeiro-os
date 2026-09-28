@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { X } from 'lucide-react';
 import { useFinanceStore } from '@/lib/store';
+import { useSwipeToClose } from '@/hooks/useSwipeToClose';
 
 interface JoinGoalModalProps {
   onClose: () => void;
@@ -13,6 +13,7 @@ export default function JoinGoalModal({ onClose }: JoinGoalModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const { loadAll } = useFinanceStore();
+  const swipeToClose = useSwipeToClose(onClose);
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,15 +49,13 @@ export default function JoinGoalModal({ onClose }: JoinGoalModalProps) {
       <div 
         className="modal-sheet animate-slide-in-sheet" 
         onClick={e => e.stopPropagation()}
-        style={{ padding: 24, maxWidth: 400, width: '100%', borderRadius: 24 }}
+        style={swipeToClose.style}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div {...swipeToClose.handlers} style={{ paddingBottom: 16, touchAction: 'none' }}>
+          <div className="modal-handle" />
           <h2 style={{ fontSize: 20, fontWeight: 700 }}>
             Entrar em Meta Compartilhada
           </h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)' }} disabled={isSubmitting}>
-            <X size={24} />
-          </button>
         </div>
 
         <form onSubmit={handleJoin}>

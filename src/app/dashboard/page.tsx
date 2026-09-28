@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle, Wallet, TrendingDown, TrendingUp, CheckCircle, Pencil, Trash2 } from 'lucide-react';
+import { AlertTriangle, Wallet, TrendingDown, TrendingUp, CheckCircle, Pencil, Trash2, Check } from 'lucide-react';
 
 import { useState } from 'react';
 import Sidebar from '@/components/layout/Sidebar';
@@ -194,9 +194,20 @@ export default function DashboardPage() {
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {dividendos.map((inc) => (
-                    <div key={inc.id} style={{ display: 'flex', flexDirection: 'column' }}>
+                    <div key={inc.id} style={{ 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      filter: inc.isPaid ? 'opacity(0.8)' : 'none',
+                      background: inc.isPaid ? 'var(--green-light)' : 'transparent',
+                      padding: inc.isPaid ? '8px 12px' : '0',
+                      margin: inc.isPaid ? '4px -12px' : '0',
+                      borderRadius: inc.isPaid ? 8 : 0,
+                    }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: 14, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, minWidth: 0, paddingRight: 8 }}>{inc.name}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', flex: 1, minWidth: 0, paddingRight: 8 }}>
+                          <span style={{ fontSize: 14, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{inc.name}</span>
+                          {inc.isPaid && <Check size={14} color="var(--green)" style={{ marginLeft: 6, flexShrink: 0 }} />}
+                        </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                           <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--green)' }}>
                             +{formatCurrency(inc.amount)}
@@ -248,9 +259,20 @@ export default function DashboardPage() {
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {salarios.map((inc) => (
-                    <div key={inc.id} style={{ display: 'flex', flexDirection: 'column' }}>
+                    <div key={inc.id} style={{ 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      filter: inc.isPaid ? 'opacity(0.8)' : 'none',
+                      background: inc.isPaid ? 'var(--green-light)' : 'transparent',
+                      padding: inc.isPaid ? '8px 12px' : '0',
+                      margin: inc.isPaid ? '4px -12px' : '0',
+                      borderRadius: inc.isPaid ? 8 : 0,
+                    }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: 14, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, minWidth: 0, paddingRight: 8 }}>{inc.name}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', flex: 1, minWidth: 0, paddingRight: 8 }}>
+                          <span style={{ fontSize: 14, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{inc.name}</span>
+                          {inc.isPaid && <Check size={14} color="var(--green)" style={{ marginLeft: 6, flexShrink: 0 }} />}
+                        </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                           <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--green)' }}>
                             +{formatCurrency(inc.amount)}

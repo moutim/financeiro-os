@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Copy, Check } from 'lucide-react';
+import { Copy, Check } from 'lucide-react';
 import type { SavingsGoal } from '@/lib/types';
+import { useSwipeToClose } from '@/hooks/useSwipeToClose';
 
 interface ShareGoalModalProps {
   goal: SavingsGoal;
@@ -15,6 +16,7 @@ export default function ShareGoalModal({ goal, onClose }: ShareGoalModalProps) {
   const [shareCode, setShareCode] = useState('');
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
+  const swipeToClose = useSwipeToClose(onClose);
 
   const handleShare = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,15 +55,13 @@ export default function ShareGoalModal({ goal, onClose }: ShareGoalModalProps) {
       <div 
         className="modal-sheet animate-slide-in-sheet" 
         onClick={e => e.stopPropagation()}
-        style={{ padding: 24, maxWidth: 400, width: '100%', borderRadius: 24 }}
+        style={swipeToClose.style}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div {...swipeToClose.handlers} style={{ paddingBottom: 16, touchAction: 'none' }}>
+          <div className="modal-handle" />
           <h2 style={{ fontSize: 20, fontWeight: 700 }}>
             Compartilhar Meta
           </h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)' }} disabled={isSubmitting}>
-            <X size={24} />
-          </button>
         </div>
 
         {!shareCode ? (
