@@ -1,8 +1,15 @@
 @import "tailwindcss";
 
 @keyframes tooltipFadeIn {
-  from { opacity: 0; transform: translateX(-50%) translateY(4px); }
-  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
 
 /* ─── Apple Design System ─────────────────────────────────────────────────── */
@@ -65,7 +72,9 @@
 }
 
 /* ─── Base ────────────────────────────────────────────────────────────────── */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -191,8 +200,8 @@ body {
   justify-content: center;
   gap: 6px;
   padding: 12px 20px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 100%),
-              var(--blue);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%),
+    var(--blue);
   color: #fff;
   font-size: 17px;
   font-weight: 600;
@@ -326,7 +335,8 @@ body {
 
 /* ─── Mobile Nav (Liquid Glass) ───────────────────────────────────────────── */
 .mobile-nav {
-  display: none; /* hidden on desktop */
+  display: none;
+  /* hidden on desktop */
 }
 
 /* ─── Main Content ────────────────────────────────────────────────────────── */
@@ -524,8 +534,8 @@ body {
   width: 56px;
   height: 56px;
   border-radius: var(--radius-full);
-  background: linear-gradient(180deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 100%),
-              var(--blue);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%),
+    var(--blue);
   color: white;
   font-size: 24px;
   border: none;
@@ -651,6 +661,7 @@ body {
     opacity: 0;
     transform: translateY(16px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -658,8 +669,13 @@ body {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slideInSheet {
@@ -667,6 +683,7 @@ body {
     opacity: 0;
     transform: translateY(40px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -678,6 +695,7 @@ body {
     opacity: 0;
     transform: scale(0.96);
   }
+
   to {
     opacity: 1;
     transform: scale(1);
@@ -701,21 +719,40 @@ body {
 }
 
 /* ─── Staggered children ──────────────────────────────────────────────────── */
-.stagger > *:nth-child(1) { animation-delay: 0ms; }
-.stagger > *:nth-child(2) { animation-delay: 60ms; }
-.stagger > *:nth-child(3) { animation-delay: 120ms; }
-.stagger > *:nth-child(4) { animation-delay: 180ms; }
-.stagger > *:nth-child(5) { animation-delay: 240ms; }
-.stagger > *:nth-child(6) { animation-delay: 300ms; }
+.stagger>*:nth-child(1) {
+  animation-delay: 0ms;
+}
+
+.stagger>*:nth-child(2) {
+  animation-delay: 60ms;
+}
+
+.stagger>*:nth-child(3) {
+  animation-delay: 120ms;
+}
+
+.stagger>*:nth-child(4) {
+  animation-delay: 180ms;
+}
+
+.stagger>*:nth-child(5) {
+  animation-delay: 240ms;
+}
+
+.stagger>*:nth-child(6) {
+  animation-delay: 300ms;
+}
 
 /* ─── Scrollbar ───────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
   background: var(--separator-opaque);
   border-radius: 3px;
@@ -723,7 +760,10 @@ body {
 
 /* ─── Reduced motion ──────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
@@ -761,19 +801,35 @@ body {
   .dashboard-col {
     display: contents !important;
   }
-  .order-1 { order: 1; }
-  .order-2 { order: 2; }
-  .order-3 { order: 3; }
-  .order-4 { order: 4; }
-  .order-5 { order: 5; }
+
+  .order-1 {
+    order: 1;
+  }
+
+  .order-2 {
+    order: 2;
+  }
+
+  .order-3 {
+    order: 3;
+  }
+
+  .order-4 {
+    order: 4;
+  }
+
+  .order-5 {
+    order: 5;
+  }
 
   .sidebar {
     display: none;
   }
+
   .mobile-nav {
     display: flex;
     position: fixed;
-    bottom: calc(2px + env(safe-area-inset-bottom));
+    bottom: calc(7px + env(safe-area-inset-bottom));
     left: 20px;
     right: 20px;
     height: 72px;
@@ -781,13 +837,15 @@ body {
     backdrop-filter: blur(24px) saturate(200%);
     -webkit-backdrop-filter: blur(24px) saturate(200%);
     border: 1px solid rgba(255, 255, 255, 0.5);
-    border-radius: 36px; /* Pill shape */
+    border-radius: 36px;
+    /* Pill shape */
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
     z-index: 50;
     justify-content: space-around;
     align-items: center;
     padding: 0 12px;
   }
+
   .mobile-nav-item {
     display: flex;
     flex-direction: column;
@@ -802,36 +860,47 @@ body {
     padding: 8px 0;
     border-radius: 24px;
   }
+
   .mobile-nav-item.active {
     color: var(--blue);
   }
+
   .mobile-nav-item span {
     font-size: 10px;
     font-weight: 600;
     letter-spacing: -0.01em;
   }
+
   .main-content {
     margin-left: 0;
     padding: 16px;
-    padding-bottom: 100px; /* Space for floating nav */
+    padding-bottom: 116px;
+    /* Space for floating nav */
   }
+
   .fab {
-    bottom: calc(90px + env(safe-area-inset-bottom)); /* Above the floating nav */
+    bottom: calc(104px + env(safe-area-inset-bottom));
+    /* Above the floating nav */
     right: 20px;
   }
+
   .stat-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
   }
+
   .goals-grid {
     grid-template-columns: minmax(0, 1fr);
   }
+
   .dashboard-grid {
     grid-template-columns: minmax(0, 1fr);
   }
+
   .cards-grid {
     grid-template-columns: minmax(0, 1fr);
   }
+
   .metas-grid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -890,8 +959,13 @@ body {
 
 /* ─── Buttons Spinner ─────────────────────────────────────────────────────── */
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .btn-spinner {
@@ -909,18 +983,22 @@ body {
   scrollbar-width: thin;
   scrollbar-color: var(--separator-opaque) transparent;
 }
+
 .custom-scroll::-webkit-scrollbar {
   width: 6px;
   height: 6px;
   background-color: transparent;
 }
+
 .custom-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
+
 .custom-scroll::-webkit-scrollbar-thumb {
   background-color: var(--separator-opaque);
   border-radius: 99px;
 }
+
 .custom-scroll::-webkit-scrollbar-thumb:hover {
   background-color: var(--text-tertiary);
 }
@@ -928,12 +1006,14 @@ body {
 .scroll-fade-container {
   position: relative;
 }
+
 .scroll-fade-container::after {
   content: "";
   position: absolute;
   bottom: 0;
   left: 0;
-  right: 16px; /* Evita cobrir a barra de rolagem */
+  right: 16px;
+  /* Evita cobrir a barra de rolagem */
   height: 48px;
   background: linear-gradient(to bottom, transparent, var(--surface));
   pointer-events: none;
@@ -947,12 +1027,14 @@ body {
   .mobile-nav {
     /* No modo aplicativo (PWA), a "safe area" é o espaço físico da tela. 
        Para deixar mais colado, ignoramos a safe area e fixamos em pixels */
-    bottom: 12px;
+    bottom: 24px;
   }
+
   .fab {
-    bottom: 100px;
+    bottom: 112px;
   }
+
   .main-content {
-    padding-bottom: 112px;
+    padding-bottom: 124px;
   }
 }
