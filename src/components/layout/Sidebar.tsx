@@ -22,7 +22,8 @@ export default function Sidebar() {
     : '?';
 
   return (
-    <aside className="sidebar">
+    <>
+      <aside className="sidebar">
       {/* Logo */}
       <div className="sidebar-logo">
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -143,5 +144,28 @@ export default function Sidebar() {
         </button>
       </div>
     </aside>
+
+    {/* Mobile Bottom Nav */}
+    <nav className="mobile-nav">
+      {navItems.map((item) => (
+        <Link
+          key={item.href}
+          href={item.href}
+          className={`mobile-nav-item ${pathname.startsWith(item.href) ? 'active' : ''}`}
+        >
+          <item.icon size={24} strokeWidth={pathname.startsWith(item.href) ? 2.5 : 2} />
+          <span>{item.label}</span>
+        </Link>
+      ))}
+      <button
+        onClick={() => signOut({ callbackUrl: '/login' })}
+        className="mobile-nav-item"
+        style={{ border: 'none', background: 'none', cursor: 'pointer' }}
+      >
+        <LogOut size={24} strokeWidth={2} />
+        <span>Sair</span>
+      </button>
+    </nav>
+  </>
   );
 }

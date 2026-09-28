@@ -263,7 +263,7 @@ export default function MetasPage() {
         </div>
 
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 20, marginBottom: 28 }}>
+        <div className="metas-grid">
           {/* Pending "A Resolver" */}
           <GlassCard className="animate-fade-in-up" style={{ opacity: 0, animationDelay: '60ms', minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>

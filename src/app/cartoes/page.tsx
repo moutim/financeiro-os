@@ -174,12 +174,7 @@ export default function CartoesPage() {
         <h2 className="section-title" style={{ marginBottom: 16, fontSize: 17 }}>
           Seus Cartões
         </h2>
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(4, 1fr)', 
-          gap: 16,
-          marginBottom: 32
-        }}>
+        <div className="cards-grid">
           {cards.map((card, index) => {
             const usagePct = card.limit > 0 ? (card.used / card.limit) * 100 : 0;
             const available = card.limit - card.used;

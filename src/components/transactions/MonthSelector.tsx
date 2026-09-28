@@ -1,10 +1,18 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { useFinanceStore } from '@/lib/store';
 import { monthKeyToShortLabel } from '@/lib/currency';
 
 export default function MonthSelector() {
   const { selectedMonth, setSelectedMonth, availableMonths, addAvailableMonth } = useFinanceStore();
+  const activeRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (activeRef.current) {
+      activeRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+  }, [selectedMonth]);
   const monthsToRender = [...availableMonths];
   if (!monthsToRender.includes(selectedMonth)) {
     monthsToRender.push(selectedMonth);
@@ -37,6 +45,7 @@ export default function MonthSelector() {
         return (
           <button
             key={mk}
+            ref={active ? activeRef : null}
             className={`month-chip ${active ? 'active' : ''}`}
             onClick={() => setSelectedMonth(mk)}
             style={{ color: active ? 'white' : undefined }}

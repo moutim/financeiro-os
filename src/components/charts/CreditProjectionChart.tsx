@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer
 } from 'recharts';
 import { formatCompact, formatCurrency } from '@/lib/currency';
@@ -54,17 +54,7 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
 export default function CreditProjectionChart({ data }: CreditProjectionChartProps) {
   return (
     <ResponsiveContainer width="100%" height={300}>
-      <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-        <defs>
-          <linearGradient id="colorUtilizado" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="var(--orange)" stopOpacity={0.3}/>
-            <stop offset="95%" stopColor="var(--orange)" stopOpacity={0}/>
-          </linearGradient>
-          <linearGradient id="colorDisponivel" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="var(--green)" stopOpacity={0.3}/>
-            <stop offset="95%" stopColor="var(--green)" stopOpacity={0}/>
-          </linearGradient>
-        </defs>
+      <BarChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--separator)" vertical={false} />
         <XAxis
           dataKey="month"
@@ -79,26 +69,21 @@ export default function CreditProjectionChart({ data }: CreditProjectionChartPro
           tickFormatter={formatCompact}
           width={56}
         />
-        <Tooltip content={<CustomTooltip />} />
-        <Area
-          type="monotone"
+        <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--separator)', opacity: 0.4 }} />
+        <Bar
           dataKey="utilizado"
           name="Fatura Estimada"
-          stroke="var(--orange)"
-          strokeWidth={3}
-          fillOpacity={1}
-          fill="url(#colorUtilizado)"
+          stackId="a"
+          fill="var(--orange)"
         />
-        <Area
-          type="monotone"
+        <Bar
           dataKey="disponivel"
           name="Limite Disponível"
-          stroke="var(--green)"
-          strokeWidth={3}
-          fillOpacity={1}
-          fill="url(#colorDisponivel)"
+          stackId="a"
+          fill="var(--green)"
+          radius={[4, 4, 0, 0]}
         />
-      </AreaChart>
+      </BarChart>
     </ResponsiveContainer>
   );
 }

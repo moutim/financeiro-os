@@ -171,13 +171,13 @@ export default function DashboardPage() {
         )}
 
         {/* ── Main 2-column layout ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: '380px 1fr', gap: 20, alignItems: 'start' }}>
+        <div className="dashboard-grid">
 
           {/* ── LEFT COLUMN: Charts ── */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="dashboard-col" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
             {/* Donut chart */}
-            <GlassCard>
+            <GlassCard className="order-1">
               <h2 className="section-title" style={{ marginBottom: 16, fontSize: 17 }}>
                 Por Categoria
               </h2>
@@ -185,7 +185,7 @@ export default function DashboardPage() {
             </GlassCard>
 
             {/* Recebimentos & Extras */}
-            <GlassCard>
+            <GlassCard className="order-3">
               <h2 className="section-title" style={{ marginBottom: 16, fontSize: 17 }}>
                 Recebimentos & Extras
               </h2>
@@ -196,8 +196,8 @@ export default function DashboardPage() {
                   {dividendos.map((inc) => (
                     <div key={inc.id} style={{ display: 'flex', flexDirection: 'column' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: 14, fontWeight: 500 }}>{inc.name}</span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontSize: 14, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, minWidth: 0, paddingRight: 8 }}>{inc.name}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                           <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--green)' }}>
                             +{formatCurrency(inc.amount)}
                           </span>
@@ -239,7 +239,7 @@ export default function DashboardPage() {
             </GlassCard>
 
             {/* Salário do Mês */}
-            <GlassCard>
+            <GlassCard className="order-4">
               <h2 className="section-title" style={{ marginBottom: 16, fontSize: 17 }}>
                 Salário do Mês
               </h2>
@@ -250,8 +250,8 @@ export default function DashboardPage() {
                   {salarios.map((inc) => (
                     <div key={inc.id} style={{ display: 'flex', flexDirection: 'column' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: 14, fontWeight: 500 }}>{inc.name}</span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontSize: 14, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, minWidth: 0, paddingRight: 8 }}>{inc.name}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                           <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--green)' }}>
                             +{formatCurrency(inc.amount)}
                           </span>
@@ -294,28 +294,19 @@ export default function DashboardPage() {
           </div>
 
           {/* ── RIGHT COLUMN: Transactions ── */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="dashboard-col" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
 
             {/* Transaction list card */}
-            <GlassCard padding="0">
-              {/* Sticky header inside card */}
-              <div style={{
-                padding: '14px 20px',
-                borderBottom: '1px solid var(--separator)',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}>
-                <h2 style={{ fontSize: 17, fontWeight: 700 }}>Transações</h2>
-              </div>
-              <div style={{ padding: '0 20px' }}>
-                <TransactionList transactions={allTransactions} showDelete />
-              </div>
+            <GlassCard className="order-2">
+              <h2 className="section-title" style={{ marginBottom: 16, fontSize: 17 }}>
+                Transações
+              </h2>
+              <TransactionList transactions={allTransactions} showDelete />
             </GlassCard>
 
             {/* Mini category breakdown */}
-            <GlassCard padding="16px">
+            <GlassCard padding="16px" className="order-5">
               <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12, color: 'var(--text-secondary)' }}>
                 Resumo do Mês
               </h2>
