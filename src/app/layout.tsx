@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import DataProvider from '@/components/providers/DataProvider';
 import { SessionProvider } from 'next-auth/react';
+import ThemeProvider from '@/components/providers/ThemeProvider';
 
 export const metadata: Metadata = {
   title: 'Financeiro OS — Controle Financeiro',
@@ -30,9 +31,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="pt-BR">
       <body suppressHydrationWarning>
         <SessionProvider>
-          <DataProvider>
-            {children}
-          </DataProvider>
+          <ThemeProvider>
+            <DataProvider>
+              {children}
+            </DataProvider>
+          </ThemeProvider>
         </SessionProvider>
       </body>
     </html>

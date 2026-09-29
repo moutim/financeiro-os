@@ -3,13 +3,14 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
-import { LayoutDashboard, Tags, Target, Wallet, CreditCard, LogOut } from 'lucide-react';
+import { LayoutDashboard, Tags, Target, Wallet, CreditCard, LogOut, Settings } from 'lucide-react';
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/cartoes', icon: CreditCard, label: 'Cartões' },
   { href: '/categorias', icon: Tags, label: 'Categorias' },
   { href: '/metas', icon: Target, label: 'Metas' },
+  { href: '/settings', icon: Settings, label: 'Configurações' },
 ];
 
 export default function Sidebar() {
@@ -31,12 +32,12 @@ export default function Sidebar() {
             width: 36,
             height: 36,
             borderRadius: 10,
-            background: 'linear-gradient(145deg, #007AFF, #5856D6)',
+            background: 'linear-gradient(145deg, var(--blue), var(--indigo))',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             fontSize: 18,
-            boxShadow: '0 2px 8px rgba(0,122,255,0.35)',
+            boxShadow: '0 2px 8px var(--blue-light)',
             color: 'white',
           }}>
             <Wallet size={20} />
@@ -91,7 +92,7 @@ export default function Sidebar() {
             width: 32,
             height: 32,
             borderRadius: '50%',
-            background: 'linear-gradient(135deg, #007AFF, #34C759)',
+            background: 'linear-gradient(135deg, var(--blue), var(--green))',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -157,14 +158,6 @@ export default function Sidebar() {
           <span>{item.label}</span>
         </Link>
       ))}
-      <button
-        onClick={() => signOut({ callbackUrl: '/login' })}
-        className="mobile-nav-item"
-        style={{ border: 'none', background: 'none', cursor: 'pointer' }}
-      >
-        <LogOut size={24} strokeWidth={2} />
-        <span>Sair</span>
-      </button>
     </nav>
   </>
   );
