@@ -5,14 +5,16 @@ import Sidebar from '@/components/layout/Sidebar';
 import GlassCard from '@/components/ui/GlassCard';
 import CreditProjectionChart from '@/components/charts/CreditProjectionChart';
 import CardFormModal, { CardData } from '@/components/cards/CardFormModal';
+import PayInvoiceModal from '@/components/cards/PayInvoiceModal';
 import { formatCurrency } from '@/lib/currency';
-import { CreditCard as CreditCardIcon, TrendingDown, Plus, Pencil } from 'lucide-react';
+import { CreditCard as CreditCardIcon, TrendingDown, Plus, Pencil, CheckCircle2 } from 'lucide-react';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import MonthSelector from '@/components/transactions/MonthSelector';
 
 import { useFinanceStore } from '@/lib/store';
-import type { CreditCard, CardBrand } from '@/lib/types';
+import type { CreditCard, CardBrand, Transaction } from '@/lib/types';
 
-function generateProjection(cards: CreditCard[]) {
+function generateProjection(cardsWithRealData: any[]) {
   const projection = [];
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -20,20 +22,22 @@ function generateProjection(cards: CreditCard[]) {
   
   const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
-  const totalLimit = cards.reduce((acc, card) => acc + card.limit, 0);
+  const totalLimit = cardsWithRealData.reduce((acc, card) => acc + card.limit, 0);
 
   for (let i = 0; i < 7; i++) {
     const projYear = currentMonth + i > 11 ? currentYear + Math.floor((currentMonth + i) / 12) : currentYear;
     const projMonth = (currentMonth + i) % 12;
+    const projMonthKeyStr = `${projYear}-${String(projMonth + 1).padStart(2, '0')}`;
     
     let monthUsed = 0;
     
-    for (const card of cards) {
-      if (!card.used) continue;
+    for (const card of cardsWithRealData) {
+      if (card.limit === 0 && card.realUsed === 0) continue;
       
+      let projectedManualUsed = 0;
       if (!card.freedMonthKey) {
-        // Fallback: se não tiver mês definido, simula uma queda de 15% ao mês (média comum de parcelamentos em 6-7x)
-        monthUsed += Math.max(0, card.used - (card.used * 0.15 * i));
+        // Fallback da parte manual
+        projectedManualUsed = Math.max(0, card.used - (card.used * 0.15 * i));
       } else {
         const [freeYearStr, freeMonthStr] = card.freedMonthKey.split('-');
         const freeYear = parseInt(freeYearStr);
@@ -42,20 +46,26 @@ function generateProjection(cards: CreditCard[]) {
         const totalMonthsToFree = (freeYear - currentYear) * 12 + (freeMonth - currentMonth);
         
         if (totalMonthsToFree <= 0) {
-          if (i === 0) monthUsed += card.used;
+          projectedManualUsed = i === 0 ? card.used : 0;
         } else {
-          // Queda linear
           const dropPerMonth = card.used / totalMonthsToFree;
-          const remainingUsed = Math.max(0, card.used - (dropPerMonth * i));
-          monthUsed += remainingUsed;
+          projectedManualUsed = Math.max(0, card.used - (dropPerMonth * i));
         }
       }
+
+      const currentMonthKeyStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+      // Consumo real pelas transações a partir daquele mês da projeção
+      const projectedRealUsed = card.cardTransactions
+        .filter((t: any) => !t.isPaid && (t.monthKey >= projMonthKeyStr || t.monthKey < currentMonthKeyStr))
+        .reduce((sum: number, t: any) => sum + t.amount, 0);
+
+      monthUsed += (projectedManualUsed + projectedRealUsed);
     }
     
     projection.push({
       month: monthNames[projMonth],
       utilizado: monthUsed,
-      disponivel: totalLimit - monthUsed
+      disponivel: Math.max(0, totalLimit - monthUsed)
     });
   }
   
@@ -63,16 +73,44 @@ function generateProjection(cards: CreditCard[]) {
 }
 
 export default function CartoesPage() {
-  const { cards, addCard, updateCard, deleteCard, loadingState } = useFinanceStore();
+  const { cards, transactions, addCard, updateCard, deleteCard, loadingState, selectedMonth } = useFinanceStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCard, setEditingCard] = useState<CardData | null>(null);
+  const [payingCard, setPayingCard] = useState<{card: CreditCard, amount: number, transactions: Transaction[]} | null>(null);
 
-  const totalLimit = cards.reduce((acc, card) => acc + card.limit, 0);
-  const totalUsed = cards.reduce((acc, card) => acc + card.used, 0);
-  const totalAvailable = totalLimit - totalUsed;
+  const now = new Date();
+  const currentMonthKeyStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+  const cardsWithRealData = cards.map(card => {
+    const cardTransactions = transactions.filter(t => t.cardId === card.id && (!t.parentId || t.parentId === 'SHARED'));
+    
+    const unpaidInvoicesAmount = cardTransactions
+      .filter(t => !t.isPaid)
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const currentInvoiceAmount = cardTransactions
+      .filter(t => t.monthKey === selectedMonth)
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const unpaidCurrentMonth = cardTransactions.filter(t => t.monthKey === selectedMonth && !t.isPaid);
+
+    const realUsed = card.used + unpaidInvoicesAmount;
+    
+    return {
+      ...card,
+      realUsed,
+      currentInvoiceAmount,
+      unpaidCurrentMonth,
+      cardTransactions
+    };
+  });
+
+  const totalLimit = cardsWithRealData.reduce((acc, card) => acc + card.limit, 0);
+  const totalUsed = cardsWithRealData.reduce((acc, card) => acc + card.realUsed, 0);
+  const totalAvailable = Math.max(0, totalLimit - totalUsed);
   const overallUsagePct = totalLimit > 0 ? (totalUsed / totalLimit) * 100 : 0;
 
-  const projectionData = generateProjection(cards);
+  const projectionData = generateProjection(cardsWithRealData);
 
   const handleSaveCard = async (cardData: CardData) => {
     const card: CreditCard = { ...cardData, brand: cardData.brand as CardBrand };
@@ -119,7 +157,7 @@ export default function CartoesPage() {
       <main className="main-content">
         
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
           <div>
             <p style={{ fontSize: 13, color: 'var(--text-tertiary)', fontWeight: 500, marginBottom: 2 }}>
               Gestão de Crédito
@@ -128,6 +166,11 @@ export default function CartoesPage() {
               Meus Cartões
             </h1>
           </div>
+        </div>
+
+        {/* ── Month Selector ── */}
+        <div style={{ marginBottom: 20 }}>
+          <MonthSelector />
         </div>
 
         {/* Global Summary */}
@@ -172,9 +215,9 @@ export default function CartoesPage() {
           Seus Cartões
         </h2>
         <div className="cards-grid">
-          {cards.map((card, index) => {
-            const usagePct = card.limit > 0 ? (card.used / card.limit) * 100 : 0;
-            const available = card.limit - card.used;
+          {cardsWithRealData.map((card, index) => {
+            const usagePct = card.limit > 0 ? (card.realUsed / card.limit) * 100 : 0;
+            const available = Math.max(0, card.limit - card.realUsed);
             
             return (
               <GlassCard 
@@ -217,7 +260,7 @@ export default function CartoesPage() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 8 }}>
                   <div>
                     <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 2 }}>Crédito Utilizado</div>
-                    <div style={{ fontSize: 18, fontWeight: 700 }}>{formatCurrency(card.used)}</div>
+                    <div style={{ fontSize: 18, fontWeight: 700 }}>{formatCurrency(card.realUsed)}</div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 2 }}>Limite Disponível</div>
@@ -237,13 +280,56 @@ export default function CartoesPage() {
                 <div style={{ 
                   display: 'flex', 
                   justifyContent: 'space-between', 
-                  marginTop: 8, 
-                  fontSize: 11, 
-                  color: 'var(--text-tertiary)'
+                  marginTop: 12, 
+                  paddingTop: 12,
+                  borderTop: '1px solid var(--separator)',
+                  alignItems: 'center'
                 }}>
-                  <span>Utilizado {usagePct.toFixed(0)}%</span>
-                  <span>Total {formatCurrency(card.limit)}</span>
+                  <div>
+                    <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 2 }}>Fatura do Mês</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{formatCurrency(card.currentInvoiceAmount)}</div>
+                      {card.currentInvoiceAmount > 0 && card.unpaidCurrentMonth.length === 0 && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--green)', fontSize: 11, fontWeight: 600, background: 'var(--green-light)', padding: '2px 6px', borderRadius: 10 }}>
+                          <CheckCircle2 size={12} strokeWidth={2.5} />
+                          Paga
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 2 }}>Limite Total</div>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)' }}>{formatCurrency(card.limit)}</div>
+                  </div>
                 </div>
+
+                {card.unpaidCurrentMonth.length > 0 && (
+                  <button 
+                    onClick={() => setPayingCard({ card, amount: card.currentInvoiceAmount, transactions: card.unpaidCurrentMonth })}
+                    style={{
+                      width: '100%',
+                      marginTop: 12,
+                      padding: '10px',
+                      background: 'var(--green-light)',
+                      color: 'var(--green)',
+                      border: 'none',
+                      borderRadius: 10,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      transition: 'opacity 0.2s ease'
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.opacity = '0.8'}
+                    onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
+                  >
+                    <CheckCircle2 size={16} strokeWidth={2.5} />
+                    Pagar Fatura
+                  </button>
+                )}
               </GlassCard>
             );
           })}
@@ -295,6 +381,15 @@ export default function CartoesPage() {
           onSave={handleSaveCard} 
           onClose={() => setIsModalOpen(false)} 
           onDelete={handleDeleteCard}
+        />
+      )}
+
+      {payingCard && (
+        <PayInvoiceModal
+          card={payingCard.card}
+          invoiceAmount={payingCard.amount}
+          transactionsToPay={payingCard.transactions}
+          onClose={() => setPayingCard(null)}
         />
       )}
     </>

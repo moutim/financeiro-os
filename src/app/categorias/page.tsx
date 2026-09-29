@@ -44,16 +44,21 @@ export default function CategoriasPage() {
       <Sidebar />
       <main className="main-content">
         {/* Header */}
-        <div className="page-header">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
-            <div>
-              <p style={{ fontSize: 14, color: 'var(--text-tertiary)', fontWeight: 500, marginBottom: 4 }}>
-                Categorias
-              </p>
-              <h1 className="text-title-1" style={{ textTransform: 'capitalize' }}>
-                {monthKeyToLabel(selectedMonth)}
-              </h1>
-            </div>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          flexWrap: 'wrap',
+          gap: 12,
+          marginBottom: 20,
+        }}>
+          <div>
+            <p style={{ fontSize: 13, color: 'var(--text-tertiary)', fontWeight: 500, marginBottom: 2 }}>
+              Categorias
+            </p>
+            <h1 className="text-title-1" style={{ textTransform: 'capitalize' }}>
+              {monthKeyToLabel(selectedMonth)}
+            </h1>
           </div>
         </div>
 

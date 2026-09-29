@@ -142,21 +142,26 @@ export default function TransacoesPage() {
       <Sidebar />
       <main className="main-content">
         {/* Header */}
-        <div className="page-header">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
-            <div>
-              <p style={{ fontSize: 14, color: 'var(--text-tertiary)', fontWeight: 500, marginBottom: 4 }}>
-                Transações
-              </p>
-              <h1 className="text-title-1" style={{ textTransform: 'capitalize' }}>
-                {monthKeyToLabel(selectedMonth)}
-              </h1>
-              <p style={{ fontSize: 14, color: 'var(--text-tertiary)', marginTop: 4 }}>
-                {filtered.length} {filtered.length === 1 ? 'transação' : 'transações'} · Total: <strong style={{ color: 'var(--text-primary)' }}>
-                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(total)}
-                </strong>
-              </p>
-            </div>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          flexWrap: 'wrap',
+          gap: 12,
+          marginBottom: 20,
+        }}>
+          <div>
+            <p style={{ fontSize: 13, color: 'var(--text-tertiary)', fontWeight: 500, marginBottom: 2 }}>
+              Transações
+            </p>
+            <h1 className="text-title-1" style={{ textTransform: 'capitalize' }}>
+              {monthKeyToLabel(selectedMonth)}
+            </h1>
+            <p style={{ fontSize: 13, color: 'var(--text-tertiary)', marginTop: 4 }}>
+              {filtered.length} {filtered.length === 1 ? 'transação' : 'transações'} · Total: <strong style={{ color: 'var(--text-primary)' }}>
+                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(total)}
+              </strong>
+            </p>
           </div>
         </div>
 

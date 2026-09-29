@@ -8,6 +8,7 @@ import { getCategoryConfig } from '@/lib/categories';
 import { formatCurrency } from '@/lib/currency';
 import { useFinanceStore } from '@/lib/store';
 import TransactionEditModal from './TransactionEditModal';
+import TransactionDeleteModal from './TransactionDeleteModal';
 
 interface TransactionListProps {
   transactions: Transaction[];
@@ -15,8 +16,8 @@ interface TransactionListProps {
 }
 
 export default function TransactionList({ transactions, showDelete = true }: TransactionListProps) {
-  const { deleteTransaction } = useFinanceStore();
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [deletingTransaction, setDeletingTransaction] = useState<Transaction | null>(null);
 
   if (transactions.length === 0) {
     return (
@@ -165,7 +166,7 @@ export default function TransactionList({ transactions, showDelete = true }: Tra
                     <Pencil size={14} />
                   </button>
                   <button
-                    onClick={() => deleteTransaction(tx.id)}
+                    onClick={() => setDeletingTransaction(tx)}
                     style={{
                       background: 'none',
                       border: 'none',
@@ -194,6 +195,12 @@ export default function TransactionList({ transactions, showDelete = true }: Tra
         <TransactionEditModal
           transaction={editingTransaction}
           onClose={() => setEditingTransaction(null)}
+        />
+      )}
+      {deletingTransaction && (
+        <TransactionDeleteModal
+          transaction={deletingTransaction}
+          onClose={() => setDeletingTransaction(null)}
         />
       )}
     </div>

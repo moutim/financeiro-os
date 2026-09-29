@@ -192,16 +192,18 @@ export default function DashboardPage() {
               {dividendos.length === 0 ? (
                 <p style={{ fontSize: 14, color: 'var(--text-tertiary)' }}>Nenhum recebimento registrado.</p>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {dividendos.map((inc) => (
-                    <div key={inc.id} style={{ 
-                      display: 'flex', 
-                      flexDirection: 'column', 
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  {dividendos.map((inc, idx) => (
+                    <div key={inc.id} className="transaction-item" style={{ 
+                      flexDirection: 'column',
+                      alignItems: 'stretch',
+                      gap: 0,
                       filter: inc.isPaid ? 'opacity(0.8)' : 'none',
                       background: inc.isPaid ? 'var(--green-light)' : 'transparent',
-                      padding: inc.isPaid ? '8px 12px' : '0',
-                      margin: inc.isPaid ? '4px -12px' : '0',
+                      padding: inc.isPaid ? '8px 12px' : '8px 0',
+                      margin: inc.isPaid ? '2px -12px' : '0',
                       borderRadius: inc.isPaid ? 8 : 0,
+                      borderBottom: inc.isPaid || idx === dividendos.length - 1 ? 'none' : undefined,
                     }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div style={{ display: 'flex', alignItems: 'center', flex: 1, minWidth: 0, paddingRight: 8 }}>
@@ -257,16 +259,18 @@ export default function DashboardPage() {
               {salarios.length === 0 ? (
                 <p style={{ fontSize: 14, color: 'var(--text-tertiary)' }}>Nenhum salário registrado.</p>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {salarios.map((inc) => (
-                    <div key={inc.id} style={{ 
-                      display: 'flex', 
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  {salarios.map((inc, idx) => (
+                    <div key={inc.id} className="transaction-item" style={{ 
                       flexDirection: 'column', 
+                      alignItems: 'stretch',
+                      gap: 0,
                       filter: inc.isPaid ? 'opacity(0.8)' : 'none',
                       background: inc.isPaid ? 'var(--green-light)' : 'transparent',
-                      padding: inc.isPaid ? '8px 12px' : '0',
-                      margin: inc.isPaid ? '4px -12px' : '0',
+                      padding: inc.isPaid ? '8px 12px' : '8px 0',
+                      margin: inc.isPaid ? '0 -12px' : '0',
                       borderRadius: inc.isPaid ? 8 : 0,
+                      borderBottom: inc.isPaid || idx === salarios.length - 1 ? 'none' : undefined,
                     }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div style={{ display: 'flex', alignItems: 'center', flex: 1, minWidth: 0, paddingRight: 8 }}>

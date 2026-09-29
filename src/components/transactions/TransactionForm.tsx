@@ -15,7 +15,7 @@ interface TransactionFormProps {
 }
 
 export default function TransactionForm({ onClose }: TransactionFormProps) {
-  const { addTransaction, addIncome, selectedMonth, goals, availableMonths } = useFinanceStore();
+  const { addTransaction, addIncome, selectedMonth, goals, availableMonths, cards } = useFinanceStore();
   const [name, setName] = useState('');
   const [rawDigits, setRawDigits] = useState(''); // apenas dígitos, ex: "123456" = R$ 1.234,56
   const [category, setCategory] = useState<Category>('Compras');
@@ -24,6 +24,7 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
   const [type, setType] = useState<'expense' | 'income'>('expense');
   const [incomeType, setIncomeType] = useState<'salary' | 'extra'>('salary');
   const [goalId, setGoalId] = useState('');
+  const [cardId, setCardId] = useState('');
   const [subTransactions, setSubTransactions] = useState<{name: string, rawAmount: string, installments: string}[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPaid, setIsPaid] = useState(false);
@@ -33,7 +34,7 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
   const hasSubTxs = subTransactions.length > 0;
   const totalSubAmount = subTransactions.reduce((acc, sub) => {
     const amt = parseInt(sub.rawAmount || '0', 10) / 100;
-    return acc + amt; // O usuário insere o valor da parcela, não o valor total
+    return acc + amt; // O usuário insere o valor total, a divisão ocorre na submissão
   }, 0);
   const displayAmount = hasSubTxs ? totalSubAmount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : formatMask(rawDigits);
 
@@ -60,9 +61,21 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
       const parsedSubTxs = subTransactions.map(s => {
         let inst = parseInt(s.installments || '1', 10);
         if (isNaN(inst) || inst < 1) inst = 1;
+        
+        const totalSubAmt = parseInt(s.rawAmount || '0', 10) / 100;
+        let subAmt = totalSubAmt;
+        let firstAmt = totalSubAmt;
+        if (inst > 1) {
+          subAmt = Math.floor((totalSubAmt / inst) * 100) / 100;
+          const remainder = totalSubAmt - (subAmt * inst);
+          firstAmt = Math.round((subAmt + remainder) * 100) / 100;
+        }
+
         return {
           name: s.name.trim(),
-          amount: parseInt(s.rawAmount || '0', 10) / 100,
+          amount: totalSubAmt,
+          subAmt,
+          firstAmt,
           installments: inst
         };
       }).filter(s => s.name && s.amount > 0);
@@ -86,20 +99,26 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
           const baseIncomes = state.getMonthIncomes(monthKey);
           const baseFixos = state.getMonthTransactions(monthKey).filter(t => t.category === 'Fixos');
           
-          const amountPerInstallment = hasValidSubTxs ? 0 : numAmount; // Valor inserido JÁ É o valor da parcela
+          let amountPerInstallment = 0;
+          let firstInstallmentAmount = 0;
+          if (!hasValidSubTxs) {
+            amountPerInstallment = Math.floor((numAmount / maxMonths) * 100) / 100;
+            const remainder = numAmount - (amountPerInstallment * maxMonths);
+            firstInstallmentAmount = Math.round((amountPerInstallment + remainder) * 100) / 100;
+          }
           
           for (let i = 0; i < maxMonths; i++) {
             const nextMonthKey = addMonths(monthKey, i);
             
             let currentSubs = null;
-            let currentParentAmount = amountPerInstallment;
+            let currentParentAmount = (i === 0) ? firstInstallmentAmount : amountPerInstallment;
             
             if (hasValidSubTxs) {
               const subsForMonth = parsedSubTxs.filter(s => i < s.installments).map(s => {
-                const subAmt = s.amount;
+                const amountForThisMonth = (i === 0) ? s.firstAmt : s.subAmt;
                 return {
                   name: s.name,
-                  amount: subAmt,
+                  amount: amountForThisMonth,
                   installments: s.installments > 1 ? `${i + 1}/${s.installments}` : undefined
                 };
               });
@@ -119,6 +138,7 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
               monthKey: nextMonthKey,
               installments: maxMonths > 1 && !hasValidSubTxs ? `${i + 1}/${maxMonths}` : null,
               goalId: goalId || null,
+              cardId: cardId || null,
               subTransactions: currentSubs,
               isPaid: i === 0 ? isPaid : false,
             }));
@@ -162,6 +182,7 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
             monthKey,
             installments: installments || null,
             goalId: goalId || null,
+            cardId: cardId || null,
             subTransactions: currentSubs,
             isPaid,
           };
@@ -195,10 +216,10 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
             const nextMonthKey = addMonths(monthKey, i);
             
             const subsForMonth = parsedSubTxs.filter(s => i < s.installments).map(s => {
-              const subAmt = s.amount;
+              const amountForThisMonth = (i === 0) ? s.firstAmt : s.subAmt;
               return {
                 name: s.name,
-                amount: subAmt,
+                amount: amountForThisMonth,
                 installments: s.installments > 1 ? `${i + 1}/${s.installments}` : undefined
               };
             });
@@ -320,7 +341,7 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
 
           <div className="form-group" style={{ marginBottom: 10 }}>
             <label className="form-label">
-              Valor {(!hasSubTxs && installments && parseInt(installments, 10) > 1) ? '(da parcela)' : ''}
+              Valor
             </label>
             <input
               className="form-input"
@@ -406,46 +427,7 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
               </div>
             )}
           </div>
-
-          {type === 'expense' && (
-            <>
-              <div className="form-group" style={{ marginBottom: 10 }}>
-                <label className="form-label">Categoria</label>
-                <select
-                  className="form-select"
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value as Category)}
-                  disabled={isSubmitting}
-                >
-                  {CATEGORIES.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              {category === 'Investimentos' && (
-                <div className="form-group" style={{ marginBottom: 10 }}>
-                  <label className="form-label">Meta Vinculada (opcional)</label>
-                  <select
-                    className="form-select"
-                    value={goalId}
-                    onChange={(e) => setGoalId(e.target.value)}
-                    disabled={isSubmitting}
-                  >
-                    <option value="">Nenhuma</option>
-                    {goals.map((g) => (
-                      <option key={g.id} value={g.id}>
-                        {g.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </>
-          )}
-
+          
           {type === 'income' && (
             <div className="form-group" style={{ marginBottom: 10 }}>
               <label className="form-label">Tipo de entrada</label>
@@ -488,35 +470,93 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
             </div>
           )}
 
-          <div className="form-group" style={{ marginBottom: 10 }}>
-            <label className="form-label">Mês</label>
-            <select
-              className="form-select"
-              value={monthKey}
-              onChange={(e) => setMonthKey(e.target.value)}
-              disabled={isSubmitting}
-            >
-              {availableMonths.map((mk) => (
-                <option key={mk} value={mk}>
-                  {monthKeyToLabel(mk)}
-                </option>
-              ))}
-            </select>
-          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
+            {type === 'expense' && (
+              <div className="form-group" style={{ marginBottom: 10 }}>
+                <label className="form-label">Categoria</label>
+                <select
+                  className="form-select"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value as Category)}
+                  disabled={isSubmitting}
+                >
+                  {CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
-          {type === 'expense' && !hasSubTxs && (
             <div className="form-group" style={{ marginBottom: 10 }}>
-              <label className="form-label">Parcelas (opcional)</label>
-              <input
-                className="form-input"
-                type="text"
-                placeholder="Ex: 3/12"
-                value={installments}
-                onChange={(e) => setInstallments(e.target.value)}
+              <label className="form-label">Mês</label>
+              <select
+                className="form-select"
+                value={monthKey}
+                onChange={(e) => setMonthKey(e.target.value)}
                 disabled={isSubmitting}
-              />
+              >
+                {availableMonths.map((mk) => (
+                  <option key={mk} value={mk}>
+                    {monthKeyToLabel(mk)}
+                  </option>
+                ))}
+              </select>
             </div>
-          )}
+
+            {type === 'expense' && category === 'Investimentos' && (
+              <div className="form-group" style={{ marginBottom: 10 }}>
+                <label className="form-label">Meta Vinculada (opcional)</label>
+                <select
+                  className="form-select"
+                  value={goalId}
+                  onChange={(e) => setGoalId(e.target.value)}
+                  disabled={isSubmitting}
+                >
+                  <option value="">Nenhuma</option>
+                  {goals.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {type === 'expense' && cards.length > 0 && (
+              <div className="form-group" style={{ marginBottom: 10 }}>
+                <label className="form-label">Cartão de Crédito (opcional)</label>
+                <select
+                  className="form-select"
+                  value={cardId}
+                  onChange={(e) => setCardId(e.target.value)}
+                  disabled={isSubmitting}
+                >
+                  <option value="">Nenhum</option>
+                  {cards.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {type === 'expense' && !hasSubTxs && (
+              <div className="form-group" style={{ marginBottom: 10 }}>
+                <label className="form-label">Parcelas (opcional)</label>
+                <input
+                  className="form-input"
+                  type="text"
+                  placeholder="Ex: 12"
+                  value={installments}
+                  onChange={(e) => setInstallments(e.target.value)}
+                  disabled={isSubmitting}
+                />
+              </div>
+            )}
+          </div>
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'var(--bg-2)', borderRadius: 12, marginBottom: 16 }}>
             <div>

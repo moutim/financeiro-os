@@ -582,7 +582,15 @@ body {
   padding: 20px 20px 24px;
   width: 100%;
   max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
   box-shadow: var(--shadow-xl);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.modal-sheet::-webkit-scrollbar {
+  display: none;
 }
 
 @media (min-width: 640px) {

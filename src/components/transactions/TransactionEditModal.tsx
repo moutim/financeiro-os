@@ -10,16 +10,29 @@ import { triggerSuccessConfetti } from '@/lib/confetti';
 
 const CATEGORIES = Object.keys(CATEGORY_CONFIG) as Category[];
 
+// Helper: adiciona N meses a uma chave 'YYYY-MM'
+function addMonths(monthKey: string, add: number): string {
+  let [y, m] = monthKey.split('-').map(Number);
+  m += add;
+  while (m > 12) {
+    m -= 12;
+    y += 1;
+  }
+  return `${y}-${m.toString().padStart(2, '0')}`;
+}
+
 interface TransactionEditModalProps {
   transaction: Transaction;
   onClose: () => void;
 }
 
 export default function TransactionEditModal({ transaction, onClose }: TransactionEditModalProps) {
-  const { updateTransaction } = useFinanceStore();
+  const { updateTransaction, addTransaction, addIncome, cards } = useFinanceStore();
   const [name, setName] = useState(transaction.name);
   const [rawAmount, setRawAmount] = useState(String(Math.round(Math.abs(transaction.amount) * 100)));
   const [category, setCategory] = useState<Category>(transaction.category);
+  const [cardId, setCardId] = useState(transaction.cardId || '');
+  const [installments, setInstallments] = useState(transaction.installments || '');
   const [subTransactions, setSubTransactions] = useState<{name: string, rawAmount: string, installments: string}[]>(
     transaction.subTransactions 
       ? transaction.subTransactions.map(st => ({ name: st.name, rawAmount: String(Math.round(st.amount * 100)), installments: st.installments || '' }))
@@ -39,22 +52,119 @@ export default function TransactionEditModal({ transaction, onClose }: Transacti
     let numAmount = hasSubTxs ? totalSubAmount : (parseInt(rawAmount || '0', 10) / 100);
     if (isNaN(numAmount) || numAmount <= 0) return;
     
-    const parsedSubTxs = subTransactions.map(s => ({
-      name: s.name.trim(),
-      amount: parseInt(s.rawAmount || '0', 10) / 100,
-      installments: s.installments || null
-    })).filter(s => s.name && s.amount > 0);
-    const finalSubTransactions = parsedSubTxs.length > 0 ? parsedSubTxs : null;
+    const parsedSubTxs = subTransactions.map(s => {
+      let inst = parseInt(s.installments || '1', 10);
+      if (isNaN(inst) || inst < 1) inst = 1;
+      return {
+        name: s.name.trim(),
+        amount: parseInt(s.rawAmount || '0', 10) / 100,
+        installments: inst
+      };
+    }).filter(s => s.name && s.amount > 0);
+    const hasValidSubTxs = parsedSubTxs.length > 0;
+
+    let maxMonths = 1;
+    if (hasValidSubTxs) {
+      parsedSubTxs.forEach(s => { if (s.installments > maxMonths) maxMonths = s.installments; });
+    }
+    
+    const parsedInstallments = parseInt(installments, 10);
+    if (!hasValidSubTxs && installments && !isNaN(parsedInstallments) && parsedInstallments > 1 && !installments.includes('/')) {
+      maxMonths = parsedInstallments;
+    }
 
     setIsSubmitting(true);
     try {
-      await updateTransaction(transaction.id, { 
-        name: name.trim(), 
-        amount: numAmount, 
-        category,
-        subTransactions: finalSubTransactions,
-        isPaid
-      });
+      if (maxMonths > 1) {
+        const promises = [];
+        const state = useFinanceStore.getState();
+        const baseIncomes = state.getMonthIncomes(transaction.monthKey);
+        const baseFixos = state.getMonthTransactions(transaction.monthKey).filter(t => t.category === 'Fixos');
+        
+        const amountPerInstallment = hasValidSubTxs ? 0 : numAmount;
+
+        for (let i = 0; i < maxMonths; i++) {
+          const nextMonthKey = addMonths(transaction.monthKey, i);
+          
+          let currentSubs = null;
+          let currentParentAmount = amountPerInstallment;
+          
+          if (hasValidSubTxs) {
+            const subsForMonth = parsedSubTxs.filter(s => i < s.installments).map(s => {
+              const subAmt = s.amount;
+              return {
+                name: s.name,
+                amount: subAmt,
+                installments: s.installments > 1 ? `${i + 1}/${s.installments}` : undefined
+              };
+            });
+            if (subsForMonth.length > 0) {
+              currentSubs = subsForMonth;
+              currentParentAmount = subsForMonth.reduce((acc, curr) => acc + curr.amount, 0);
+            } else {
+              continue;
+            }
+          }
+
+          const installmentLabel = maxMonths > 1 && !hasValidSubTxs ? `${i + 1}/${maxMonths}` : null;
+
+          if (i === 0) {
+            promises.push(updateTransaction(transaction.id, {
+              name: name.trim(),
+              amount: currentParentAmount,
+              category,
+              subTransactions: currentSubs,
+              isPaid,
+              cardId: cardId || null,
+              installments: installmentLabel
+            }));
+          } else {
+            promises.push(addTransaction({
+              name: name.trim(),
+              amount: currentParentAmount,
+              category,
+              monthKey: nextMonthKey,
+              installments: installmentLabel,
+              goalId: transaction.goalId || null,
+              cardId: cardId || null,
+              subTransactions: currentSubs,
+              isPaid: false,
+            }));
+
+            const futureIncomes = state.getMonthIncomes(nextMonthKey);
+            const futureFixos = state.getMonthTransactions(nextMonthKey).filter(t => t.category === 'Fixos');
+            if (futureIncomes.length === 0 && futureFixos.length === 0) {
+              for (const inc of baseIncomes) {
+                promises.push(addIncome({ 
+                  name: inc.name, amount: inc.amount, monthKey: nextMonthKey, isRecurring: inc.isRecurring 
+                }));
+              }
+              for (const fixo of baseFixos) {
+                promises.push(addTransaction({ 
+                  name: fixo.name, amount: fixo.amount, category: fixo.category, monthKey: nextMonthKey 
+                }));
+              }
+            }
+          }
+        }
+        await Promise.all(promises);
+      } else {
+        const currentSubs = hasValidSubTxs ? parsedSubTxs.map(s => ({
+          name: s.name,
+          amount: s.amount,
+          installments: s.installments > 1 ? `1/${s.installments}` : undefined
+        })) : null;
+
+        await updateTransaction(transaction.id, { 
+          name: name.trim(), 
+          amount: numAmount, 
+          category,
+          subTransactions: currentSubs,
+          isPaid,
+          cardId: cardId || null,
+          installments: installments || null
+        });
+      }
       
       if (isPaid && !transaction.isPaid) {
         triggerSuccessConfetti();
@@ -172,7 +282,7 @@ export default function TransactionEditModal({ transaction, onClose }: Transacti
             )}
           </div>
 
-          <div className="form-group" style={{ marginBottom: 24 }}>
+          <div className="form-group" style={{ marginBottom: 16 }}>
             <label className="form-label">Categoria</label>
             <select
               className="form-select"
@@ -185,6 +295,41 @@ export default function TransactionEditModal({ transaction, onClose }: Transacti
                 </option>
               ))}
             </select>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px', marginBottom: 24 }}>
+            {cards && cards.length > 0 && (
+              <div className="form-group">
+                <label className="form-label">Cartão de Crédito</label>
+                <select
+                  className="form-select"
+                  value={cardId}
+                  onChange={(e) => setCardId(e.target.value)}
+                  disabled={isSubmitting}
+                >
+                  <option value="">Nenhum</option>
+                  {cards.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {!hasSubTxs && (
+              <div className="form-group">
+                <label className="form-label">Parcelas (opcional)</label>
+                <input
+                  className="form-input"
+                  type="text"
+                  placeholder="Ex: 12"
+                  value={installments}
+                  onChange={(e) => setInstallments(e.target.value)}
+                  disabled={isSubmitting}
+                />
+              </div>
+            )}
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'var(--bg-2)', borderRadius: 12, marginBottom: 16 }}>
