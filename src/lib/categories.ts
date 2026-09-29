@@ -8,7 +8,11 @@ import {
   BookOpen, 
   Handshake, 
   CircleDollarSign, 
-  Package 
+  Package,
+  Car,
+  Ticket,
+  Home,
+  Tv
 } from 'lucide-react';
 
 export const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
@@ -29,6 +33,30 @@ export const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
     color: '#FF3B30',
     bgColor: 'rgba(255,59,48,0.12)',
     icon: Utensils,
+  },
+  Transporte: {
+    label: 'Transporte',
+    color: '#FFCC00',
+    bgColor: 'rgba(255,204,0,0.12)',
+    icon: Car,
+  },
+  Lazer: {
+    label: 'Lazer',
+    color: '#BF5AF2',
+    bgColor: 'rgba(191,90,242,0.12)',
+    icon: Ticket,
+  },
+  Casa: {
+    label: 'Casa',
+    color: '#A2845E',
+    bgColor: 'rgba(162,132,94,0.12)',
+    icon: Home,
+  },
+  Assinaturas: {
+    label: 'Assinaturas',
+    color: '#5E5CE6',
+    bgColor: 'rgba(94,92,230,0.12)',
+    icon: Tv,
   },
   Investimentos: {
     label: 'Investimentos',

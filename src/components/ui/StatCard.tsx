@@ -32,7 +32,7 @@ export default function StatCard({
     >
       <div
         className="stat-card-icon"
-        style={{ background: bgColor, color: color, width: 32, height: 32, borderRadius: 10, marginBottom: 12 }}
+        style={{ background: 'var(--surface)', border: `1px solid ${color}`, color: color, width: 32, height: 32, borderRadius: 10, marginBottom: 12 }}
       >
         {icon}
       </div>
