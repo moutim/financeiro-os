@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Target, AlertTriangle, Plus, Pencil, Trash2, CalendarClock } from 'lucide-react';
+import { Target, AlertTriangle, Plus, Pencil, Trash2, CalendarClock, Users } from 'lucide-react';
 
 import Sidebar from '@/components/layout/Sidebar';
 import GlassCard from '@/components/ui/GlassCard';
@@ -18,6 +18,7 @@ export default function MetasPage() {
   const { pending, transactions, goals, deletePending, addGoal, updateGoal, deleteGoal, loadingState } = useFinanceStore();
   const [showPendingModal, setShowPendingModal] = useState(false);
   const [pendingToEdit, setPendingToEdit] = useState<Pending | null>(null);
+  const [showFabMenu, setShowFabMenu] = useState(false);
   
   // Goals Modals
   const [showGoalModal, setShowGoalModal] = useState(false);
@@ -125,22 +126,6 @@ export default function MetasPage() {
               Objetivos e Pendências
             </p>
             <h1 className="text-title-1">Metas</h1>
-          </div>
-          <div style={{ display: 'flex', gap: 12 }}>
-            <button 
-              className="btn-ghost" 
-              onClick={() => setShowJoinModal(true)}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px' }}
-            >
-              Entrar em Meta
-            </button>
-            <button 
-              className="btn-primary" 
-              onClick={() => { setGoalToEdit(null); setShowGoalModal(true); }}
-              style={{ display: 'flex', alignItems: 'center', gap: 8 }}
-            >
-              <Plus size={18} /> Nova Meta
-            </button>
           </div>
         </div>
 
@@ -477,6 +462,105 @@ export default function MetasPage() {
 
       </main>
       
+      {/* Overlay invisível para fechar o menu */}
+      {showFabMenu && (
+        <div 
+          style={{ position: 'fixed', inset: 0, zIndex: 39 }}
+          onClick={() => setShowFabMenu(false)}
+        />
+      )}
+
+      {/* FAB Menu */}
+      <div 
+        className="fab-menu"
+        style={{
+          background: 'var(--surface)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          borderRadius: 16,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+          border: '1px solid var(--separator)',
+          padding: 8,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 4,
+          transform: showFabMenu ? 'scale(1) translateY(0)' : 'scale(0.9) translateY(20px)',
+          opacity: showFabMenu ? 1 : 0,
+          pointerEvents: showFabMenu ? 'auto' : 'none',
+          transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+          transformOrigin: 'bottom right'
+        }}
+      >
+        <button
+          onClick={() => {
+            setShowFabMenu(false);
+            setGoalToEdit(null);
+            setShowGoalModal(true);
+          }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            background: 'none',
+            border: 'none',
+            padding: '12px 16px',
+            textAlign: 'left',
+            fontSize: 15,
+            fontWeight: 500,
+            color: 'var(--text-primary)',
+            borderRadius: 10,
+            cursor: 'pointer',
+            transition: 'background 0.2s',
+            whiteSpace: 'nowrap'
+          }}
+          onMouseOver={(e) => e.currentTarget.style.background = 'var(--surface-hover)'}
+          onMouseOut={(e) => e.currentTarget.style.background = 'none'}
+        >
+          <Target size={18} color="var(--blue)" />
+          Nova Meta
+        </button>
+        <button
+          onClick={() => {
+            setShowFabMenu(false);
+            setShowJoinModal(true);
+          }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            background: 'none',
+            border: 'none',
+            padding: '12px 16px',
+            textAlign: 'left',
+            fontSize: 15,
+            fontWeight: 500,
+            color: 'var(--text-primary)',
+            borderRadius: 10,
+            cursor: 'pointer',
+            transition: 'background 0.2s',
+            whiteSpace: 'nowrap'
+          }}
+          onMouseOver={(e) => e.currentTarget.style.background = 'var(--surface-hover)'}
+          onMouseOut={(e) => e.currentTarget.style.background = 'none'}
+        >
+          <Users size={18} color="var(--green)" />
+          Entrar em Meta
+        </button>
+      </div>
+
+      {/* FAB - Estilo Padrão do Sistema */}
+      <button 
+        className="fab" 
+        onClick={() => setShowFabMenu(!showFabMenu)} 
+        aria-label="Opções de Meta"
+        style={{
+          transform: showFabMenu ? 'rotate(45deg)' : 'rotate(0deg)',
+          transition: 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+        }}
+      >
+        <Plus size={24} strokeWidth={2.5} />
+      </button>
+
       {showPendingModal && (
         <PendingEditModal
           pending={pendingToEdit}

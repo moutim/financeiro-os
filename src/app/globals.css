@@ -548,6 +548,13 @@ body {
   z-index: 40;
 }
 
+.fab-menu {
+  position: fixed;
+  bottom: 100px; /* 28px (fab bottom) + 56px (fab height) + 16px (gap) */
+  right: 28px;
+  z-index: 50;
+}
+
 .fab:hover {
   transform: scale(1.05);
   box-shadow: 0 6px 28px rgba(0, 122, 255, 0.55);
@@ -892,6 +899,11 @@ body {
     right: 20px;
   }
 
+  .fab-menu {
+    bottom: calc(176px + env(safe-area-inset-bottom)); /* 104 + 56 + 16 */
+    right: 20px;
+  }
+
   .stat-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
@@ -1040,6 +1052,10 @@ body {
 
   .fab {
     bottom: 112px;
+  }
+
+  .fab-menu {
+    bottom: 184px; /* 112 + 56 + 16 */
   }
 
   .main-content {
