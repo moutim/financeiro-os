@@ -139,18 +139,18 @@ export default function SettingsPage() {
               
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 {[
-                  '#007AFF', // Azul Clássico (Unissex)
-                  '#5856D6', // Índigo (Masculino/Elegante)
-                  '#AF52DE', // Roxo (Feminino/Criativo)
-                  '#FF2D55', // Rosa Vibrante (Feminino)
-                  '#E2858E', // Rose Gold (Feminino/Premium)
-                  '#FF9500', // Laranja (Unissex)
-                  '#D4AF37', // Dourado (Premium)
-                  '#34C759', // Verde Esmeralda (Unissex)
-                  '#0D9488', // Teal/Ciano Escuro (Masculino/Moderno)
-                  '#32ADE6', // Azul Claro (Unissex/Moderno)
-                  '#1E3A8A', // Azul Marinho (Masculino/Sóbrio)
-                  '#475569', // Grafite (Masculino/Minimalista)
+                  '#007AFF', // Azul
+                  '#FF3B30', // Vermelho
+                  '#34C759', // Verde
+                  '#FF9500', // Laranja
+                  '#FFCC00', // Amarelo
+                  '#5856D6', // Roxo
+                  '#FF2D55', // Rosa
+                  '#5AC8FA', // Ciano
+                  '#009688', // Verde-Água (Teal)
+                  '#795548', // Marrom
+                  '#607D8B', // Cinza Azulado
+                  '#000000', // Preto
                 ].map((color) => (
                   <button
                     key={color}

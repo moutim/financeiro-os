@@ -11,8 +11,8 @@ export default function CategoryBadge({ category, small }: CategoryBadgeProps) {
     <span
       className="category-badge"
       style={{
-        background: cfg.bgColor,
-        color: cfg.color,
+        background: cfg.color,
+        color: '#FFF',
         fontSize: small ? 11 : 12,
         padding: small ? '2px 8px' : '4px 10px',
       }}

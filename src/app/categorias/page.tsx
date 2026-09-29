@@ -98,11 +98,11 @@ export default function CategoriasPage() {
                       height: 44,
                       flexShrink: 0,
                       borderRadius: 12,
-                      background: cfg.bgColor,
+                      background: cfg.color,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      color: cfg.color,
+                      color: '#FFF',
                     }}>
                       <cfg.icon size={22} />
                     </div>

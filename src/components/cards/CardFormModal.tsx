@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { formatMask, parseMask } from '@/lib/currency';
 import { useSwipeToClose } from '@/hooks/useSwipeToClose';
+import { BANKS } from '@/lib/banks';
 
 export interface CardData {
   id: string;
@@ -14,6 +15,7 @@ export interface CardData {
   brand: string;
   freedMonthKey?: string | null;
   lastDigits?: string | null;
+  bankId?: string | null;
 }
 
 interface CardFormModalProps {
@@ -40,6 +42,7 @@ export default function CardFormModal({ initialData, onSave, onClose, onDelete }
   const [freedMonth, setFreedMonth] = useState(initialData?.freedMonthKey ? initialData.freedMonthKey.split('-')[1] : '');
   const [freedYear, setFreedYear] = useState(initialData?.freedMonthKey ? initialData.freedMonthKey.split('-')[0] : '');
   const [lastDigits, setLastDigits] = useState(initialData?.lastDigits ? initialData.lastDigits.split('-').pop() ?? '' : '');
+  const [bankId, setBankId] = useState(initialData?.bankId ?? '');
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -70,6 +73,7 @@ export default function CardFormModal({ initialData, onSave, onClose, onDelete }
       brand,
       freedMonthKey: (freedYear && freedMonth) ? `${freedYear}-${freedMonth}` : null,
       lastDigits: finalLastDigits,
+      bankId: bankId || null,
     };
     
     setIsSubmitting(true);
@@ -123,6 +127,16 @@ export default function CardFormModal({ initialData, onSave, onClose, onDelete }
           </div>
           
           <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+            <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+              <label className="form-label">Banco</label>
+              <select className="form-select" value={bankId} onChange={e => setBankId(e.target.value)} disabled={isLoading}>
+                <option value="">(Nenhum)</option>
+                {BANKS.map(b => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+            </div>
+
             <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
               <label className="form-label">Bandeira</label>
               <select className="form-select" value={brand} onChange={e => setBrand(e.target.value)} disabled={isLoading}>

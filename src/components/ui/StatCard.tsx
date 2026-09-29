@@ -1,5 +1,6 @@
 import GlassCard from './GlassCard';
 import { formatCurrency } from '@/lib/currency';
+import { ArrowUp, ArrowDown } from 'lucide-react';
 
 import type { ReactNode } from 'react';
 
@@ -23,10 +24,6 @@ export default function StatCard({
   isNegative,
   delay = 0,
 }: StatCardProps) {
-  const isNeg = isNegative ?? value < 0;
-  const displayColor = isNegative !== undefined
-    ? (isNegative ? 'var(--red)' : 'var(--green)')
-    : color;
 
   return (
     <GlassCard
@@ -35,15 +32,22 @@ export default function StatCard({
     >
       <div
         className="stat-card-icon"
-        style={{ background: bgColor, color: displayColor }}
+        style={{ background: bgColor, color: color, width: 32, height: 32, borderRadius: 10, marginBottom: 12 }}
       >
         {icon}
       </div>
       <div
         className="stat-card-value"
-        style={{ color: displayColor }}
+        style={{ color: color, display: 'flex', alignItems: 'center', gap: '6px' }}
       >
         {formatCurrency(value)}
+        {isNegative !== undefined && (
+          isNegative ? (
+            <ArrowDown size={22} strokeWidth={3} color="var(--red)" style={{ marginTop: 2 }} />
+          ) : (
+            <ArrowUp size={22} strokeWidth={3} color="var(--green)" style={{ marginTop: 2 }} />
+          )
+        )}
       </div>
       <div className="stat-card-label">{label}</div>
     </GlassCard>

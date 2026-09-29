@@ -368,6 +368,8 @@ body {
   overflow: hidden;
 }
 
+
+
 .stat-card-icon {
   width: 40px;
   height: 40px;
@@ -902,6 +904,10 @@ body {
   .stat-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
+  }
+
+  .stat-card-value {
+    font-size: 20px;
   }
 
   .goals-grid {

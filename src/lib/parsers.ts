@@ -97,11 +97,12 @@ export function rowToCard(row: string[]): CreditCard {
     notes:      row[9] || null,
     freedMonthKey: row[10] || null,
     lastDigits: row[11] || null,
+    bankId: row[12] || null,
   };
 }
 
 export function cardToRow(c: CreditCard): (string | number | null)[] {
-  return [c.id, c.name, c.limit, c.used, c.color, c.colorLight, c.brand, c.dueDay ?? '', c.closeDay ?? '', c.notes ?? '', c.freedMonthKey ?? '', c.lastDigits ?? ''];
+  return [c.id, c.name, c.limit, c.used, c.color, c.colorLight, c.brand, c.dueDay ?? '', c.closeDay ?? '', c.notes ?? '', c.freedMonthKey ?? '', c.lastDigits ?? '', c.bankId ?? ''];
 }
 
 // ─── Faturas de Cartão ────────────────────────────────────────────────────────

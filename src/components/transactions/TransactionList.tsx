@@ -64,7 +64,7 @@ export default function TransactionList({ transactions, showDelete = true }: Tra
           >
             <div
               className="transaction-icon"
-              style={{ background: cfg.bgColor, color: cfg.color, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 8 }}
+              style={{ background: cfg.color, color: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 8 }}
             >
               <cfg.icon size={14} />
             </div>

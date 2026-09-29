@@ -10,6 +10,7 @@ import { formatCurrency } from '@/lib/currency';
 import { CreditCard as CreditCardIcon, TrendingDown, Plus, Pencil, CheckCircle2 } from 'lucide-react';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import MonthSelector from '@/components/transactions/MonthSelector';
+import { getBankById } from '@/lib/banks';
 
 import { useFinanceStore } from '@/lib/store';
 import type { CreditCard, CardBrand, Transaction } from '@/lib/types';
@@ -178,7 +179,7 @@ export default function CartoesPage() {
           <GlassCard padding="20px" style={{ flex: '1 1 300px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
               <div style={{
-                width: 40, height: 40, borderRadius: 12, background: 'var(--blue-light)', color: 'var(--blue)',
+                width: 40, height: 40, borderRadius: 12, background: 'var(--blue)', color: '#FFF',
                 display: 'flex', alignItems: 'center', justifyContent: 'center'
               }}>
                 <CreditCardIcon size={20} />
@@ -191,7 +192,7 @@ export default function CartoesPage() {
             <div style={{ display: 'flex', gap: 20 }}>
               <div>
                 <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 2 }}>Utilizado</div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--orange)' }}>{formatCurrency(totalUsed)}</div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: overallUsagePct >= 90 ? 'var(--red)' : 'var(--text-primary)' }}>{formatCurrency(totalUsed)}</div>
               </div>
               <div>
                 <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 2 }}>Disponível</div>
@@ -200,12 +201,13 @@ export default function CartoesPage() {
             </div>
             
             <div style={{ marginTop: 16, height: 6, borderRadius: 3, background: 'var(--separator)', overflow: 'hidden' }}>
-              <div style={{ 
-                height: '100%', 
-                width: `${Math.min(overallUsagePct, 100)}%`, 
-                background: 'linear-gradient(90deg, var(--orange), #FF3B30)',
-                borderRadius: 3
-              }} />
+              <div 
+                className="progress-bar-fill"
+                style={{ 
+                  width: `${Math.min(overallUsagePct, 100)}%`, 
+                  background: 'linear-gradient(90deg, var(--blue-light), var(--blue))',
+                }} 
+              />
             </div>
           </GlassCard>
         </div>
@@ -218,6 +220,7 @@ export default function CartoesPage() {
           {cardsWithRealData.map((card, index) => {
             const usagePct = card.limit > 0 ? (card.realUsed / card.limit) * 100 : 0;
             const available = Math.max(0, card.limit - card.realUsed);
+            const bank = getBankById(card.bankId);
             
             return (
               <GlassCard 
@@ -232,14 +235,35 @@ export default function CartoesPage() {
                       width: 44, 
                       height: 44, 
                       borderRadius: 12, 
-                      background: card.colorLight, 
-                      color: card.color,
+                      background: bank ? 'transparent' : card.color, 
+                      color: '#FFF',
                       display: 'flex', 
                       alignItems: 'center', 
                       justifyContent: 'center',
-                      boxShadow: `0 4px 12px ${card.color}15`
+                      boxShadow: bank ? 'none' : `0 4px 12px ${card.color}15`,
+                      overflow: 'hidden'
                     }}>
-                      <CreditCardIcon size={22} />
+                      {bank ? (
+                        <img 
+                          src={`https://www.google.com/s2/favicons?domain=${bank.domain}&sz=128`} 
+                          alt={bank.name}
+                          width={32}
+                          height={32}
+                          style={{ objectFit: 'contain', borderRadius: 8 }}
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                            const parent = e.currentTarget.parentElement;
+                            if (parent) {
+                              parent.style.background = card.color;
+                              parent.style.boxShadow = `0 4px 12px ${card.color}15`;
+                            }
+                            if (e.currentTarget.nextElementSibling) {
+                              (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'block';
+                            }
+                          }}
+                        />
+                      ) : null}
+                      <CreditCardIcon size={22} style={{ display: bank ? 'none' : 'block' }} />
                     </div>
                     <div>
                       <h3 style={{ fontSize: 16, fontWeight: 700 }}>{card.name}</h3>

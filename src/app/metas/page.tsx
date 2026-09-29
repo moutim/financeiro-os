@@ -161,11 +161,11 @@ export default function MetasPage() {
                       width: 48,
                       height: 48,
                       borderRadius: 14,
-                      background: 'var(--green-light)',
+                      background: 'var(--blue)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      color: 'var(--green)',
+                      color: '#FFF',
                     }}>
                       <Target size={24} />
                     </div>
@@ -198,7 +198,7 @@ export default function MetasPage() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 16 }}>
                   <div>
                     <p style={{ fontSize: 12, color: 'var(--text-tertiary)', fontWeight: 500 }}>Guardado</p>
-                    <p style={{ fontSize: 24, fontWeight: 700, color: 'var(--green)', letterSpacing: '-0.02em' }}>
+                    <p style={{ fontSize: 24, fontWeight: 700, color: 'var(--blue)', letterSpacing: '-0.02em' }}>
                       {formatCurrency(actualCurrent)}
                     </p>
                   </div>
@@ -217,13 +217,13 @@ export default function MetasPage() {
                       className="progress-bar-fill"
                       style={{
                         width: `${goalPct}%`,
-                        background: 'linear-gradient(90deg, var(--green), #30D158)',
+                        background: 'linear-gradient(90deg, var(--blue), var(--blue))',
                       }}
                     />
                   </div>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 16 }}>
-                  <span style={{ color: 'var(--green)', fontWeight: 700 }}>{goalPct.toFixed(1)}% concluído</span>
+                  <span style={{ color: 'var(--blue)', fontWeight: 700 }}>{goalPct.toFixed(1)}% concluído</span>
                   <span style={{ color: 'var(--text-tertiary)' }}>Faltam {formatCurrency(remaining)}</span>
                 </div>
 
@@ -543,7 +543,7 @@ export default function MetasPage() {
           onMouseOver={(e) => e.currentTarget.style.background = 'var(--surface-hover)'}
           onMouseOut={(e) => e.currentTarget.style.background = 'none'}
         >
-          <Users size={18} color="var(--green)" />
+          <Users size={18} color="var(--blue)" />
           Entrar em Meta
         </button>
       </div>

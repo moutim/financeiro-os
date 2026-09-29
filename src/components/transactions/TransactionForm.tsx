@@ -291,10 +291,10 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
               flex: 1,
               padding: '6px 0',
               border: 'none',
-              background: type === 'expense' ? 'var(--surface)' : 'transparent',
+              background: type === 'expense' ? 'var(--blue)' : 'transparent',
               borderRadius: 6,
               fontWeight: type === 'expense' ? 600 : 500,
-              color: type === 'expense' ? 'var(--text-primary)' : 'var(--text-tertiary)',
+              color: type === 'expense' ? '#FFF' : 'var(--text-tertiary)',
               boxShadow: type === 'expense' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
               cursor: 'pointer',
               transition: 'all 0.2s',
@@ -311,10 +311,10 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
               flex: 1,
               padding: '6px 0',
               border: 'none',
-              background: type === 'income' ? 'var(--surface)' : 'transparent',
+              background: type === 'income' ? 'var(--blue)' : 'transparent',
               borderRadius: 6,
               fontWeight: type === 'income' ? 600 : 500,
-              color: type === 'income' ? 'var(--text-primary)' : 'var(--text-tertiary)',
+              color: type === 'income' ? '#FFF' : 'var(--text-tertiary)',
               boxShadow: type === 'income' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
               cursor: 'pointer',
               transition: 'all 0.2s',
@@ -434,7 +434,6 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
               <div style={{ display: 'flex', background: 'var(--bg-2)', padding: 4, borderRadius: 8, gap: 4 }}>
                 {(['salary', 'extra'] as const).map((opt) => {
                   const isActive = incomeType === opt;
-                  const activeColor = opt === 'salary' ? 'var(--blue)' : 'var(--green)';
                   return (
                     <button
                       key={opt}
@@ -450,8 +449,8 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
                         fontSize: 13,
                         cursor: 'pointer',
                         transition: 'all 0.2s',
-                        background: isActive ? 'var(--surface)' : 'transparent',
-                        color: isActive ? activeColor : 'var(--text-tertiary)',
+                        background: isActive ? 'var(--blue)' : 'transparent',
+                        color: isActive ? '#FFF' : 'var(--text-tertiary)',
                         boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
                         opacity: isSubmitting ? 0.5 : 1,
                         display: 'flex',
@@ -472,7 +471,7 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
             {type === 'expense' && (
-              <div className="form-group" style={{ marginBottom: 10 }}>
+              <div className="form-group" style={{ marginBottom: 10, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
                 <label className="form-label">Categoria</label>
                 <select
                   className="form-select"
@@ -489,7 +488,7 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
               </div>
             )}
 
-            <div className="form-group" style={{ marginBottom: 10 }}>
+            <div className="form-group" style={{ marginBottom: 10, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
               <label className="form-label">Mês</label>
               <select
                 className="form-select"
@@ -506,7 +505,7 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
             </div>
 
             {type === 'expense' && category === 'Investimentos' && (
-              <div className="form-group" style={{ marginBottom: 10 }}>
+              <div className="form-group" style={{ marginBottom: 10, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
                 <label className="form-label">Meta Vinculada (opcional)</label>
                 <select
                   className="form-select"
@@ -525,7 +524,7 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
             )}
 
             {type === 'expense' && cards.length > 0 && (
-              <div className="form-group" style={{ marginBottom: 10 }}>
+              <div className="form-group" style={{ marginBottom: 10, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
                 <label className="form-label">Cartão de Crédito (opcional)</label>
                 <select
                   className="form-select"
@@ -544,7 +543,7 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
             )}
 
             {type === 'expense' && !hasSubTxs && (
-              <div className="form-group" style={{ marginBottom: 10 }}>
+              <div className="form-group" style={{ marginBottom: 10, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
                 <label className="form-label">Parcelas (opcional)</label>
                 <input
                   className="form-input"
@@ -558,7 +557,7 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
             )}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'var(--bg-2)', borderRadius: 12, marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', marginBottom: 16 }}>
             <div>
               <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>{type === 'expense' ? 'Marcar como pago' : 'Marcar como recebido'}</div>
             </div>

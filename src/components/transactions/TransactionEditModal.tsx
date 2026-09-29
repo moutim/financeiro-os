@@ -299,7 +299,7 @@ export default function TransactionEditModal({ transaction, onClose }: Transacti
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px', marginBottom: 24 }}>
             {cards && cards.length > 0 && (
-              <div className="form-group">
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
                 <label className="form-label">Cartão de Crédito</label>
                 <select
                   className="form-select"
@@ -318,7 +318,7 @@ export default function TransactionEditModal({ transaction, onClose }: Transacti
             )}
 
             {!hasSubTxs && (
-              <div className="form-group">
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
                 <label className="form-label">Parcelas (opcional)</label>
                 <input
                   className="form-input"
@@ -332,7 +332,7 @@ export default function TransactionEditModal({ transaction, onClose }: Transacti
             )}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'var(--bg-2)', borderRadius: 12, marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', marginBottom: 16 }}>
             <div>
               <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>Marcar como pago</div>
             </div>

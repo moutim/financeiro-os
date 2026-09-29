@@ -92,6 +92,7 @@ export interface CreditCard {
   notes?: string | null;
   freedMonthKey?: string | null; // "YYYY-MM" de quando o limite será totalmente liberado
   lastDigits?: string | null; // últimos 4 dígitos do cartão
+  bankId?: string | null; // ID do banco para buscar logo
 }
 
 // ─── Faturas de Cartão ────────────────────────────────────────────────────────

@@ -100,9 +100,10 @@ export default function SpendingDonut({ transactions }: SpendingDonutProps) {
           dataKey="value"
           labelLine={false}
           label={CustomLabel}
+          stroke="none"
         >
           {data.map((entry, index) => (
-            <Cell key={`cell-${index}`} fill={entry.color} />
+            <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
           ))}
         </Pie>
         <Tooltip content={<CustomTooltip />} />
