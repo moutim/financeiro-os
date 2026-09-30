@@ -2,24 +2,42 @@
 import { useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { useFinanceStore } from '@/lib/store';
-import type { Category, Transaction } from '@/lib/types';
-import { CATEGORY_CONFIG } from '@/lib/categories';
-import { formatMask, parseMask } from '@/lib/currency';
+import type { 
+  ExpenseMacro, 
+  Transaction 
+} from '@/lib/types';
+import { 
+  EXPENSE_MACROS, 
+  getMicrosForMacro, 
+  INVESTMENT_CATEGORIES, 
+  migrateTransactionCategory
+} from '@/lib/categories';
+import { formatMask, parseMask, addMonths, parseInstallmentInput, parseMonthKey } from '@/lib/currency';
 import { useSwipeToClose } from '@/hooks/useSwipeToClose';
 import { triggerSuccessConfetti } from '@/lib/confetti';
 
-const CATEGORIES = Object.keys(CATEGORY_CONFIG) as Category[];
+const CURRENT_YEAR = new Date().getFullYear();
+const YEARS = Array.from({ length: 16 }, (_, i) => 2020 + i);
 
-// Helper: adiciona N meses a uma chave 'YYYY-MM'
-function addMonths(monthKey: string, add: number): string {
-  let [y, m] = monthKey.split('-').map(Number);
-  m += add;
-  while (m > 12) {
-    m -= 12;
-    y += 1;
-  }
-  return `${y}-${m.toString().padStart(2, '0')}`;
-}
+const MONTHS_LIST = [
+  { num: 1, label: 'Janeiro' },
+  { num: 2, label: 'Fevereiro' },
+  { num: 3, label: 'Março' },
+  { num: 4, label: 'Abril' },
+  { num: 5, label: 'Maio' },
+  { num: 6, label: 'Junho' },
+  { num: 7, label: 'Julho' },
+  { num: 8, label: 'Agosto' },
+  { num: 9, label: 'Setembro' },
+  { num: 10, label: 'Outubro' },
+  { num: 11, label: 'Novembro' },
+  { num: 12, label: 'Dezembro' },
+];
+
+const ALL_MACROS_EDIT = [
+  ...EXPENSE_MACROS,
+  'Investimentos',
+] as const;
 
 interface TransactionEditModalProps {
   transaction: Transaction;
@@ -27,10 +45,21 @@ interface TransactionEditModalProps {
 }
 
 export default function TransactionEditModal({ transaction, onClose }: TransactionEditModalProps) {
-  const { updateTransaction, addTransaction, addIncome, cards } = useFinanceStore();
+  const { updateTransaction, addTransaction, addIncome, cards, addAvailableMonth } = useFinanceStore();
   const [name, setName] = useState(transaction.name);
   const [rawAmount, setRawAmount] = useState(String(Math.round(Math.abs(transaction.amount) * 100)));
-  const [category, setCategory] = useState<Category>(transaction.category);
+
+  // Data da Transação (dois campos fechados: Ano e Mês)
+  const initialDate = parseMonthKey(transaction.monthKey) || { year: CURRENT_YEAR, month: new Date().getMonth() + 1 };
+  const [selectedYear, setSelectedYear] = useState<number>(initialDate.year);
+  const [selectedMonthNum, setSelectedMonthNum] = useState<number>(initialDate.month);
+  const monthKey = `${selectedYear}-${String(selectedMonthNum).padStart(2, '0')}`;
+
+  // Migra com segurança os valores iniciais (Micro opcional)
+  const initialMigrated = migrateTransactionCategory(transaction.category, transaction.subcategory, transaction.name);
+  const [macro, setMacro] = useState<string>(initialMigrated.macro);
+  const [micro, setMicro] = useState<string>(transaction.subcategory || '');
+
   const [cardId, setCardId] = useState(transaction.cardId || '');
   const [installments, setInstallments] = useState(transaction.installments || '');
   const [subTransactions, setSubTransactions] = useState<{name: string, rawAmount: string, installments: string}[]>(
@@ -41,6 +70,20 @@ export default function TransactionEditModal({ transaction, onClose }: Transacti
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPaid, setIsPaid] = useState(transaction.isPaid || false);
   const swipeToClose = useSwipeToClose(onClose);
+
+  // Retorna as micros disponíveis de acordo com a macro
+  const getAvailableMicros = (m: string): readonly string[] => {
+    if (m === 'Investimentos') return INVESTMENT_CATEGORIES;
+    return getMicrosForMacro(m);
+  };
+
+  const handleMacroChange = (newMacro: string) => {
+    setMacro(newMacro);
+    const validMicros = getAvailableMicros(newMacro);
+    if (!validMicros.includes(micro)) {
+      setMicro('');
+    }
+  };
 
   const hasSubTxs = subTransactions.length > 0;
   const totalSubAmount = subTransactions.reduce((acc, sub) => acc + (parseInt(sub.rawAmount || '0', 10) / 100), 0);
@@ -68,10 +111,12 @@ export default function TransactionEditModal({ transaction, onClose }: Transacti
       parsedSubTxs.forEach(s => { if (s.installments > maxMonths) maxMonths = s.installments; });
     }
     
-    const parsedInstallments = parseInt(installments, 10);
-    if (!hasValidSubTxs && installments && !isNaN(parsedInstallments) && parsedInstallments > 1 && !installments.includes('/')) {
-      maxMonths = parsedInstallments;
+    const parsedInst = parseInstallmentInput(installments);
+    if (!hasValidSubTxs && parsedInst && parsedInst.total > 1) {
+      maxMonths = parsedInst.total;
     }
+
+    const txType = macro === 'Investimentos' ? 'investment' : 'expense';
 
     setIsSubmitting(true);
     try {
@@ -79,7 +124,7 @@ export default function TransactionEditModal({ transaction, onClose }: Transacti
         const promises = [];
         const state = useFinanceStore.getState();
         const baseIncomes = state.getMonthIncomes(transaction.monthKey);
-        const baseFixos = state.getMonthTransactions(transaction.monthKey).filter(t => t.category === 'Fixos');
+        const baseFixos = state.getMonthTransactions(transaction.monthKey).filter(t => t.category === 'Fixos' || t.recurrency === 'Fixo');
         
         const amountPerInstallment = hasValidSubTxs ? 0 : numAmount;
 
@@ -108,11 +153,19 @@ export default function TransactionEditModal({ transaction, onClose }: Transacti
 
           const installmentLabel = maxMonths > 1 && !hasValidSubTxs ? `${i + 1}/${maxMonths}` : null;
 
+          const finalSubcategory = micro.trim() || null;
+          const finalPaymentMethod = cardId ? ('Crédito' as const) : null;
+
           if (i === 0) {
             promises.push(updateTransaction(transaction.id, {
               name: name.trim(),
               amount: currentParentAmount,
-              category,
+              category: macro,
+              subcategory: finalSubcategory,
+              transactionType: txType,
+              nature: null,
+              recurrency: null,
+              paymentMethod: finalPaymentMethod,
               subTransactions: currentSubs,
               isPaid,
               cardId: cardId || null,
@@ -122,7 +175,12 @@ export default function TransactionEditModal({ transaction, onClose }: Transacti
             promises.push(addTransaction({
               name: name.trim(),
               amount: currentParentAmount,
-              category,
+              category: macro,
+              subcategory: finalSubcategory,
+              transactionType: txType,
+              nature: null,
+              recurrency: null,
+              paymentMethod: finalPaymentMethod,
               monthKey: nextMonthKey,
               installments: installmentLabel,
               goalId: transaction.goalId || null,
@@ -132,7 +190,7 @@ export default function TransactionEditModal({ transaction, onClose }: Transacti
             }));
 
             const futureIncomes = state.getMonthIncomes(nextMonthKey);
-            const futureFixos = state.getMonthTransactions(nextMonthKey).filter(t => t.category === 'Fixos');
+            const futureFixos = state.getMonthTransactions(nextMonthKey).filter(t => t.category === 'Fixos' || t.recurrency === 'Fixo');
             if (futureIncomes.length === 0 && futureFixos.length === 0) {
               for (const inc of baseIncomes) {
                 promises.push(addIncome({ 
@@ -141,7 +199,14 @@ export default function TransactionEditModal({ transaction, onClose }: Transacti
               }
               for (const fixo of baseFixos) {
                 promises.push(addTransaction({ 
-                  name: fixo.name, amount: fixo.amount, category: fixo.category, monthKey: nextMonthKey 
+                  name: fixo.name, 
+                  amount: fixo.amount, 
+                  category: fixo.category, 
+                  subcategory: fixo.subcategory || null,
+                  transactionType: 'expense',
+                  nature: fixo.nature || 'Essencial',
+                  recurrency: 'Fixo',
+                  monthKey: nextMonthKey 
                 }));
               }
             }
@@ -155,10 +220,17 @@ export default function TransactionEditModal({ transaction, onClose }: Transacti
           installments: s.installments > 1 ? `1/${s.installments}` : undefined
         })) : null;
 
+        addAvailableMonth(monthKey);
         await updateTransaction(transaction.id, { 
           name: name.trim(), 
           amount: numAmount, 
-          category,
+          category: macro,
+          subcategory: micro.trim() || null,
+          transactionType: txType,
+          nature: null,
+          recurrency: null,
+          paymentMethod: cardId ? 'Crédito' : null,
+          monthKey,
           subTransactions: currentSubs,
           isPaid,
           cardId: cardId || null,
@@ -169,43 +241,49 @@ export default function TransactionEditModal({ transaction, onClose }: Transacti
       if (isPaid && !transaction.isPaid) {
         triggerSuccessConfetti();
       }
-
       onClose();
     } catch (err) {
       console.error(err);
-      alert('Erro ao atualizar a transação.');
+      alert('Erro ao atualizar a transação. Tente novamente.');
+    } finally {
       setIsSubmitting(false);
     }
   };
 
+  const availableMicros = getAvailableMicros(macro);
+
   return (
     <div className="modal-overlay animate-fade-in" onClick={!isSubmitting ? onClose : undefined}>
-      <div
-        className="modal-sheet animate-slide-in-sheet"
+      <div 
+        className="modal-sheet animate-slide-in-sheet" 
         onClick={(e) => e.stopPropagation()}
         style={swipeToClose.style}
       >
         <div {...swipeToClose.handlers} style={{ paddingBottom: 16, touchAction: 'none' }}>
           <div className="modal-handle" />
-          <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Editar Transação</h2>
-          <p style={{ fontSize: 14, color: 'var(--text-tertiary)', marginBottom: 0 }}>
-            Atualize os dados desta saída.
+          <h2 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.015em' }}>
+            Editar Transação
+          </h2>
+          <p style={{ fontSize: 14, color: 'var(--text-tertiary)', marginTop: 2 }}>
+            Atualize os dados e a categorização da transação
           </p>
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="form-group" style={{ marginBottom: 16 }}>
-            <label className="form-label">Nome</label>
+          <div className="form-group">
+            <label className="form-label">Nome / Descrição</label>
             <input
               className="form-input"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              disabled={isSubmitting}
+              required
             />
           </div>
 
           <div className="form-group" style={{ marginBottom: 16 }}>
-            <label className="form-label">Valor (R$)</label>
+            <label className="form-label">Valor</label>
             <input
               className="form-input"
               type="text"
@@ -282,24 +360,84 @@ export default function TransactionEditModal({ transaction, onClose }: Transacti
             )}
           </div>
 
-          <div className="form-group" style={{ marginBottom: 16 }}>
-            <label className="form-label">Categoria</label>
-            <select
-              className="form-select"
-              value={category}
-              onChange={(e) => setCategory(e.target.value as Category)}
-            >
-              {CATEGORIES.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
+          {/* ── Macro e Micro ── */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px', marginBottom: 12 }}>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Categoria Macro</label>
+              <select
+                className="form-select"
+                value={macro}
+                onChange={(e) => handleMacroChange(e.target.value)}
+                disabled={isSubmitting}
+              >
+                {ALL_MACROS_EDIT.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Categoria Micro (opcional)</label>
+              <select
+                className="form-select"
+                value={micro}
+                onChange={(e) => setMicro(e.target.value)}
+                disabled={isSubmitting}
+              >
+                <option value="">Nenhuma / Geral</option>
+                {availableMicros.map((mic) => (
+                  <option key={mic} value={mic}>
+                    {mic}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px', marginBottom: 24 }}>
+          {/* ── Data da Transação (Ano e Mês) ── */}
+          <div style={{ marginTop: 8, marginBottom: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 10 }}>
+              Data da Transação
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Ano</label>
+                <select
+                  className="form-select"
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(Number(e.target.value))}
+                  disabled={isSubmitting}
+                >
+                  {YEARS.map(y => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Mês</label>
+                <select
+                  className="form-select"
+                  value={selectedMonthNum}
+                  onChange={(e) => setSelectedMonthNum(Number(e.target.value))}
+                  disabled={isSubmitting}
+                >
+                  {MONTHS_LIST.map(m => (
+                    <option key={m.num} value={m.num}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: cards && cards.length > 0 ? '1fr 1fr' : '1fr', gap: '0 12px', marginBottom: 24 }}>
             {cards && cards.length > 0 && (
-              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', marginBottom: 0 }}>
                 <label className="form-label">Cartão de Crédito</label>
                 <select
                   className="form-select"
@@ -318,7 +456,7 @@ export default function TransactionEditModal({ transaction, onClose }: Transacti
             )}
 
             {!hasSubTxs && (
-              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', marginBottom: 0 }}>
                 <label className="form-label">Parcelas (opcional)</label>
                 <input
                   className="form-input"

@@ -1,28 +1,82 @@
 'use client';
 
 import { useState } from 'react';
-import { Banknote, Sparkles, Trash2 } from 'lucide-react';
-import type { Category } from '@/lib/types';
+import { Banknote, Sparkles, Trash2, TrendingUp } from 'lucide-react';
+import type { 
+  ExpenseMacro, 
+  TransactionType,
+  PaymentMethod 
+} from '@/lib/types';
 import { useFinanceStore } from '@/lib/store';
-import { CATEGORY_CONFIG } from '@/lib/categories';
-import { monthKeyToLabel, formatMask, parseMask } from '@/lib/currency';
+import { 
+  EXPENSE_MACROS, 
+  getMicrosForMacro, 
+  INCOME_CATEGORIES, 
+  INVESTMENT_CATEGORIES, 
+  INVESTMENT_TYPES 
+} from '@/lib/categories';
+import {
+  monthKeyToLabel,
+  monthKeyToShortLabel,
+  formatMask,
+  parseMask,
+  parseMonthKey,
+  addMonths,
+  parseInstallmentInput,
+} from '@/lib/currency';
 import { useSwipeToClose } from '@/hooks/useSwipeToClose';
 
-const CATEGORIES = Object.keys(CATEGORY_CONFIG) as Category[];
+const CURRENT_YEAR = new Date().getFullYear();
+const YEARS = Array.from({ length: 16 }, (_, i) => 2020 + i);
+
+const MONTHS_LIST = [
+  { num: 1, short: 'Jan', label: 'Janeiro' },
+  { num: 2, short: 'Fev', label: 'Fevereiro' },
+  { num: 3, short: 'Mar', label: 'Março' },
+  { num: 4, short: 'Abr', label: 'Abril' },
+  { num: 5, short: 'Mai', label: 'Maio' },
+  { num: 6, short: 'Jun', label: 'Junho' },
+  { num: 7, short: 'Jul', label: 'Julho' },
+  { num: 8, short: 'Ago', label: 'Agosto' },
+  { num: 9, short: 'Set', label: 'Setembro' },
+  { num: 10, short: 'Out', label: 'Outubro' },
+  { num: 11, short: 'Nov', label: 'Novembro' },
+  { num: 12, short: 'Dez', label: 'Dezembro' },
+];
 
 interface TransactionFormProps {
   onClose: () => void;
 }
 
 export default function TransactionForm({ onClose }: TransactionFormProps) {
-  const { addTransaction, addIncome, selectedMonth, goals, availableMonths, cards } = useFinanceStore();
+  const { addTransaction, addIncome, selectedMonth, goals, cards } = useFinanceStore();
+  
+  // Tipo de movimentação: Despesa, Receita, Investimento
+  const [movementType, setMovementType] = useState<TransactionType>('expense');
+
+  // Campos gerais
   const [name, setName] = useState('');
   const [rawDigits, setRawDigits] = useState(''); // apenas dígitos, ex: "123456" = R$ 1.234,56
-  const [category, setCategory] = useState<Category>('Compras');
-  const [monthKey, setMonthKey] = useState(selectedMonth);
-  const [installments, setInstallments] = useState('');
-  const [type, setType] = useState<'expense' | 'income'>('expense');
+
+  // Categoria Macro e Micro para Despesas (Micro opcional)
+  const [macro, setMacro] = useState<ExpenseMacro>('Alimentação');
+  const [micro, setMicro] = useState<string>('');
+
+  // Investimento
+  const [investmentAsset, setInvestmentAsset] = useState<string>(INVESTMENT_CATEGORIES[0]);
+  const [investmentOp, setInvestmentOp] = useState<string>(INVESTMENT_TYPES[0]); // Aporte, Resgate, Rendimento
+
+  // Receita
+  const [incomeCategory, setIncomeCategory] = useState<string>(INCOME_CATEGORIES[0]);
   const [incomeType, setIncomeType] = useState<'salary' | 'extra'>('salary');
+
+  // Ano e Mês (dois campos normais de formulário)
+  const initialDate = parseMonthKey(selectedMonth) || { year: CURRENT_YEAR, month: new Date().getMonth() + 1 };
+  const [selectedYear, setSelectedYear] = useState<number>(initialDate.year);
+  const [selectedMonthNum, setSelectedMonthNum] = useState<number>(initialDate.month);
+  const monthKey = `${selectedYear}-${String(selectedMonthNum).padStart(2, '0')}`;
+
+  const [installments, setInstallments] = useState('');
   const [goalId, setGoalId] = useState('');
   const [cardId, setCardId] = useState('');
   const [subTransactions, setSubTransactions] = useState<{name: string, rawAmount: string, installments: string}[]>([]);
@@ -31,23 +85,21 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
 
   const swipeToClose = useSwipeToClose(onClose);
 
+  // Troca de Macro com limpeza dinâmica da Micro
+  const handleMacroChange = (newMacro: ExpenseMacro) => {
+    setMacro(newMacro);
+    const validMicros = getMicrosForMacro(newMacro);
+    if (!validMicros.includes(micro)) {
+      setMicro('');
+    }
+  };
+
   const hasSubTxs = subTransactions.length > 0;
   const totalSubAmount = subTransactions.reduce((acc, sub) => {
     const amt = parseInt(sub.rawAmount || '0', 10) / 100;
-    return acc + amt; // O usuário insere o valor total, a divisão ocorre na submissão
+    return acc + amt;
   }, 0);
   const displayAmount = hasSubTxs ? totalSubAmount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : formatMask(rawDigits);
-
-  // Helper: adiciona N meses a uma chave 'YYYY-MM'
-  function addMonths(monthKey: string, add: number): string {
-    let [y, m] = monthKey.split('-').map(Number);
-    m += add;
-    while (m > 12) {
-      m -= 12;
-      y += 1;
-    }
-    return `${y}-${m.toString().padStart(2, '0')}`;
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -58,9 +110,11 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
 
     setIsSubmitting(true);
     try {
+      const state = useFinanceStore.getState();
+
       const parsedSubTxs = subTransactions.map(s => {
-        let inst = parseInt(s.installments || '1', 10);
-        if (isNaN(inst) || inst < 1) inst = 1;
+        const pInst = parseInstallmentInput(s.installments);
+        let inst = pInst ? pInst.total : 1;
         
         const totalSubAmt = parseInt(s.rawAmount || '0', 10) / 100;
         let subAmt = totalSubAmt;
@@ -81,39 +135,119 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
       }).filter(s => s.name && s.amount > 0);
       
       const hasValidSubTxs = parsedSubTxs.length > 0;
-      
-      let maxMonths = 1;
-      if (hasValidSubTxs) {
-        parsedSubTxs.forEach(s => { if (s.installments > maxMonths) maxMonths = s.installments; });
-      }
+      const parsedInst = parseInstallmentInput(installments);
 
-      if (type === 'expense') {
-        const parsedInstallments = parseInt(installments, 10);
-        if (!hasValidSubTxs && installments && !isNaN(parsedInstallments) && parsedInstallments > 1 && !installments.includes('/')) {
-          maxMonths = parsedInstallments;
-        }
-
-        if (maxMonths > 1) {
+      if (movementType === 'expense') {
+        // Caso de parcelas com cálculo retroativo/futuro (ex: "3/3", "2/5", "12x")
+        if (!hasValidSubTxs && parsedInst && parsedInst.total > 1) {
+          const { current, total } = parsedInst;
           const promises = [];
-          const state = useFinanceStore.getState();
           const baseIncomes = state.getMonthIncomes(monthKey);
-          const baseFixos = state.getMonthTransactions(monthKey).filter(t => t.category === 'Fixos');
+          const baseFixos = state.getMonthTransactions(monthKey).filter(t => t.category === 'Fixos' || t.recurrency === 'Fixo');
           
-          let amountPerInstallment = 0;
-          let firstInstallmentAmount = 0;
-          if (!hasValidSubTxs) {
-            amountPerInstallment = Math.floor((numAmount / maxMonths) * 100) / 100;
-            const remainder = numAmount - (amountPerInstallment * maxMonths);
-            firstInstallmentAmount = Math.round((amountPerInstallment + remainder) * 100) / 100;
+          const amountPerInstallment = Math.floor((numAmount / total) * 100) / 100;
+          const remainder = numAmount - (amountPerInstallment * total);
+          const firstInstallmentAmount = Math.round((amountPerInstallment + remainder) * 100) / 100;
+
+          for (let k = 1; k <= total; k++) {
+            const offset = k - current; // Ex: se digitou 3/3, k=1 é -2 meses, k=2 é -1 mês, k=3 é 0 meses
+            const targetMonthKey = addMonths(monthKey, offset);
+            
+            // Garante que o mês existe no store
+            state.addAvailableMonth(targetMonthKey);
+
+            const currentInstallmentAmount = (k === 1) ? firstInstallmentAmount : amountPerInstallment;
+            const isInstallmentPaid = k < current ? true : (k === current ? isPaid : false);
+
+            const finalSubcategory = micro.trim() || null;
+            const finalPaymentMethod: PaymentMethod | null = cardId ? 'Crédito' : null;
+
+            promises.push(addTransaction({
+              name: name.trim(),
+              amount: currentInstallmentAmount,
+              category: macro,
+              subcategory: finalSubcategory,
+              transactionType: 'expense',
+              nature: null,
+              recurrency: null,
+              paymentMethod: finalPaymentMethod,
+              monthKey: targetMonthKey,
+              installments: `${k}/${total}`,
+              goalId: goalId || null,
+              cardId: cardId || null,
+              subTransactions: null,
+              isPaid: isInstallmentPaid,
+            }));
+
+            // Para meses futuros criados e vazios, copia custos fixos e salários para facilitar o planejamento
+            if (offset > 0) {
+              const futureIncomes = state.getMonthIncomes(targetMonthKey);
+              const futureFixos = state.getMonthTransactions(targetMonthKey).filter(t => t.category === 'Fixos' || t.recurrency === 'Fixo');
+               
+              if (futureIncomes.length === 0 && futureFixos.length === 0) {
+                for (const inc of baseIncomes) {
+                  if (inc.isRecurring) {
+                    promises.push(addIncome({ 
+                      name: inc.name, 
+                      amount: inc.amount, 
+                      monthKey: targetMonthKey, 
+                      isRecurring: true 
+                    }));
+                  }
+                }
+                for (const fixo of baseFixos) {
+                  promises.push(addTransaction({ 
+                    name: fixo.name, 
+                    amount: fixo.amount, 
+                    category: fixo.category, 
+                    subcategory: fixo.subcategory || null,
+                    transactionType: 'expense',
+                    nature: null,
+                    recurrency: null,
+                    monthKey: targetMonthKey 
+                  }));
+                }
+              }
+            }
           }
+          await Promise.all(promises);
+        } else if (!hasValidSubTxs) {
+          // Transação avulsa sem divisão em múltiplos meses
+          state.addAvailableMonth(monthKey);
+          const finalSubcategory = micro.trim() || null;
+          const finalPaymentMethod: PaymentMethod | null = cardId ? 'Crédito' : null;
+          const transactionData = {
+            name: name.trim(),
+            amount: numAmount,
+            category: macro,
+            subcategory: finalSubcategory,
+            transactionType: 'expense' as const,
+            nature: null,
+            recurrency: null,
+            paymentMethod: finalPaymentMethod,
+            monthKey,
+            installments: installments.trim() || null,
+            goalId: goalId || null,
+            cardId: cardId || null,
+            subTransactions: null,
+            isPaid,
+          };
           
-          for (let i = 0; i < maxMonths; i++) {
-            const nextMonthKey = addMonths(monthKey, i);
-            
-            let currentSubs = null;
-            let currentParentAmount = (i === 0) ? firstInstallmentAmount : amountPerInstallment;
-            
-            if (hasValidSubTxs) {
+          await addTransaction(transactionData);
+        } else {
+          // Transação com Subtransações
+          state.addAvailableMonth(monthKey);
+          let maxMonths = 1;
+          parsedSubTxs.forEach(s => { if (s.installments > maxMonths) maxMonths = s.installments; });
+
+          const finalSubcategory = micro.trim() || null;
+          const finalPaymentMethod: PaymentMethod | null = cardId ? 'Crédito' : null;
+
+          if (maxMonths > 1) {
+            const promises = [];
+            for (let i = 0; i < maxMonths; i++) {
+              const nextMonthKey = addMonths(monthKey, i);
+              state.addAvailableMonth(nextMonthKey);
               const subsForMonth = parsedSubTxs.filter(s => i < s.installments).map(s => {
                 const amountForThisMonth = (i === 0) ? s.firstAmt : s.subAmt;
                 return {
@@ -124,135 +258,100 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
               });
               
               if (subsForMonth.length > 0) {
-                currentSubs = subsForMonth;
-                currentParentAmount = subsForMonth.reduce((acc, curr) => acc + curr.amount, 0);
-              } else {
-                continue; // no subtransactions in this month, skip
+                const currentParentAmount = subsForMonth.reduce((acc, curr) => acc + curr.amount, 0);
+                promises.push(addTransaction({
+                  name: name.trim(),
+                  amount: currentParentAmount,
+                  category: macro,
+                  subcategory: finalSubcategory,
+                  transactionType: 'expense',
+                  nature: null,
+                  recurrency: null,
+                  paymentMethod: finalPaymentMethod,
+                  monthKey: nextMonthKey,
+                  installments: null,
+                  goalId: goalId || null,
+                  cardId: cardId || null,
+                  subTransactions: subsForMonth,
+                  isPaid: i === 0 ? isPaid : false,
+                }));
               }
             }
-
-            promises.push(addTransaction({
+            await Promise.all(promises);
+          } else {
+            const currentSubs = parsedSubTxs.map(s => ({
+              name: s.name,
+              amount: s.amount,
+              installments: s.installments > 1 ? `1/${s.installments}` : undefined
+            }));
+            
+            await addTransaction({
               name: name.trim(),
-              amount: currentParentAmount,
-              category,
-              monthKey: nextMonthKey,
-              installments: maxMonths > 1 && !hasValidSubTxs ? `${i + 1}/${maxMonths}` : null,
+              amount: numAmount,
+              category: macro,
+              subcategory: finalSubcategory,
+              transactionType: 'expense',
+              nature: null,
+              recurrency: null,
+              paymentMethod: finalPaymentMethod,
+              monthKey,
+              installments: installments.trim() || null,
               goalId: goalId || null,
               cardId: cardId || null,
               subTransactions: currentSubs,
-              isPaid: i === 0 ? isPaid : false,
-            }));
-
-            if (i > 0) {
-              const futureIncomes = state.getMonthIncomes(nextMonthKey);
-              const futureFixos = state.getMonthTransactions(nextMonthKey).filter(t => t.category === 'Fixos');
-               
-              if (futureIncomes.length === 0 && futureFixos.length === 0) {
-                for (const inc of baseIncomes) {
-                  promises.push(addIncome({ 
-                    name: inc.name, 
-                    amount: inc.amount, 
-                    monthKey: nextMonthKey, 
-                    isRecurring: inc.isRecurring 
-                  }));
-                }
-                for (const fixo of baseFixos) {
-                  promises.push(addTransaction({ 
-                    name: fixo.name, 
-                    amount: fixo.amount, 
-                    category: fixo.category, 
-                    monthKey: nextMonthKey 
-                  }));
-                }
-              }
-            }
+              isPaid,
+            });
           }
-          await Promise.all(promises);
-        } else {
-          const currentSubs = hasValidSubTxs ? parsedSubTxs.map(s => ({
-            name: s.name,
-            amount: s.amount,
-            installments: s.installments > 1 ? `1/${s.installments}` : undefined
-          })) : null;
-          
-          const transactionData = {
-            name: name.trim(),
-            amount: numAmount,
-            category,
-            monthKey,
-            installments: installments || null,
-            goalId: goalId || null,
-            cardId: cardId || null,
-            subTransactions: currentSubs,
-            isPaid,
-          };
-          
-          await addTransaction(transactionData);
+        }
+      } else if (movementType === 'investment') {
+        // Investimentos: Não contabilizado como despesa de consumo
+        state.addAvailableMonth(monthKey);
+        const transactionData = {
+          name: name.trim(),
+          amount: numAmount,
+          category: 'Investimentos',
+          subcategory: investmentAsset,
+          transactionType: 'investment' as const,
+          nature: null,
+          recurrency: null,
+          paymentMethod: null,
+          monthKey,
+          installments: null,
+          goalId: goalId || null,
+          cardId: null,
+          subTransactions: null,
+          isPaid,
+        };
 
-          // If the goal is shared, we must also write this transaction to the owner's spreadsheet
-          if (goalId && category === 'Investimentos') {
-            const goal = goals.find(g => g.id === goalId);
-            if (goal && goal.isShared && goal.ownerSpreadsheetId) {
-              await fetch('/api/transacoes/shared', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  ownerSpreadsheetId: goal.ownerSpreadsheetId,
-                  // Include the user's name in the transaction so the owner knows who deposited
-                  transaction: {
-                    ...transactionData,
-                    name: `${transactionData.name} (Compartilhado)`
-                  }
-                })
-              });
-            }
+        await addTransaction(transactionData);
+
+        if (goalId) {
+          const goal = goals.find(g => g.id === goalId);
+          if (goal && goal.isShared && goal.ownerSpreadsheetId) {
+            await fetch('/api/transacoes/shared', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                ownerSpreadsheetId: goal.ownerSpreadsheetId,
+                transaction: {
+                  ...transactionData,
+                  name: `${transactionData.name} (Compartilhado)`
+                }
+              })
+            });
           }
         }
       } else {
         // Receitas
-        if (maxMonths > 1) {
-          const promises = [];
-          for (let i = 0; i < maxMonths; i++) {
-            const nextMonthKey = addMonths(monthKey, i);
-            
-            const subsForMonth = parsedSubTxs.filter(s => i < s.installments).map(s => {
-              const amountForThisMonth = (i === 0) ? s.firstAmt : s.subAmt;
-              return {
-                name: s.name,
-                amount: amountForThisMonth,
-                installments: s.installments > 1 ? `${i + 1}/${s.installments}` : undefined
-              };
-            });
-            
-            if (subsForMonth.length > 0) {
-              const currentParentAmount = subsForMonth.reduce((acc, curr) => acc + curr.amount, 0);
-              promises.push(addIncome({
-                name: name.trim(),
-                amount: currentParentAmount,
-                monthKey: nextMonthKey,
-                isRecurring: incomeType === 'salary',
-                subTransactions: subsForMonth,
-                isPaid: i === 0 ? isPaid : false,
-              }));
-            }
-          }
-          await Promise.all(promises);
-        } else {
-          const currentSubs = hasValidSubTxs ? parsedSubTxs.map(s => ({
-            name: s.name,
-            amount: s.amount,
-            installments: s.installments > 1 ? `1/${s.installments}` : undefined
-          })) : null;
-          
-          await addIncome({
-            name: name.trim(),
-            amount: numAmount,
-            monthKey,
-            isRecurring: incomeType === 'salary',
-            subTransactions: currentSubs,
-            isPaid,
-          });
-        }
+        state.addAvailableMonth(monthKey);
+        await addIncome({
+          name: name.trim(),
+          amount: numAmount,
+          monthKey,
+          isRecurring: incomeType === 'salary',
+          subTransactions: null,
+          isPaid,
+        });
       }
       onClose();
     } catch (err) {
@@ -262,6 +361,8 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
       setIsSubmitting(false);
     }
   }
+
+  const availableMicros = getMicrosForMacro(macro);
 
   return (
     <div className="modal-overlay animate-fade-in" onClick={!isSubmitting ? onClose : undefined}>
@@ -274,64 +375,64 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
           <div className="modal-handle" />
           <div>
             <h2 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.015em' }}>
-              {type === 'expense' ? 'Nova Saída' : 'Nova Entrada'}
+              {movementType === 'expense' && 'Nova Despesa'}
+              {movementType === 'income' && 'Nova Receita'}
+              {movementType === 'investment' && 'Novo Investimento'}
             </h2>
             <p style={{ fontSize: 14, color: 'var(--text-tertiary)', marginTop: 2 }}>
-              {type === 'expense' ? 'Adicione um novo gasto ou investimento' : incomeType === 'salary' ? 'Salário ou renda fixa mensal' : 'Dividendos, freelance ou renda extra'}
+              {movementType === 'expense' && 'Cadastre gastos de consumo com detalhamento Macro e Micro'}
+              {movementType === 'income' && (incomeType === 'salary' ? 'Salário ou renda fixa mensal' : 'Dividendos, freelance ou receita extra')}
+              {movementType === 'investment' && 'Aportes em renda fixa, ações, FIIs ou fundos (não afetam despesas de consumo)'}
             </p>
           </div>
         </div>
 
-        <div style={{ display: 'flex', background: 'var(--bg-2)', padding: 4, borderRadius: 8, marginBottom: 16 }}>
-          <button
-            type="button"
-            onClick={() => setType('expense')}
-            disabled={isSubmitting}
-            style={{
-              flex: 1,
-              padding: '6px 0',
-              border: 'none',
-              background: type === 'expense' ? 'var(--blue)' : 'transparent',
-              borderRadius: 6,
-              fontWeight: type === 'expense' ? 600 : 500,
-              color: type === 'expense' ? '#FFF' : 'var(--text-tertiary)',
-              boxShadow: type === 'expense' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              opacity: isSubmitting ? 0.5 : 1
-            }}
-          >
-            Saída
-          </button>
-          <button
-            type="button"
-            onClick={() => setType('income')}
-            disabled={isSubmitting}
-            style={{
-              flex: 1,
-              padding: '6px 0',
-              border: 'none',
-              background: type === 'income' ? 'var(--blue)' : 'transparent',
-              borderRadius: 6,
-              fontWeight: type === 'income' ? 600 : 500,
-              color: type === 'income' ? '#FFF' : 'var(--text-tertiary)',
-              boxShadow: type === 'income' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              opacity: isSubmitting ? 0.5 : 1
-            }}
-          >
-            Entrada
-          </button>
+        {/* ── Seletor de Tipo de Movimentação ── */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', background: 'var(--bg-2)', padding: 4, borderRadius: 8, marginBottom: 16, gap: 4 }}>
+          {([
+            { id: 'expense', label: 'Despesa' },
+            { id: 'income', label: 'Receita' },
+            { id: 'investment', label: 'Investimento' },
+          ] as const).map(tab => {
+            const isActive = movementType === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setMovementType(tab.id)}
+                disabled={isSubmitting}
+                style={{
+                  padding: '7px 0',
+                  border: 'none',
+                  background: isActive ? 'var(--blue)' : 'transparent',
+                  borderRadius: 6,
+                  fontWeight: isActive ? 600 : 500,
+                  fontSize: 12,
+                  color: isActive ? '#FFF' : 'var(--text-tertiary)',
+                  boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  opacity: isSubmitting ? 0.5 : 1,
+                  textAlign: 'center',
+                }}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="form-label">Nome</label>
+            <label className="form-label">Descrição / Nome</label>
             <input
               className="form-input"
               type="text"
-              placeholder="Ex: Spotify, Almoço..."
+              placeholder={
+                movementType === 'expense' ? 'Ex: Mercado Pão de Açúcar, Uber, Cinema...' :
+                movementType === 'income' ? 'Ex: Salário, Dividendos Petrobras, Freelance...' :
+                'Ex: CDB 120% CDI, Ações BBAS3, Reserva...'
+              }
               value={name}
               onChange={(e) => setName(e.target.value)}
               disabled={isSubmitting}
@@ -359,207 +460,343 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
             />
           </div>
 
-          <div className="form-group" style={{ marginBottom: 16 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <label className="form-label" style={{ marginBottom: 0 }}>Sub-transações (opcional)</label>
-              <button
-                type="button"
-                onClick={() => setSubTransactions([...subTransactions, { name: '', rawAmount: '', installments: '' }])}
-                style={{ background: 'none', border: 'none', color: 'var(--blue)', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
-              >
-                + Adicionar
-              </button>
-            </div>
-            
-            {subTransactions.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px', background: 'var(--bg-2)', borderRadius: 8 }}>
-                {subTransactions.map((sub, idx) => (
-                  <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <input
-                      className="form-input"
-                      style={{ flex: 2, padding: '8px 12px', fontSize: 13 }}
-                      placeholder="Nome"
-                      value={sub.name}
-                      onChange={(e) => {
-                        const newSubs = [...subTransactions];
-                        newSubs[idx].name = e.target.value;
-                        setSubTransactions(newSubs);
-                      }}
-                    />
-                    <input
-                      className="form-input"
-                      style={{ flex: 1, padding: '8px 12px', fontSize: 13, maxWidth: '60px' }}
-                      placeholder="1x"
-                      inputMode="numeric"
-                      value={sub.installments}
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/\D/g, '');
-                        const newSubs = [...subTransactions];
-                        newSubs[idx].installments = val;
-                        setSubTransactions(newSubs);
-                      }}
-                    />
-                    <input
-                      className="form-input"
-                      style={{ flex: 1, padding: '8px 12px', fontSize: 13 }}
-                      placeholder="Valor"
-                      inputMode="numeric"
-                      value={formatMask(sub.rawAmount)}
-                      onChange={(e) => {
-                        const digits = parseMask(e.target.value);
-                        const newSubs = [...subTransactions];
-                        newSubs[idx].rawAmount = digits;
-                        setSubTransactions(newSubs);
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setSubTransactions(subTransactions.filter((_, i) => i !== idx))}
-                      style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', padding: 4 }}
-                    >
-                      <Trash2 size={16} />
-                    </button>
+          {/* Subtransações (opcional) */}
+          {movementType === 'expense' && (
+            <div className="form-group" style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <label className="form-label" style={{ marginBottom: 0 }}>Sub-transações (opcional)</label>
+                <button
+                  type="button"
+                  onClick={() => setSubTransactions([...subTransactions, { name: '', rawAmount: '', installments: '' }])}
+                  style={{ background: 'none', border: 'none', color: 'var(--blue)', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
+                >
+                  + Adicionar
+                </button>
+              </div>
+              
+              {subTransactions.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px', background: 'var(--bg-2)', borderRadius: 8 }}>
+                  {subTransactions.map((sub, idx) => (
+                    <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <input
+                        className="form-input"
+                        style={{ flex: 2, padding: '8px 12px', fontSize: 13 }}
+                        placeholder="Nome"
+                        value={sub.name}
+                        onChange={(e) => {
+                          const newSubs = [...subTransactions];
+                          newSubs[idx].name = e.target.value;
+                          setSubTransactions(newSubs);
+                        }}
+                      />
+                      <input
+                        className="form-input"
+                        style={{ flex: 1, padding: '8px 12px', fontSize: 13, maxWidth: '60px' }}
+                        placeholder="1x"
+                        inputMode="numeric"
+                        value={sub.installments}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, '');
+                          const newSubs = [...subTransactions];
+                          newSubs[idx].installments = val;
+                          setSubTransactions(newSubs);
+                        }}
+                      />
+                      <input
+                        className="form-input"
+                        style={{ flex: 1, padding: '8px 12px', fontSize: 13 }}
+                        placeholder="Valor"
+                        inputMode="numeric"
+                        value={formatMask(sub.rawAmount)}
+                        onChange={(e) => {
+                          const digits = parseMask(e.target.value);
+                          const newSubs = [...subTransactions];
+                          newSubs[idx].rawAmount = digits;
+                          setSubTransactions(newSubs);
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setSubTransactions(subTransactions.filter((_, i) => i !== idx))}
+                        style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', padding: 4 }}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                  <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textAlign: 'right', marginTop: 4 }}>
+                    Total: {displayAmount}
                   </div>
-                ))}
-                <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textAlign: 'right', marginTop: 4 }}>
-                  Total: {displayAmount}
                 </div>
-              </div>
-            )}
-          </div>
-          
-          {type === 'income' && (
-            <div className="form-group" style={{ marginBottom: 10 }}>
-              <label className="form-label">Tipo de entrada</label>
-              <div style={{ display: 'flex', background: 'var(--bg-2)', padding: 4, borderRadius: 8, gap: 4 }}>
-                {(['salary', 'extra'] as const).map((opt) => {
-                  const isActive = incomeType === opt;
-                  return (
-                    <button
-                      key={opt}
-                      type="button"
-                      onClick={() => setIncomeType(opt)}
-                      disabled={isSubmitting}
-                      style={{
-                        flex: 1,
-                        padding: '9px 0',
-                        border: 'none',
-                        borderRadius: 6,
-                        fontWeight: isActive ? 600 : 500,
-                        fontSize: 13,
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        background: isActive ? 'var(--blue)' : 'transparent',
-                        color: isActive ? '#FFF' : 'var(--text-tertiary)',
-                        boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                        opacity: isSubmitting ? 0.5 : 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 6,
-                      }}
-                    >
-                      {opt === 'salary'
-                        ? <><Banknote size={15} strokeWidth={1.8} /> Salário / Fixo</>
-                        : <><Sparkles size={15} strokeWidth={1.8} /> Recebimento Extra</>}
-                    </button>
-                  );
-                })}
-              </div>
+              )}
             </div>
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
-            {type === 'expense' && (
-              <div className="form-group" style={{ marginBottom: 10, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-                <label className="form-label">Categoria</label>
+          {/* ── CAMPOS DE DESPESA: MACRO → MICRO DINÂMICO ── */}
+          {movementType === 'expense' && (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
+                <div className="form-group" style={{ marginBottom: 12 }}>
+                  <label className="form-label">Categoria Macro</label>
+                  <select
+                    className="form-select"
+                    value={macro}
+                    onChange={(e) => handleMacroChange(e.target.value as ExpenseMacro)}
+                    disabled={isSubmitting}
+                  >
+                    {EXPENSE_MACROS.map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group" style={{ marginBottom: 12 }}>
+                  <label className="form-label">Categoria Micro (opcional)</label>
+                  <select
+                    className="form-select"
+                    value={micro}
+                    onChange={(e) => setMicro(e.target.value)}
+                    disabled={isSubmitting}
+                  >
+                    <option value="">Nenhuma / Geral</option>
+                    {availableMicros.map((mic) => (
+                      <option key={mic} value={mic}>
+                        {mic}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Cartão de Crédito (opcional) */}
+              {cards.length > 0 && (
+                <div className="form-group" style={{ marginBottom: 12 }}>
+                  <label className="form-label">Cartão de Crédito (opcional)</label>
+                  <select
+                    className="form-select"
+                    value={cardId}
+                    onChange={(e) => setCardId(e.target.value)}
+                    disabled={isSubmitting}
+                  >
+                    <option value="">Nenhum</option>
+                    {cards.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ── CAMPOS DE RECEITA ── */}
+          {movementType === 'income' && (
+            <>
+              <div className="form-group" style={{ marginBottom: 12 }}>
+                <label className="form-label">Origem da Receita</label>
                 <select
                   className="form-select"
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value as Category)}
+                  value={incomeCategory}
+                  onChange={(e) => {
+                    const cat = e.target.value;
+                    setIncomeCategory(cat);
+                    if (cat === 'Salário' || cat === '13º salário' || cat === 'Férias') {
+                      setIncomeType('salary');
+                    } else {
+                      setIncomeType('extra');
+                    }
+                  }}
                   disabled={isSubmitting}
                 >
-                  {CATEGORIES.map((cat) => (
+                  {INCOME_CATEGORIES.map((cat) => (
                     <option key={cat} value={cat}>
                       {cat}
                     </option>
                   ))}
                 </select>
               </div>
-            )}
 
-            <div className="form-group" style={{ marginBottom: 10, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-              <label className="form-label">Mês</label>
+              <div className="form-group" style={{ marginBottom: 12 }}>
+                <label className="form-label">Comportamento</label>
+                <div style={{ display: 'flex', background: 'var(--bg-2)', padding: 4, borderRadius: 8, gap: 4 }}>
+                  {(['salary', 'extra'] as const).map((opt) => {
+                    const isActive = incomeType === opt;
+                    return (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => setIncomeType(opt)}
+                        disabled={isSubmitting}
+                        style={{
+                          flex: 1,
+                          padding: '8px 0',
+                          border: 'none',
+                          borderRadius: 6,
+                          fontWeight: isActive ? 600 : 500,
+                          fontSize: 13,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          background: isActive ? 'var(--blue)' : 'transparent',
+                          color: isActive ? '#FFF' : 'var(--text-tertiary)',
+                          boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                          opacity: isSubmitting ? 0.5 : 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 6,
+                        }}
+                      >
+                        {opt === 'salary'
+                          ? <><Banknote size={15} strokeWidth={1.8} /> Renda Mensal Fixa</>
+                          : <><Sparkles size={15} strokeWidth={1.8} /> Recebimento Extra</>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* ── CAMPOS DE INVESTIMENTO ── */}
+          {movementType === 'investment' && (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
+                <div className="form-group" style={{ marginBottom: 12 }}>
+                  <label className="form-label">Tipo de Ativo</label>
+                  <select
+                    className="form-select"
+                    value={investmentAsset}
+                    onChange={(e) => setInvestmentAsset(e.target.value)}
+                    disabled={isSubmitting}
+                  >
+                    {INVESTMENT_CATEGORIES.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group" style={{ marginBottom: 12 }}>
+                  <label className="form-label">Operação</label>
+                  <select
+                    className="form-select"
+                    value={investmentOp}
+                    onChange={(e) => setInvestmentOp(e.target.value)}
+                    disabled={isSubmitting}
+                  >
+                    {INVESTMENT_TYPES.map(op => (
+                      <option key={op} value={op}>{op}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {goals.length > 0 && (
+                <div className="form-group" style={{ marginBottom: 12 }}>
+                  <label className="form-label">Meta Vinculada (opcional)</label>
+                  <select
+                    className="form-select"
+                    value={goalId}
+                    onChange={(e) => setGoalId(e.target.value)}
+                    disabled={isSubmitting}
+                  >
+                    <option value="">Nenhuma</option>
+                    {goals.map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ── Data da Transação ── */}
+          <div style={{ marginTop: 8, marginBottom: 14 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 10 }}>
+              Data da Transação
+            </div>
+
+            <div className="form-group" style={{ marginBottom: 12 }}>
+              <label className="form-label">Ano</label>
               <select
                 className="form-select"
-                value={monthKey}
-                onChange={(e) => setMonthKey(e.target.value)}
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(Number(e.target.value))}
                 disabled={isSubmitting}
               >
-                {availableMonths.map((mk) => (
-                  <option key={mk} value={mk}>
-                    {monthKeyToLabel(mk)}
-                  </option>
+                {YEARS.map(y => (
+                  <option key={y} value={y}>{y}</option>
                 ))}
               </select>
             </div>
 
-            {type === 'expense' && category === 'Investimentos' && (
-              <div className="form-group" style={{ marginBottom: 10, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-                <label className="form-label">Meta Vinculada (opcional)</label>
-                <select
-                  className="form-select"
-                  value={goalId}
-                  onChange={(e) => setGoalId(e.target.value)}
-                  disabled={isSubmitting}
-                >
-                  <option value="">Nenhuma</option>
-                  {goals.map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {type === 'expense' && cards.length > 0 && (
-              <div className="form-group" style={{ marginBottom: 10, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-                <label className="form-label">Cartão de Crédito (opcional)</label>
-                <select
-                  className="form-select"
-                  value={cardId}
-                  onChange={(e) => setCardId(e.target.value)}
-                  disabled={isSubmitting}
-                >
-                  <option value="">Nenhum</option>
-                  {cards.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {type === 'expense' && !hasSubTxs && (
-              <div className="form-group" style={{ marginBottom: 10, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-                <label className="form-label">Parcelas (opcional)</label>
-                <input
-                  className="form-input"
-                  type="text"
-                  placeholder="Ex: 12"
-                  value={installments}
-                  onChange={(e) => setInstallments(e.target.value)}
-                  disabled={isSubmitting}
-                />
-              </div>
-            )}
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Mês</label>
+              <select
+                className="form-select"
+                value={selectedMonthNum}
+                onChange={(e) => setSelectedMonthNum(Number(e.target.value))}
+                disabled={isSubmitting}
+              >
+                {MONTHS_LIST.map(m => (
+                  <option key={m.num} value={m.num}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
+
+          {/* ── Parcelas com preenchimento livre e suporte retroativo ── */}
+          {movementType === 'expense' && !hasSubTxs && (
+            <div className="form-group" style={{ marginBottom: 14 }}>
+              <label className="form-label">Parcelas (opcional)</label>
+              <input
+                className="form-input"
+                type="text"
+                placeholder="Ex: 3/3, 2/5 ou 12"
+                value={installments}
+                onChange={(e) => setInstallments(e.target.value)}
+                disabled={isSubmitting}
+              />
+              {installments && (
+                <div style={{ marginTop: 6 }}>
+                  {(() => {
+                    const p = parseInstallmentInput(installments);
+                    if (!p || p.total <= 1) return null;
+                    if (p.current === 1) {
+                      const endMonth = addMonths(monthKey, p.total - 1);
+                      return (
+                        <p style={{ fontSize: 12, color: 'var(--blue)', margin: 0, fontWeight: 500 }}>
+                          ✨ Serão criadas {p.total} parcelas consecutivas de {monthKeyToShortLabel(monthKey)} até {monthKeyToShortLabel(endMonth)}.
+                        </p>
+                      );
+                    }
+                    const startMonth = addMonths(monthKey, 1 - p.current);
+                    const endMonth = addMonths(monthKey, p.total - p.current);
+                    const backCount = p.current - 1;
+                    return (
+                      <p style={{ fontSize: 12, color: 'var(--blue)', margin: 0, fontWeight: 500 }}>
+                        ✨ Parcela {p.current} de {p.total}. {backCount} parcela(s) retroativa(s) a partir de <strong>{monthKeyToShortLabel(startMonth)}</strong> até <strong>{monthKeyToShortLabel(endMonth)}</strong>. Meses faltantes serão criados automaticamente!
+                      </p>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+          )}
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', marginBottom: 16 }}>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>{type === 'expense' ? 'Marcar como pago' : 'Marcar como recebido'}</div>
+              <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>
+                {movementType === 'expense' ? 'Marcar como pago' : 
+                 movementType === 'income' ? 'Marcar como recebido' :
+                 movementType === 'investment' ? 'Marcar como executado' : 'Marcar como concluído'}
+              </div>
             </div>
             <button
               type="button"

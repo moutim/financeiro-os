@@ -85,32 +85,11 @@ export async function POST() {
       });
     }
 
-    // ── Step 4: Seed data via batch write ─────────────────────────────────
-    // Cartoes, FaturasCartao e _Config começam vazios — populados pela UI
-    await sheets.spreadsheets.values.batchUpdate({
-      spreadsheetId,
-      requestBody: {
-        valueInputOption: 'USER_ENTERED',
-        data: [
-          { range: `${SHEET_TABS.TRANSACOES}!A2`, values: SEED_TRANSACTIONS.map(transactionToRow) },
-          { range: `${SHEET_TABS.RECEITAS}!A2`,   values: SEED_INCOMES.map(incomeToRow) },
-          { range: `${SHEET_TABS.PENDENCIAS}!A2`, values: SEED_PENDING.map(pendingToRow) },
-          { range: `${SHEET_TABS.METAS}!A2`,      values: SEED_GOALS.map(goalToRow) },
-        ],
-      },
-    });
-
     return NextResponse.json({
       ok: true,
-      message: '✅ Planilha configurada e populada com sucesso!',
+      message: '✅ Planilha configurada com sucesso!',
       tabs: allTabs,
       spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`,
-      seeded: {
-        transacoes: SEED_TRANSACTIONS.length,
-        receitas: SEED_INCOMES.length,
-        pendencias: SEED_PENDING.length,
-        metas: SEED_GOALS.length,
-      },
     });
   } catch (err: unknown) {
     console.error('[POST /api/setup]', err);

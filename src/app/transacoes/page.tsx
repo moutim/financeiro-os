@@ -9,10 +9,10 @@ import TransactionList from '@/components/transactions/TransactionList';
 import TransactionForm from '@/components/transactions/TransactionForm';
 import { useFinanceStore } from '@/lib/store';
 import { monthKeyToLabel } from '@/lib/currency';
-import { CATEGORY_CONFIG } from '@/lib/categories';
+import { CATEGORY_CONFIG, EXPENSE_MACROS } from '@/lib/categories';
 import type { Category } from '@/lib/types';
 
-const ALL_CATEGORIES = ['Todas', ...Object.keys(CATEGORY_CONFIG)] as const;
+const ALL_CATEGORIES = ['Todas', ...EXPENSE_MACROS, 'Investimentos'] as const;
 
 /* ── Tooltip ──────────────────────────────────────────────────────────────── */
 interface TooltipState {
