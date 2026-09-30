@@ -67,13 +67,15 @@ function CustomTooltip({ active, payload }: CustomTooltipProps) {
 }
 
 export default function SpendingDonut({ transactions }: SpendingDonutProps) {
-  // Group by category
+  // Group by category (despesas e aportes, excluindo transferências entre contas)
   const byCategory: Record<string, number> = {};
-  transactions.forEach((t) => {
-    if (t.amount > 0) {
-      byCategory[t.category] = (byCategory[t.category] ?? 0) + t.amount;
-    }
-  });
+  transactions
+    .filter(t => t.transactionType !== 'transfer' && t.category !== 'Transferências' && t.transactionType !== 'income')
+    .forEach((t) => {
+      if (t.amount > 0) {
+        byCategory[t.category] = (byCategory[t.category] ?? 0) + t.amount;
+      }
+    });
 
   const data = Object.entries(byCategory)
     .map(([name, value]) => ({ name, value, color: getCategoryConfig(name).color }))

@@ -24,26 +24,65 @@ export function parseSheetNumber(val: string | number | undefined | null): numbe
   return parseFloat(cleaned) || 0;
 }
 
+import { migrateTransactionCategory } from '@/lib/categories';
+
 // ─── Transacoes ───────────────────────────────────────────────────────────────
-// Columns: ID | Nome | Valor | Categoria | MesKey | Parcelas | Data | GoalId | CardId | ParentId
+// Columns: ID | Nome | Valor | Categoria | MesKey | Parcelas | Data | GoalId | CardId | ParentId | IsPaid | Subcategoria | Natureza | Recorrencia | MeioPagamento | TipoMovimentacao
 export function rowToTransaction(row: string[]): Transaction {
+  const name = row[1] ?? '';
+  const rawCat = row[3] ?? '';
+  const rawSub = row[11] || null;
+
+  // Migração segura para garantir Macro e Micro estruturadas
+  const migrated = migrateTransactionCategory(rawCat, rawSub, name);
+
   return {
-    id:           row[0] ?? '',
-    name:         row[1] ?? '',
-    amount:       parseSheetNumber(row[2]),
-    category:     (row[3] ?? 'Outros') as Category,
-    monthKey:     row[4] ?? '',
-    installments: row[5] || null,
-    date:         row[6] || null,
-    goalId:       row[7] || null,
-    cardId:       row[8] || null,
-    parentId:     row[9] || null,
-    isPaid:       String(row[10]).toLowerCase() === 'true',
+    id:              row[0] ?? '',
+    name,
+    amount:          parseSheetNumber(row[2]),
+    category:        migrated.macro,
+    subcategory:     migrated.micro,
+    transactionType: (row[15] as any) || migrated.transactionType || 'expense',
+    nature:          (row[12] as any) || null,
+    recurrency:      (row[13] as any) || migrated.recurrency || null,
+    paymentMethod:   (row[14] as any) || null,
+    monthKey:        row[4] ?? '',
+    installments:    row[5] || null,
+    date:            row[6] || null,
+    goalId:          row[7] || null,
+    cardId:          row[8] || null,
+    parentId:        row[9] || null,
+    isPaid:          String(row[10]).toLowerCase() === 'true',
   };
 }
 
 export function transactionToRow(t: Transaction): (string | number | null)[] {
-  return [t.id, t.name, t.amount, t.category, t.monthKey, t.installments ?? '', t.date ?? '', t.goalId ?? '', t.cardId ?? '', t.parentId ?? '', t.isPaid ? 'true' : 'false'];
+  const migrated = migrateTransactionCategory(t.category, t.subcategory, t.name);
+  const macro = migrated.macro;
+  const micro = t.subcategory || migrated.micro;
+  const txType = t.transactionType || migrated.transactionType || 'expense';
+  const recurrency = t.recurrency || migrated.recurrency || '';
+  const nature = t.nature || (txType === 'expense' ? 'Essencial' : '');
+  const paymentMethod = t.paymentMethod || '';
+
+  return [
+    t.id,
+    t.name,
+    t.amount,
+    macro,
+    t.monthKey,
+    t.installments ?? '',
+    t.date ?? '',
+    t.goalId ?? '',
+    t.cardId ?? '',
+    t.parentId ?? '',
+    t.isPaid ? 'true' : 'false',
+    micro,
+    nature,
+    recurrency,
+    paymentMethod,
+    txType,
+  ];
 }
 
 // ─── Receitas ─────────────────────────────────────────────────────────────────
@@ -82,7 +121,7 @@ export function pendingToRow(p: Pending): (string | number | null)[] {
 }
 
 // ─── Metas ────────────────────────────────────────────────────────────────────
-// Columns: ID | Nome | Atual | Meta | Previsao | Deadline | Notes | IsShared | OwnerSpreadsheetId
+// Columns: ID | Nome | Atual | Meta | Previsao | Deadline | Notes | IsShared | OwnerSpreadsheetId | Icon
 export function rowToGoal(row: string[]): SavingsGoal {
   return {
     id:                row[0] || `g-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -94,15 +133,27 @@ export function rowToGoal(row: string[]): SavingsGoal {
     notes:             row[6] || null,
     isShared:          String(row[7]).toLowerCase() === 'true',
     ownerSpreadsheetId: row[8] || null,
+    icon:              row[9] || null,
   };
 }
 
 export function goalToRow(g: SavingsGoal): (string | number | null)[] {
-  return [g.id, g.name, g.current, g.target, g.monthlyPrediction, g.deadline ?? '', g.notes ?? '', g.isShared ? 'true' : 'false', g.ownerSpreadsheetId ?? ''];
+  return [
+    g.id,
+    g.name,
+    g.current,
+    g.target,
+    g.monthlyPrediction,
+    g.deadline ?? '',
+    g.notes ?? '',
+    g.isShared ? 'true' : 'false',
+    g.ownerSpreadsheetId ?? '',
+    g.icon ?? '',
+  ];
 }
 
 // ─── Cartões ──────────────────────────────────────────────────────────────────
-// Columns: ID | Nome | Limite | Usado | Cor | CorClara | Bandeira | DiaPagamento | DiaFechamento | Notes | FreedMonthKey | LastDigits
+// Columns: ID | Nome | Limite | Usado | Cor | CorClara | Bandeira | DiaPagamento | DiaFechamento | Notes | FreedMonthKey | LastDigits | BankId | Priority
 export function rowToCard(row: string[]): CreditCard {
   return {
     id:         row[0] ?? '',
@@ -118,11 +169,12 @@ export function rowToCard(row: string[]): CreditCard {
     freedMonthKey: row[10] || null,
     lastDigits: row[11] || null,
     bankId: row[12] || null,
+    priority: row[13] ? parseInt(row[13], 10) : null,
   };
 }
 
 export function cardToRow(c: CreditCard): (string | number | null)[] {
-  return [c.id, c.name, c.limit, c.used, c.color, c.colorLight, c.brand, c.dueDay ?? '', c.closeDay ?? '', c.notes ?? '', c.freedMonthKey ?? '', c.lastDigits ?? '', c.bankId ?? ''];
+  return [c.id, c.name, c.limit, c.used, c.color, c.colorLight, c.brand, c.dueDay ?? '', c.closeDay ?? '', c.notes ?? '', c.freedMonthKey ?? '', c.lastDigits ?? '', c.bankId ?? '', c.priority ?? ''];
 }
 
 // ─── Faturas de Cartão ────────────────────────────────────────────────────────
