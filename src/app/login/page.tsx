@@ -3,6 +3,7 @@
 import { signIn } from 'next-auth/react';
 import { useState } from 'react';
 import { Wallet, Cloud, Lock, Zap } from 'lucide-react';
+import Link from 'next/link';
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
@@ -12,9 +13,8 @@ export default function LoginPage() {
     await signIn('google', { callbackUrl: '/dashboard' });
   };
 
-  return (
-    <div className="login-root">
-      <div className="login-bg">
+    <main className="login-root">
+      <div className="login-bg" aria-hidden="true">
         <div className="login-orb login-orb-1" />
         <div className="login-orb login-orb-2" />
         <div className="login-orb login-orb-3" />
@@ -34,32 +34,32 @@ export default function LoginPage() {
           color: 'white',
           marginBottom: 8
         }}>
-          <Wallet size={32} />
+          <Wallet size={32} aria-hidden="true" />
         </div>
 
         <div className="login-header">
           <h1 className="login-title">Financeiro OS</h1>
-          <p className="login-subtitle">Controle financeiro pessoal, do seu jeito.</p>
+          <h2 className="login-subtitle">O seu sistema de controle financeiro online.</h2>
         </div>
 
         <div className="login-features">
           <div className="login-feature">
             <span className="login-feature-icon" style={{ color: 'var(--blue)' }}>
-              <Cloud size={20} strokeWidth={2.5} />
+              <Cloud size={20} strokeWidth={2.5} aria-hidden="true" />
             </span>
-            <span>Seus dados seguros no seu Google Drive</span>
+            <span>Gestão financeira segura no seu Google Drive</span>
           </div>
           <div className="login-feature">
             <span className="login-feature-icon" style={{ color: 'var(--green)' }}>
-              <Lock size={20} strokeWidth={2.5} />
+              <Lock size={20} strokeWidth={2.5} aria-hidden="true" />
             </span>
-            <span>100% privado — só você tem acesso</span>
+            <span>Finanças pessoais 100% privadas</span>
           </div>
           <div className="login-feature">
             <span className="login-feature-icon" style={{ color: 'var(--orange)' }}>
-              <Zap size={20} strokeWidth={2.5} />
+              <Zap size={20} strokeWidth={2.5} aria-hidden="true" />
             </span>
-            <span>Planilha gerada automaticamente</span>
+            <span>Planilha de gastos gerada automaticamente</span>
           </div>
         </div>
 
@@ -67,10 +67,11 @@ export default function LoginPage() {
           className="login-btn"
           onClick={handleLogin}
           disabled={loading}
+          aria-busy={loading}
         >
           {loading ? (
             <span className="login-btn-content">
-              <div className="btn-spinner" />
+              <div className="btn-spinner" aria-hidden="true" />
               Preparando ambiente...
             </span>
           ) : (
@@ -83,7 +84,10 @@ export default function LoginPage() {
 
         <p className="login-disclaimer">
           Ao entrar, uma planilha será criada no seu Google Drive. 
-          Nenhum dado financeiro é armazenado nos nossos servidores.
+          Nenhum dado financeiro é armazenado nos nossos servidores.<br /><br />
+          Ao continuar, você concorda com nossos{' '}
+          <Link href="/termos" style={{ color: 'var(--text-primary)', textDecoration: 'underline' }}>Termos de Serviço</Link> e{' '}
+          <Link href="/privacidade" style={{ color: 'var(--text-primary)', textDecoration: 'underline' }}>Política de Privacidade</Link>.
         </p>
       </div>
 
@@ -272,13 +276,13 @@ export default function LoginPage() {
           padding: 0 16px;
         }
       `}</style>
-    </div>
+    </main>
   );
 }
 
 function GoogleIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 18 18" fill="none" style={{ background: 'white', borderRadius: '50%', padding: '2px' }}>
+    <svg aria-hidden="true" width="20" height="20" viewBox="0 0 18 18" fill="none" style={{ background: 'white', borderRadius: '50%', padding: '2px' }}>
       <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
       <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z" fill="#34A853"/>
       <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>

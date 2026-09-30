@@ -5,6 +5,7 @@ import { Palette, User as UserIcon, LogOut, Moon, ShieldCheck, ExternalLink } fr
 import Sidebar from '@/components/layout/Sidebar';
 import GlassCard from '@/components/ui/GlassCard';
 import { useThemeStore } from '@/lib/themeStore';
+import Link from 'next/link';
 
 export default function SettingsPage() {
   const { tintColor, setTintColor, isDarkMode, toggleDarkMode } = useThemeStore();
@@ -204,6 +205,15 @@ export default function SettingsPage() {
                     </a>
                   </div>
                 )}
+                
+                <div style={{ display: 'flex', gap: 16, marginTop: 8, flexWrap: 'wrap' }}>
+                  <Link href="/privacidade" className="btn-ghost" style={{ textDecoration: 'none' }}>
+                    Política de Privacidade
+                  </Link>
+                  <Link href="/termos" className="btn-ghost" style={{ textDecoration: 'none' }}>
+                    Termos de Serviço
+                  </Link>
+                </div>
               </div>
             </GlassCard>
           </section>
