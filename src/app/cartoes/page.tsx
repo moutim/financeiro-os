@@ -296,7 +296,7 @@ export default function CartoesPage() {
                   <div style={{ 
                     height: '100%', 
                     width: `${Math.min(usagePct, 100)}%`, 
-                    background: card.color,
+                    background: bank?.color || card.color,
                     borderRadius: 3
                   }} />
                 </div>

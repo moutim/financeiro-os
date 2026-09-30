@@ -144,32 +144,24 @@ export default function DashboardPage() {
             icon={<Wallet size={18} />} 
             label="Renda do mês"    
             value={summary.income}          
-            color="var(--blue)"   
-            bgColor="var(--separator)"   
             delay={0}
           />
           <StatCard 
             icon={<TrendingDown size={18} />} 
             label="Total de gastos" 
             value={summary.totalExpenses}   
-            color="var(--blue)" 
-            bgColor="var(--separator)" 
             delay={60}  
           />
           <StatCard 
             icon={<TrendingUp size={18} />} 
             label="Investimentos"   
             value={summary.totalInvestments} 
-            color="var(--blue)"  
-            bgColor="var(--separator)"  
             delay={120} 
           />
           <StatCard
             icon={isBalancePositive ? <CheckCircle size={18} /> : <AlertTriangle size={18} />}
             label="Sobra do mês"
             value={summary.balance}
-            color="var(--blue)"
-            bgColor="var(--separator)"
             isNegative={!isBalancePositive}
             delay={180}
           />

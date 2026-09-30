@@ -134,8 +134,8 @@ export default function SettingsPage() {
                 </button>
               </div>
 
-              <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 16 }}>
-                Escolha a cor de destaque (Tint Color) para personalizar a plataforma.
+              <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 16, lineHeight: 1.5 }}>
+                Escolha uma cor principal para personalizar os botões, ícones e elementos visuais, deixando a experiência da plataforma mais com a sua cara.
               </p>
               
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
@@ -183,36 +183,46 @@ export default function SettingsPage() {
                 Segurança & Dados
               </h2>
               
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                  <strong style={{ color: 'var(--text-primary)' }}>Nenhum dado financeiro seu é salvo em nossos servidores.</strong> A plataforma funciona apenas como uma interface, e todas as suas despesas, receitas e metas são armazenadas exclusivamente na sua própria conta do Google Sheets.
+                  <strong style={{ color: 'var(--text-primary)' }}>Seus dados são 100% seus.</strong> Nós não salvamos nenhuma informação financeira nos nossos servidores. O Financeiro OS funciona apenas como uma interface visual inteligente e segura.
                 </p>
                 <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                  Você tem o controle 100% livre sobre seus dados. Eles são seus.
+                  Todas as suas despesas, receitas e configurações ficam armazenadas de forma segura <strong style={{ color: 'var(--text-primary)' }}>diretamente na sua conta do Google Sheets</strong>.
                 </p>
                 
-                {spreadsheetUrl && (
-                  <div style={{ marginTop: 8 }}>
+                <div style={{ 
+                  display: 'flex', 
+                  marginTop: 12, 
+                  paddingTop: 20,
+                  borderTop: '1px solid var(--separator)',
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: 16
+                }}>
+                  {spreadsheetUrl && (
                     <a
                       href={spreadsheetUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="btn-secondary"
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 8, textDecoration: 'none', width: 'fit-content' }}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}
                     >
-                      Acessar Planilha (Banco de Dados)
+                      Acessar sua Planilha Base
                       <ExternalLink size={16} />
                     </a>
+                  )}
+                  
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Link href="/privacidade" className="btn-ghost" style={{ textDecoration: 'none', fontSize: 13, padding: '8px 12px' }}>
+                      Privacidade
+                    </Link>
+                    <Link href="/termos" className="btn-ghost" style={{ textDecoration: 'none', fontSize: 13, padding: '8px 12px' }}>
+                      Termos de Serviço
+                    </Link>
                   </div>
-                )}
-                
-                <div style={{ display: 'flex', gap: 16, marginTop: 8, flexWrap: 'wrap' }}>
-                  <Link href="/privacidade" className="btn-ghost" style={{ textDecoration: 'none' }}>
-                    Política de Privacidade
-                  </Link>
-                  <Link href="/termos" className="btn-ghost" style={{ textDecoration: 'none' }}>
-                    Termos de Serviço
-                  </Link>
                 </div>
               </div>
             </GlassCard>

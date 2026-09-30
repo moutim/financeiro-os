@@ -32,13 +32,13 @@ export default function StatCard({
     >
       <div
         className="stat-card-icon"
-        style={{ background: 'var(--surface)', border: `1px solid ${color}`, color: color, width: 32, height: 32, borderRadius: 10, marginBottom: 12 }}
+        style={{ background: bgColor, color: color, width: 36, height: 36, borderRadius: 12, marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
       >
         {icon}
       </div>
       <div
         className="stat-card-value"
-        style={{ color: color, display: 'flex', alignItems: 'center', gap: '6px' }}
+        style={{ color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}
       >
         {formatCurrency(value)}
         {isNegative !== undefined && (
