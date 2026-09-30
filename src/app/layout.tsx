@@ -3,6 +3,7 @@ import './globals.css';
 import DataProvider from '@/components/providers/DataProvider';
 import { SessionProvider } from 'next-auth/react';
 import ThemeProvider from '@/components/providers/ThemeProvider';
+import { Analytics } from '@vercel/analytics/next';
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.APP_URL || 'https://seudominio.com.br'),
@@ -53,6 +54,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </DataProvider>
           </ThemeProvider>
         </SessionProvider>
+        <Analytics />
       </body>
     </html>
   );
