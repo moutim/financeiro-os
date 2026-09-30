@@ -9,7 +9,8 @@ export default auth((req) => {
   const { pathname } = req.nextUrl;
 
   // Rotas públicas
-  const isPublic = pathname.startsWith('/login') || pathname.startsWith('/api/auth');
+  const publicRoutes = ['/login', '/privacidade', '/termos', '/', '/sitemap.xml', '/robots.txt'];
+  const isPublic = publicRoutes.includes(pathname) || pathname.startsWith('/api/auth') || pathname.endsWith('.svg');
 
   // Se já estiver logado e tentar acessar /login, manda pro dashboard
   if (isLoggedIn && pathname === '/login') {
