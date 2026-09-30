@@ -13,6 +13,7 @@ export default function LoginPage() {
     await signIn('google', { callbackUrl: '/dashboard' });
   };
 
+  return (
     <main className="login-root">
       <div className="login-bg" aria-hidden="true">
         <div className="login-orb login-orb-1" />
