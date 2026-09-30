@@ -45,22 +45,22 @@ export default function LoginPage() {
 
         <div className="login-features">
           <div className="login-feature">
-            <span className="login-feature-icon" style={{ color: 'var(--blue)' }}>
+            <span className="login-feature-icon" style={{ color: '#007AFF' }}>
               <Cloud size={20} strokeWidth={2.5} aria-hidden="true" />
             </span>
-            <span>Gestão financeira segura no seu Google Drive</span>
+            <span>Controle financeiro pessoal integrado ao Google Sheets</span>
           </div>
           <div className="login-feature">
-            <span className="login-feature-icon" style={{ color: 'var(--green)' }}>
+            <span className="login-feature-icon" style={{ color: '#34C759' }}>
               <Lock size={20} strokeWidth={2.5} aria-hidden="true" />
             </span>
-            <span>Finanças pessoais 100% privadas</span>
+            <span>Segurança total com as suas informações 100% privadas</span>
           </div>
           <div className="login-feature">
-            <span className="login-feature-icon" style={{ color: 'var(--orange)' }}>
+            <span className="login-feature-icon" style={{ color: '#FF9500' }}>
               <Zap size={20} strokeWidth={2.5} aria-hidden="true" />
             </span>
-            <span>Planilha de gastos gerada automaticamente</span>
+            <span>Dashboards interativos para acompanhar seus gastos</span>
           </div>
         </div>
 
@@ -100,12 +100,13 @@ export default function LoginPage() {
           justify-content: center;
           background: var(--background);
           position: relative;
-          overflow: hidden;
-          padding: 20px;
+          overflow-y: auto;
+          overflow-x: hidden;
+          padding: 40px 20px;
         }
 
         .login-bg {
-          position: absolute;
+          position: fixed;
           inset: 0;
           pointer-events: none;
           z-index: 0;
@@ -161,16 +162,16 @@ export default function LoginPage() {
           -webkit-backdrop-filter: blur(40px) saturate(200%);
           border: 1px solid rgba(255, 255, 255, 0.6);
           border-radius: 32px;
-          padding: 40px 32px;
+          padding: 32px 24px;
           width: 100%;
-          max-width: 380px;
+          max-width: 400px;
           box-shadow:
             0 20px 40px rgba(0, 0, 0, 0.08),
             0 1px 3px rgba(0, 0, 0, 0.05);
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 24px;
+          gap: 20px;
         }
 
         .login-header {
@@ -194,9 +195,9 @@ export default function LoginPage() {
         .login-features {
           display: flex;
           flex-direction: column;
-          gap: 16px;
+          gap: 12px;
           width: 100%;
-          padding: 16px 8px;
+          padding: 12px 4px;
         }
 
         .login-feature {
@@ -215,7 +216,7 @@ export default function LoginPage() {
           width: 32px;
           height: 32px;
           border-radius: 10px;
-          background: var(--surface);
+          background: #ffffff;
           box-shadow: 0 2px 8px rgba(0,0,0,0.04);
           flex-shrink: 0;
         }
@@ -274,7 +275,7 @@ export default function LoginPage() {
           text-align: center;
           line-height: 1.4;
           margin: 0;
-          padding: 0 16px;
+          padding: 0 8px;
         }
       `}</style>
     </main>
