@@ -4,13 +4,33 @@ import type {
   Category, CardBrand,
 } from '@/lib/types';
 
+export function parseSheetNumber(val: string | number | undefined | null): number {
+  if (val === undefined || val === null || val === '') return 0;
+  if (typeof val === 'number') return val;
+  let str = String(val).trim();
+  // Se contiver R$ ou for formato PT-BR com ponto e vírgula
+  let cleaned = str.replace(/[^\d.,-]/g, '');
+  if (cleaned.includes(',') && cleaned.includes('.')) {
+    const lastComma = cleaned.lastIndexOf(',');
+    const lastDot = cleaned.lastIndexOf('.');
+    if (lastComma > lastDot) {
+      cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+    } else {
+      cleaned = cleaned.replace(/,/g, '');
+    }
+  } else if (cleaned.includes(',')) {
+    cleaned = cleaned.replace(',', '.');
+  }
+  return parseFloat(cleaned) || 0;
+}
+
 // ─── Transacoes ───────────────────────────────────────────────────────────────
 // Columns: ID | Nome | Valor | Categoria | MesKey | Parcelas | Data | GoalId | CardId | ParentId
 export function rowToTransaction(row: string[]): Transaction {
   return {
     id:           row[0] ?? '',
     name:         row[1] ?? '',
-    amount:       parseFloat(row[2] ?? '0') || 0,
+    amount:       parseSheetNumber(row[2]),
     category:     (row[3] ?? 'Outros') as Category,
     monthKey:     row[4] ?? '',
     installments: row[5] || null,
@@ -32,7 +52,7 @@ export function rowToIncome(row: string[]): Income {
   return {
     id:          row[0] ?? '',
     name:        row[1] ?? '',
-    amount:      parseFloat(row[2] ?? '0') || 0,
+    amount:      parseSheetNumber(row[2]),
     monthKey:    row[3] ?? '',
     isRecurring: String(row[4]).toLowerCase() === 'true',
     parentId:    row[5] || null,
@@ -51,7 +71,7 @@ export function rowToPending(row: string[]): Pending {
   return {
     id:      row[0] ?? '',
     name:    row[1] ?? '',
-    amount:  parseFloat(row[2] ?? '0') || 0,
+    amount:  parseSheetNumber(row[2]),
     dueDate: row[3] || null,
     notes:   row[4] || null,
   };
@@ -67,9 +87,9 @@ export function rowToGoal(row: string[]): SavingsGoal {
   return {
     id:                row[0] || `g-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     name:              row[1] ?? '',
-    current:           parseFloat(row[2] ?? '0') || 0,
-    target:            parseFloat(row[3] ?? '0') || 0,
-    monthlyPrediction: parseFloat(row[4] ?? '0') || 0,
+    current:           parseSheetNumber(row[2]),
+    target:            parseSheetNumber(row[3]),
+    monthlyPrediction: parseSheetNumber(row[4]),
     deadline:          row[5] || null,
     notes:             row[6] || null,
     isShared:          String(row[7]).toLowerCase() === 'true',
@@ -87,8 +107,8 @@ export function rowToCard(row: string[]): CreditCard {
   return {
     id:         row[0] ?? '',
     name:       row[1] ?? '',
-    limit:      parseFloat(row[2] ?? '0') || 0,
-    used:       parseFloat(row[3] ?? '0') || 0,
+    limit:      parseSheetNumber(row[2]),
+    used:       parseSheetNumber(row[3]),
     color:      row[4] ?? '#000000',
     colorLight: row[5] ?? '#f0f0f0',
     brand:      (row[6] ?? 'Outro') as CardBrand,
@@ -112,7 +132,7 @@ export function rowToCardStatement(row: string[]): CardStatement {
     id:       row[0] ?? '',
     cardId:   row[1] ?? '',
     monthKey: row[2] ?? '',
-    amount:   parseFloat(row[3] ?? '0') || 0,
+    amount:   parseSheetNumber(row[3]),
     isPaid:   String(row[4]).toLowerCase() === 'true',
     paidAt:   row[5] || null,
   };
