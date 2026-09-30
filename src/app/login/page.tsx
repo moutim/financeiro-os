@@ -84,9 +84,9 @@ export default function LoginPage() {
         </button>
 
         <p className="login-disclaimer">
-          Ao entrar, uma planilha será criada no seu Google Drive. 
-          Nenhum dado financeiro é armazenado nos nossos servidores.<br /><br />
-          Ao continuar, você concorda com nossos{' '}
+          <strong>Sobre o App:</strong> O Financeiro OS é uma interface gráfica para gestão financeira pessoal. O propósito do aplicativo é ler e gravar dados transacionais exclusivamente na sua própria planilha do Google Sheets. 
+          Este aplicativo NÃO utiliza APIs do Google para treinar Inteligência Artificial ou gerar imagens de qualquer tipo (incluindo AI NCII).<br /><br />
+          Nenhum dado financeiro é armazenado nos nossos servidores. Ao continuar, você concorda com nossos{' '}
           <Link href="/termos" style={{ color: 'var(--text-primary)', textDecoration: 'underline' }}>Termos de Serviço</Link> e{' '}
           <Link href="/privacidade" style={{ color: 'var(--text-primary)', textDecoration: 'underline' }}>Política de Privacidade</Link>.
         </p>
