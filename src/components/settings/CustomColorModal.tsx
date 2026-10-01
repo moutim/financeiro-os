@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Pipette, CheckCircle2 } from 'lucide-react';
 import { useThemeStore } from '@/lib/themeStore';
+import { useSwipeToClose } from '@/hooks/useSwipeToClose';
 
 interface CustomColorModalProps {
   isOpen: boolean;
@@ -10,6 +11,7 @@ interface CustomColorModalProps {
 export default function CustomColorModal({ isOpen, onClose }: CustomColorModalProps) {
   const { tintColor, setTintColor } = useThemeStore();
   const [hexInput, setHexInput] = useState(tintColor);
+  const swipeToClose = useSwipeToClose(onClose);
 
   useEffect(() => {
     if (isOpen) {
@@ -39,36 +41,40 @@ export default function CustomColorModal({ isOpen, onClose }: CustomColorModalPr
 
   return (
     <div className="modal-overlay animate-fade-in" onClick={onClose}>
+      {/* Gaveta como os demais modais de inserção: presa na base no celular, alça e arrastar para fechar */}
       <div 
         className="modal-sheet animate-slide-in-sheet" 
         onClick={e => e.stopPropagation()}
-        style={{ maxWidth: 400, margin: 'auto' }}
+        style={swipeToClose.style}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{
-              width: 36,
-              height: 36,
-              borderRadius: 10,
-              background: 'var(--blue-light)',
-              color: 'var(--blue)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <Pipette size={18} />
+        <div {...swipeToClose.handlers} style={{ touchAction: 'none' }}>
+          <div className="modal-handle" />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{
+                width: 36,
+                height: 36,
+                borderRadius: 10,
+                background: 'var(--blue-light)',
+                color: 'var(--blue)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <Pipette size={18} />
+              </div>
+              <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                Cor Personalizada
+              </h2>
             </div>
-            <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
-              Cor Personalizada
-            </h2>
+            <button 
+              type="button" 
+              onClick={onClose} 
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)' }}
+            >
+              <X size={20} />
+            </button>
           </div>
-          <button 
-            type="button" 
-            onClick={onClose} 
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)' }}
-          >
-            <X size={20} />
-          </button>
         </div>
 
         <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 20, lineHeight: 1.5 }}>
@@ -145,7 +151,8 @@ export default function CustomColorModal({ isOpen, onClose }: CustomColorModalPr
           onClick={handleSave}
           disabled={!isCurrentValid}
           className="btn-primary"
-          style={{ width: '100%', padding: '14px', fontSize: 15, borderRadius: 12 }}
+          // mesmo botão das outras gavetas: pílula do btn-primary, apagado enquanto o HEX é inválido
+          style={{ width: '100%', padding: '14px', opacity: isCurrentValid ? 1 : 0.5 }}
         >
           Aplicar Cor Personalizada
         </button>

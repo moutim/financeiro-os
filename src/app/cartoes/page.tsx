@@ -191,7 +191,7 @@ export default function CartoesPage() {
                     </select>
                   )}
                 </DetailedOnly>
-                <div style={{ display: 'flex', gap: 6 }}>
+                <div className="carousel-arrows" style={{ display: 'flex', gap: 6 }}>
                   <CarouselArrow direction="left" enabled={canScrollLeft} onClick={() => scrollCarousel('left')} />
                   <CarouselArrow direction="right" enabled={canScrollRight} onClick={() => scrollCarousel('right')} />
                 </div>

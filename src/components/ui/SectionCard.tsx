@@ -33,7 +33,8 @@ export default function SectionCard({
   return (
     <section className={className}>
       <GlassCard style={style}>
-        <div style={{
+        {/* section-card-header: container query, as ações se adaptam à largura do card */}
+        <div className="section-card-header" style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',

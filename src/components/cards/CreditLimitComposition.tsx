@@ -21,66 +21,75 @@ export default function CreditLimitComposition({ totalLimit, totalUsed }: Credit
       title="Composição de Limite"
       description="Limite total, usado e livre somados de todos os cartões"
       actions={
-        <div style={{ textAlign: 'right' }}>
+        // no card estreito some daqui e vira a linha .limit-total-row no corpo (globals.css)
+        <div className="limit-total" style={{ textAlign: 'right' }}>
           <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontWeight: 600 }}>LIMITE TOTAL</div>
           <div style={{ fontSize: 18, fontWeight: 800 }}>{formatCurrency(totalLimit)}</div>
         </div>
       }
     >
-      {/* Composição Segmentada (Usado vs Livre) */}
-      <div style={{ marginBottom: 12 }}>
-        <div style={{
-          display: 'flex',
-          height: 14,
-          borderRadius: 7,
-          overflow: 'hidden',
-          background: 'var(--separator)',
-        }}>
-          <div
-            style={{
-              width: `${Math.min(usagePct, 100)}%`,
-              background: usagePct > 80 ? 'var(--red)' : 'var(--blue)',
-              transition: 'width 0.4s ease',
-            }}
-            title={`Usado: ${formatCurrency(totalUsed)} (${usagePct.toFixed(1)}%)`}
-          />
-          <div
-            style={{
-              width: `${Math.max(0, 100 - usagePct)}%`,
-              background: 'var(--green)',
-              opacity: 0.85,
-              transition: 'width 0.4s ease',
-            }}
-            title={`Disponível: ${formatCurrency(totalAvailable)} (${availablePct.toFixed(1)}%)`}
-          />
+      {/* .limit-composition: container query, o layout se adapta à largura do card */}
+      <div className="limit-composition">
+        <div className="limit-total-row">
+          <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontWeight: 600 }}>LIMITE TOTAL</span>
+          <span style={{ fontSize: 18, fontWeight: 800 }}>{formatCurrency(totalLimit)}</span>
         </div>
-      </div>
 
-      {/* Legenda Detalhada dos Limites */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--separator)' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: usagePct > 80 ? 'var(--red)' : 'var(--blue)' }} />
-            <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontWeight: 600 }}>LIMITE USADO</span>
-          </div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: usagePct > 80 ? 'var(--red)' : 'var(--text-primary)' }}>
-            {formatCurrency(totalUsed)}
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 1 }}>
-            {usagePct.toFixed(1)}% do limite total
+        {/* Composição Segmentada (Usado vs Livre) */}
+        <div style={{ marginBottom: 12 }}>
+          <div style={{
+            display: 'flex',
+            height: 14,
+            borderRadius: 7,
+            overflow: 'hidden',
+            background: 'var(--separator)',
+          }}>
+            <div
+              style={{
+                width: `${Math.min(usagePct, 100)}%`,
+                background: usagePct > 80 ? 'var(--red)' : 'var(--blue)',
+                transition: 'width 0.4s ease',
+              }}
+              title={`Usado: ${formatCurrency(totalUsed)} (${usagePct.toFixed(1)}%)`}
+            />
+            <div
+              style={{
+                width: `${Math.max(0, 100 - usagePct)}%`,
+                background: 'var(--green)',
+                opacity: 0.85,
+                transition: 'width 0.4s ease',
+              }}
+              title={`Disponível: ${formatCurrency(totalAvailable)} (${availablePct.toFixed(1)}%)`}
+            />
           </div>
         </div>
 
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--green)' }} />
-            <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontWeight: 600 }}>LIMITE LIVRE</span>
+        {/* Legenda: 2 colunas no card largo, lista (rótulo à esquerda, valor à direita) no estreito */}
+        <div className="limit-legend">
+          <div className="limit-legend-item">
+            <div className="limit-legend-label">
+              <span style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: usagePct > 80 ? 'var(--red)' : 'var(--blue)' }} />
+              <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontWeight: 600 }}>LIMITE USADO</span>
+            </div>
+            <div className="limit-legend-value" style={{ fontSize: 16, fontWeight: 700, color: usagePct > 80 ? 'var(--red)' : 'var(--text-primary)' }}>
+              {formatCurrency(totalUsed)}
+            </div>
+            <div className="limit-legend-detail" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+              {usagePct.toFixed(1)}% do limite total
+            </div>
           </div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--green)' }}>
-            {formatCurrency(totalAvailable)}
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 1 }}>
-            {availablePct.toFixed(1)}% disponível
+
+          <div className="limit-legend-item">
+            <div className="limit-legend-label">
+              <span style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: 'var(--green)' }} />
+              <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontWeight: 600 }}>LIMITE LIVRE</span>
+            </div>
+            <div className="limit-legend-value" style={{ fontSize: 16, fontWeight: 700, color: 'var(--green)' }}>
+              {formatCurrency(totalAvailable)}
+            </div>
+            <div className="limit-legend-detail" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+              {availablePct.toFixed(1)}% disponível
+            </div>
           </div>
         </div>
       </div>

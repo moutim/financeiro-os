@@ -1035,6 +1035,149 @@ body {
   flex-wrap: wrap;
 }
 
+/* ─── Cartões › Seus Cartões: ordenação e setas do carrossel ──────────────── */
+/* setas sempre no canto direito, mesmo quando quebram para baixo do título */
+.section-card-actions:has(> .carousel-arrows) {
+  margin-left: auto;
+}
+
+/* card estreito: ordenação + setas viram uma barra própria (ordenação à esquerda, setas à direita).
+   Consulta o .section-card-header; 440px ≈ título + contador + seletor + setas numa linha só */
+@container (max-width: 440px) {
+  .section-card-actions:has(> .toolbar-select) {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+/* ─── Cartões › Composição de Limite ───────────────────────────────────────── */
+/* O corpo do card é o container: no card estreito o limite total sai do cabeçalho
+   e a legenda vira lista, para os valores não ficarem espremidos */
+.limit-composition {
+  container-type: inline-size;
+}
+
+.limit-total-row {
+  display: none;
+}
+
+.limit-legend {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--separator);
+}
+
+.limit-legend-item {
+  display: grid;
+  grid-template-areas: "label" "value" "detail";
+  row-gap: 2px;
+  min-width: 0;
+}
+
+.limit-legend-label {
+  grid-area: label;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.limit-legend-value {
+  grid-area: value;
+}
+
+.limit-legend-detail {
+  grid-area: detail;
+}
+
+/* cada regra consulta o container mais próximo: o cabeçalho (ações) ou o corpo (.limit-composition) */
+@container (max-width: 480px) {
+  /* !important: o SectionCard define display: flex inline nas ações */
+  .section-card-actions:has(> .limit-total) {
+    display: none !important;
+  }
+
+  .limit-total-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .limit-legend {
+    grid-template-columns: 1fr;
+    gap: 0;
+    margin-top: 16px;
+    padding-top: 0;
+  }
+
+  .limit-legend-item {
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "label value" "label detail";
+    column-gap: 12px;
+    padding: 12px 0;
+  }
+
+  .limit-legend-item + .limit-legend-item {
+    border-top: 1px solid var(--separator);
+  }
+
+  .limit-legend-value,
+  .limit-legend-detail {
+    text-align: right;
+  }
+}
+
+/* ─── Abas segmentadas (SegmentedTabs: Categorias e Cartões) ───────────────── */
+/* O cabeçalho do SectionCard é o container: as abas reagem à largura do card,
+   não da tela (entre 769px e ~850px a sidebar aparece e o card fica estreito) */
+.section-card-header {
+  container-type: inline-size;
+}
+
+.segmented-tabs {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--bg-2);
+}
+
+/* sem espaço ao lado do título: abas descem e dividem a largura em partes iguais */
+@container (max-width: 720px) {
+  .section-card-actions:has(> .segmented-tabs) {
+    width: 100%;
+  }
+
+  /* uma coluna igual por aba, qualquer que seja a quantidade */
+  .segmented-tabs {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    width: 100%;
+  }
+}
+
+/* card de celular: 2 por linha, com menos respiro lateral para "Macro › Micro" caber */
+@container (max-width: 520px) {
+  .segmented-tabs {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .segmented-tabs > button {
+    padding: 7px 8px !important;
+  }
+
+  /* número ímpar de abas: a última ocupa a linha inteira em vez de deixar um buraco */
+  .segmented-tabs > button:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+}
+
 /* mesmas medidas das abas da Análise Avançada de Gastos (CategoryCharts) */
 .category-sort-group {
   display: flex;
