@@ -4,6 +4,12 @@ import { useState } from 'react';
 import { formatMask, parseMask } from '@/lib/currency';
 import { useSwipeToClose } from '@/hooks/useSwipeToClose';
 import { BANKS } from '@/lib/banks';
+import { DetailedOnly } from '@/components/mode/ModeSwitch';
+
+const PRIORITY_LABELS = [
+  'Cartão Principal', 'Prioridade Alta', 'Prioridade Média', 'Quarto Cartão', 'Quinto Cartão',
+  'Sexto Cartão', 'Sétimo Cartão', 'Oitavo Cartão', 'Nono Cartão', 'Décimo Cartão',
+];
 
 export interface CardData {
   id: string;
@@ -16,6 +22,7 @@ export interface CardData {
   freedMonthKey?: string | null;
   lastDigits?: string | null;
   bankId?: string | null;
+  priority?: number | null;
 }
 
 interface CardFormModalProps {
@@ -43,6 +50,8 @@ export default function CardFormModal({ initialData, onSave, onClose, onDelete }
   const [freedYear, setFreedYear] = useState(initialData?.freedMonthKey ? initialData.freedMonthKey.split('-')[0] : '');
   const [lastDigits, setLastDigits] = useState(initialData?.lastDigits ? initialData.lastDigits.split('-').pop() ?? '' : '');
   const [bankId, setBankId] = useState(initialData?.bankId ?? '');
+  // Editável só no modo detalhado, mas sempre preservada ao salvar
+  const [priority, setPriority] = useState<string>(initialData?.priority ? String(initialData.priority) : '');
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -74,6 +83,7 @@ export default function CardFormModal({ initialData, onSave, onClose, onDelete }
       freedMonthKey: (freedYear && freedMonth) ? `${freedYear}-${freedMonth}` : null,
       lastDigits: finalLastDigits,
       bankId: bankId || null,
+      priority: priority ? parseInt(priority, 10) : null,
     };
     
     setIsSubmitting(true);
@@ -162,6 +172,26 @@ export default function CardFormModal({ initialData, onSave, onClose, onDelete }
             </div>
           </div>
 
+          <DetailedOnly>
+            <div className="form-group" style={{ marginBottom: 16 }}>
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span>Prioridade de Exibição</span>
+                <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-tertiary)' }}>(Ordem nos cartões)</span>
+              </label>
+              <select
+                className="form-select"
+                value={priority}
+                onChange={e => setPriority(e.target.value)}
+                disabled={isLoading}
+              >
+                <option value="">Sem prioridade</option>
+                {PRIORITY_LABELS.map((label, i) => (
+                  <option key={label} value={String(i + 1)}>{i + 1}º - {label}</option>
+                ))}
+              </select>
+            </div>
+          </DetailedOnly>
+
           <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
             <div className="form-group" style={{ flex: 1 }}>
               <label className="form-label">Limite Total (R$)</label>
@@ -178,11 +208,10 @@ export default function CardFormModal({ initialData, onSave, onClose, onDelete }
             </div>
             <div className="form-group" style={{ flex: 1 }}>
               <label className="form-label">Utilizado (R$)</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 inputMode="numeric"
-                className="form-input" 
-                required 
+                className="form-input"
                 placeholder="R$ 0,00"
                 value={formatMask(used)} 
                 onChange={e => setUsed(parseMask(e.target.value))} 

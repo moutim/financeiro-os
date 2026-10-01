@@ -1,11 +1,14 @@
 'use client';
 
-import { AlertTriangle, Wallet, TrendingDown, TrendingUp, CheckCircle, Pencil, Trash2, Check } from 'lucide-react';
+import {
+  AlertTriangle, Wallet, TrendingDown, TrendingUp, CheckCircle, Pencil, Trash2, Check,
+  ChartPie, HandCoins, Banknote, ReceiptText, ListTree, ClipboardList,
+} from 'lucide-react';
 
 import { useState, useEffect } from 'react';
 import Sidebar from '@/components/layout/Sidebar';
 import StatCard from '@/components/ui/StatCard';
-import GlassCard from '@/components/ui/GlassCard';
+import SectionCard from '@/components/ui/SectionCard';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import MonthSelector from '@/components/transactions/MonthSelector';
 import TransactionList from '@/components/transactions/TransactionList';
@@ -17,12 +20,12 @@ import WelcomeTourModal from '@/components/ui/WelcomeTourModal';
 import SpendingDonut from '@/components/charts/SpendingDonut';
 import MonthlyBar from '@/components/charts/MonthlyBar';
 import CategoryBadge from '@/components/ui/CategoryBadge';
+import MonthSummaryList from '@/components/dashboard/MonthSummaryList';
+import SpendingTree from '@/components/dashboard/SpendingTree';
 import { useFinanceStore } from '@/lib/store';
+import { useIsDetailedMode } from '@/lib/appConfigStore';
 import { monthKeyToLabel, formatCurrency } from '@/lib/currency';
-import { CATEGORY_CONFIG } from '@/lib/categories';
 import type { Category, Income } from '@/lib/types';
-
-const ALL_CATEGORIES = ['Todas', ...Object.keys(CATEGORY_CONFIG)] as const;
 
 export default function DashboardPage() {
   const [showForm, setShowForm] = useState(false);
@@ -46,6 +49,7 @@ export default function DashboardPage() {
     deleteMonth,
     availableMonths,
   } = useFinanceStore();
+  const isDetailed = useIsDetailedMode();
 
   // Evaluate conditions for the welcome tour
   const allTx = getMonthTransactions(selectedMonth);
@@ -116,7 +120,7 @@ export default function DashboardPage() {
   // Consideramos que o mês precisa de configuração (exibir o banner) se ele não tem NENHUMA entrada recorrente E nenhuma despesa Fixa.
   // Isso permite que o banner apareça mesmo que o mês já tenha recebido algumas parcelas de compras do passado!
   const hasNoRecurring = salarios.length === 0;
-  const hasNoFixed = allTransactions.filter(t => t.category === 'Fixos').length === 0;
+  const hasNoFixed = allTransactions.filter(t => t.category === 'Fixos' || t.recurrency === 'Fixo').length === 0;
   const hasPreviousMonths = availableMonths.some(m => m < selectedMonth);
   const isMonthMissingSetup = hasNoRecurring && hasNoFixed && hasPreviousMonths;
   const isCompletelyEmpty = allTransactions.length === 0 && allIncomes.length === 0;
@@ -218,18 +222,12 @@ export default function DashboardPage() {
           <div className="dashboard-col" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
             {/* Donut chart */}
-            <GlassCard className="order-1">
-              <h2 className="section-title" style={{ marginBottom: 16, fontSize: 17 }}>
-                Por Categoria
-              </h2>
+            <SectionCard icon={ChartPie} title="Por Categoria" className="order-1">
               <SpendingDonut transactions={allTransactions} />
-            </GlassCard>
+            </SectionCard>
 
             {/* Recebimentos & Extras */}
-            <GlassCard className="order-3">
-              <h2 className="section-title" style={{ marginBottom: 16, fontSize: 17 }}>
-                Recebimentos & Extras
-              </h2>
+            <SectionCard icon={HandCoins} title="Recebimentos & Extras" className="order-3">
               {dividendos.length === 0 ? (
                 <p style={{ fontSize: 14, color: 'var(--text-tertiary)' }}>Nenhum recebimento registrado.</p>
               ) : (
@@ -290,13 +288,10 @@ export default function DashboardPage() {
                   </div>
                 </div>
               )}
-            </GlassCard>
+            </SectionCard>
 
             {/* Salário do Mês */}
-            <GlassCard className="order-4">
-              <h2 className="section-title" style={{ marginBottom: 16, fontSize: 17 }}>
-                Salário do Mês
-              </h2>
+            <SectionCard icon={Banknote} title="Salário do Mês" className="order-4">
               {salarios.length === 0 ? (
                 <p style={{ fontSize: 14, color: 'var(--text-tertiary)' }}>Nenhum salário registrado.</p>
               ) : (
@@ -357,7 +352,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
               )}
-            </GlassCard>
+            </SectionCard>
           </div>
 
           {/* ── RIGHT COLUMN: Transactions ── */}
@@ -365,51 +360,20 @@ export default function DashboardPage() {
 
 
             {/* Transaction list card */}
-            <GlassCard className="order-2">
-              <h2 className="section-title" style={{ marginBottom: 16, fontSize: 17 }}>
-                Transações
-              </h2>
+            <SectionCard icon={ReceiptText} title="Transações" className="order-2">
               <TransactionList transactions={allTransactions} showDelete />
-            </GlassCard>
+            </SectionCard>
 
-            {/* Mini category breakdown */}
-            <GlassCard padding="16px" className="order-5">
-              <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12, color: 'var(--text-secondary)' }}>
-                Resumo do Mês
-              </h2>
-              {(() => {
-                const activeCategories = Object.keys(CATEGORY_CONFIG).map((catKey) => {
-                  const config = CATEGORY_CONFIG[catKey];
-                  const value = allTransactions
-                    .filter(t => t.category === catKey)
-                    .reduce((acc, t) => acc + t.amount, 0);
-                  return { key: catKey, config, value };
-                }).filter(cat => cat.value > 0);
-
-                if (activeCategories.length === 0) {
-                  return <p style={{ fontSize: 14, color: 'var(--text-tertiary)' }}>Nenhum gasto registrado neste mês.</p>;
-                }
-
-                return activeCategories.map((cat, index) => {
-                  const isLast = index === activeCategories.length - 1;
-                  return (
-                    <div key={cat.key} style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '8px 0',
-                      borderBottom: isLast ? 'none' : '1px solid var(--separator)',
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ display: 'flex', alignItems: 'center', color: cat.config.color }}><cat.config.icon size={18} /></span>
-                        <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{cat.config.label}</span>
-                      </div>
-                      <span style={{ fontWeight: 700, fontSize: 14, color: cat.config.color }}>{formatCurrency(cat.value)}</span>
-                    </div>
-                  );
-                });
-              })()}
-            </GlassCard>
+            {/* Resumo do mês: lista por categoria (simples) ou árvore Macro › Micro (detalhado) */}
+            <SectionCard
+              icon={isDetailed ? ListTree : ClipboardList}
+              title={isDetailed ? 'Análise de Gastos (Macro › Micro)' : 'Resumo do Mês'}
+              className="order-5"
+            >
+              {isDetailed
+                ? <SpendingTree transactions={allTransactions} />
+                : <MonthSummaryList transactions={allTransactions} />}
+            </SectionCard>
           </div>
         </div>
 

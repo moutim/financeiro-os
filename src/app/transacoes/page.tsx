@@ -9,10 +9,8 @@ import TransactionList from '@/components/transactions/TransactionList';
 import TransactionForm from '@/components/transactions/TransactionForm';
 import { useFinanceStore } from '@/lib/store';
 import { monthKeyToLabel } from '@/lib/currency';
-import { CATEGORY_CONFIG } from '@/lib/categories';
+import { useCategoryTaxonomy } from '@/lib/taxonomy';
 import type { Category } from '@/lib/types';
-
-const ALL_CATEGORIES = ['Todas', ...Object.keys(CATEGORY_CONFIG)] as const;
 
 /* ── Tooltip ──────────────────────────────────────────────────────────────── */
 interface TooltipState {
@@ -123,10 +121,17 @@ export default function TransacoesPage() {
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const { selectedMonth, getMonthTransactions, filterCategory, setFilterCategory } = useFinanceStore();
 
+  const taxonomy = useCategoryTaxonomy();
+
   const allTransactions = getMonthTransactions(selectedMonth);
 
-  const filtered = filterCategory && filterCategory !== 'Todas'
-    ? allTransactions.filter((t) => t.category === filterCategory)
+  // Filtros seguem as categorias do modo atual; um filtro escolhido no outro
+  // modo que não exista neste é ignorado (mostra todas).
+  const filterOptions = ['Todas', ...taxonomy.categories];
+  const activeFilter = filterCategory && taxonomy.categories.includes(filterCategory) ? filterCategory : null;
+
+  const filtered = activeFilter
+    ? allTransactions.filter((t) => taxonomy.normalize(t).category === activeFilter)
     : allTransactions;
 
   const total = filtered.reduce((s, t) => s + t.amount, 0);
@@ -172,9 +177,9 @@ export default function TransacoesPage() {
 
         {/* Category Filter Pills */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 24 }}>
-          {ALL_CATEGORIES.map((cat) => {
-            const isActive = (filterCategory ?? 'Todas') === cat;
-            const cfg = cat !== 'Todas' ? CATEGORY_CONFIG[cat] : null;
+          {filterOptions.map((cat) => {
+            const isActive = (activeFilter ?? 'Todas') === cat;
+            const cfg = cat !== 'Todas' ? taxonomy.getConfig(cat) : null;
             return (
               <CategoryPill
                 key={cat}

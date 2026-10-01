@@ -1,14 +1,21 @@
 'use client';
 
+import { useState } from 'react';
 import { useSession, signOut } from 'next-auth/react';
-import { Palette, User as UserIcon, LogOut, Moon, ShieldCheck, ExternalLink } from 'lucide-react';
+import { Palette, User as UserIcon, LogOut, Moon, ShieldCheck, ExternalLink, Settings2, LayoutTemplate, Layers, Trash2, Plus } from 'lucide-react';
 import Sidebar from '@/components/layout/Sidebar';
+import ClearDataModal from '@/components/settings/ClearDataModal';
+import CustomColorModal from '@/components/settings/CustomColorModal';
 import GlassCard from '@/components/ui/GlassCard';
 import { useThemeStore } from '@/lib/themeStore';
+import { useAppConfigStore } from '@/lib/appConfigStore';
 import Link from 'next/link';
 
 export default function SettingsPage() {
+  const [isClearModalOpen, setIsClearModalOpen] = useState(false);
+  const [isColorModalOpen, setIsColorModalOpen] = useState(false);
   const { tintColor, setTintColor, isDarkMode, toggleDarkMode } = useThemeStore();
+  const { mode, setMode } = useAppConfigStore();
   const { data: session } = useSession();
   const user = session?.user;
   const spreadsheetId = (session as any)?.spreadsheetId;
@@ -87,20 +94,97 @@ export default function SettingsPage() {
           {/* Aparência */}
           <section>
             <GlassCard>
-              <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-primary)' }}>
+              <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-primary)' }}>
                 <Palette size={18} color="var(--blue)" />
                 Aparência
               </h2>
               
-              {/* Modo Escuro */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, paddingBottom: 24, borderBottom: '1px solid var(--separator)' }}>
+              <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 24, lineHeight: 1.5 }}>
+                Personalize as cores e o tema da plataforma para combinar com o seu estilo diário.
+              </p>
+
+              {/* Cor de Destaque */}
+              <div style={{ marginBottom: 24, paddingBottom: 24, borderBottom: '1px solid var(--separator)' }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12 }}>
+                  Cor de Destaque
+                </div>
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                  {[
+                    '#007AFF', // Azul
+                    '#FF3B30', // Vermelho
+                    '#34C759', // Verde
+                    '#FF9500', // Laranja
+                    '#FFCC00', // Amarelo
+                    '#5856D6', // Roxo
+                    '#FF2D55', // Rosa
+                    '#5AC8FA', // Ciano
+                    '#009688', // Verde-Água (Teal)
+                    '#795548', // Marrom
+                    '#607D8B', // Cinza Azulado
+                    '#000000', // Preto
+                  ].map((color) => (
+                    <button
+                      key={color}
+                      onClick={() => setTintColor(color)}
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: '50%',
+                        backgroundColor: color,
+                        border: tintColor === color ? '3px solid white' : 'none',
+                        outline: tintColor === color ? `2px solid ${color}` : 'none',
+                        cursor: 'pointer',
+                        transition: 'transform 0.2s',
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+                      onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                      title={`Mudar para cor ${color}`}
+                    />
+                  ))}
+                  
+                  {/* Botão para cor customizada (HEX) */}
+                  <button
+                    type="button"
+                    onClick={() => setIsColorModalOpen(true)}
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: '50%',
+                      backgroundColor: 'var(--card-bg)',
+                      border: '1.5px dashed var(--text-tertiary)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--text-primary)';
+                      e.currentTarget.style.color = 'var(--text-primary)';
+                      e.currentTarget.style.transform = 'scale(1.1)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--text-tertiary)';
+                      e.currentTarget.style.color = 'var(--text-secondary)';
+                      e.currentTarget.style.transform = 'scale(1)';
+                    }}
+                    title="Adicionar cor personalizada (HEX)"
+                  >
+                    <Plus size={18} strokeWidth={2.5} />
+                  </button>
+                </div>
+              </div>
+              
+              {/* Tema (Modo Escuro) */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--blue-light)', color: 'var(--blue)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--text-quaternary)', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <Moon size={18} />
                   </div>
                   <div>
-                    <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-primary)' }}>Modo Escuro</div>
-                    <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>Aparência noturna para a plataforma</div>
+                    <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-primary)' }}>Tema Escuro</div>
+                    <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>Aparência noturna para descanso visual</div>
                   </div>
                 </div>
                 
@@ -133,44 +217,95 @@ export default function SettingsPage() {
                   />
                 </button>
               </div>
+            </GlassCard>
+          </section>
 
-              <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 16, lineHeight: 1.5 }}>
-                Escolha uma cor principal para personalizar os botões, ícones e elementos visuais, deixando a experiência da plataforma mais com a sua cara.
+          {/* Modo de Uso */}
+          <section>
+            <GlassCard>
+              <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-primary)' }}>
+                <Settings2 size={18} color="var(--blue)" />
+                Modo de Uso
+              </h2>
+              
+              <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 20, lineHeight: 1.5 }}>
+                Escolha o nível de detalhe que melhor se adapta à forma como você gerencia suas finanças. Você pode alterar isso a qualquer momento.
               </p>
               
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                {[
-                  '#007AFF', // Azul
-                  '#FF3B30', // Vermelho
-                  '#34C759', // Verde
-                  '#FF9500', // Laranja
-                  '#FFCC00', // Amarelo
-                  '#5856D6', // Roxo
-                  '#FF2D55', // Rosa
-                  '#5AC8FA', // Ciano
-                  '#009688', // Verde-Água (Teal)
-                  '#795548', // Marrom
-                  '#607D8B', // Cinza Azulado
-                  '#000000', // Preto
-                ].map((color) => (
-                  <button
-                    key={color}
-                    onClick={() => setTintColor(color)}
-                    style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: '50%',
-                      backgroundColor: color,
-                      border: tintColor === color ? '3px solid white' : 'none',
-                      outline: tintColor === color ? `2px solid ${color}` : 'none',
-                      cursor: 'pointer',
-                      transition: 'transform 0.2s',
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
-                    onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                    title={`Mudar para cor ${color}`}
-                  />
-                ))}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
+                {/* Modo Simples */}
+                <div 
+                  onClick={() => setMode('simple')}
+                  style={{
+                    border: mode === 'simple' ? '2px solid var(--blue)' : '1px solid var(--separator)',
+                    borderRadius: 16,
+                    padding: 20,
+                    cursor: 'pointer',
+                    background: mode === 'simple' ? 'var(--card-bg)' : 'transparent',
+                    boxShadow: mode === 'simple' ? '0 4px 12px rgba(0,0,0,0.05)' : 'none',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (mode !== 'simple') {
+                      e.currentTarget.style.borderColor = 'var(--text-tertiary)';
+                      e.currentTarget.style.background = 'var(--hover-bg)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (mode !== 'simple') {
+                      e.currentTarget.style.borderColor = 'var(--separator)';
+                      e.currentTarget.style.background = 'transparent';
+                    }
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 12, background: mode === 'simple' ? 'var(--blue-light)' : 'var(--text-quaternary)', color: mode === 'simple' ? 'var(--blue)' : 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s ease' }}>
+                      <LayoutTemplate size={20} />
+                    </div>
+                    <div style={{ width: 22, height: 22, borderRadius: '50%', border: mode === 'simple' ? '6px solid var(--blue)' : '1px solid var(--separator)', background: mode === 'simple' ? 'var(--card-bg)' : 'transparent', transition: 'all 0.2s ease' }} />
+                  </div>
+                  <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>Simples</h3>
+                  <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                    Visão essencial e direta. Foco no balanço principal, menos categorias e relatórios rápidos.
+                  </p>
+                </div>
+
+                {/* Modo Detalhado */}
+                <div 
+                  onClick={() => setMode('detailed')}
+                  style={{
+                    border: mode === 'detailed' ? '2px solid var(--blue)' : '1px solid var(--separator)',
+                    borderRadius: 16,
+                    padding: 20,
+                    cursor: 'pointer',
+                    background: mode === 'detailed' ? 'var(--card-bg)' : 'transparent',
+                    boxShadow: mode === 'detailed' ? '0 4px 12px rgba(0,0,0,0.05)' : 'none',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (mode !== 'detailed') {
+                      e.currentTarget.style.borderColor = 'var(--text-tertiary)';
+                      e.currentTarget.style.background = 'var(--hover-bg)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (mode !== 'detailed') {
+                      e.currentTarget.style.borderColor = 'var(--separator)';
+                      e.currentTarget.style.background = 'transparent';
+                    }
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 12, background: mode === 'detailed' ? 'var(--blue-light)' : 'var(--text-quaternary)', color: mode === 'detailed' ? 'var(--blue)' : 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s ease' }}>
+                      <Layers size={20} />
+                    </div>
+                    <div style={{ width: 22, height: 22, borderRadius: '50%', border: mode === 'detailed' ? '6px solid var(--blue)' : '1px solid var(--separator)', background: mode === 'detailed' ? 'var(--card-bg)' : 'transparent', transition: 'all 0.2s ease' }} />
+                  </div>
+                  <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>Detalhado</h3>
+                  <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                    Analytics avançado para cartões, gráficos completos por categorias e relatórios minuciosos.
+                  </p>
+                </div>
               </div>
             </GlassCard>
           </section>
@@ -227,8 +362,61 @@ export default function SettingsPage() {
               </div>
             </GlassCard>
           </section>
+
+          {/* Gerenciamento e Limpeza de Dados da Planilha */}
+          <section>
+            <GlassCard>
+              <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-primary)' }}>
+                <Trash2 size={18} color="var(--red)" />
+                Gerenciamento e Limpeza de Dados
+              </h2>
+              
+              <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 16 }}>
+                Deseja recomeçar ou limpar registros da sua planilha? Você pode escolher exatamente quais abas quer esvaziar (Transações, Cartões, Receitas, Metas ou Pendências). A estrutura de colunas e cabeçalhos é 100% preservada.
+              </p>
+
+              <button
+                type="button"
+                onClick={() => setIsClearModalOpen(true)}
+                style={{
+                  color: 'var(--red)',
+                  background: 'var(--red-light)',
+                  fontWeight: 600,
+                  padding: '12px 20px',
+                  borderRadius: 24,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  cursor: 'pointer',
+                  border: 'none',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.opacity = '0.8';
+                  e.currentTarget.style.transform = 'scale(0.98)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.opacity = '1';
+                  e.currentTarget.style.transform = 'scale(1)';
+                }}
+              >
+                <Trash2 size={16} />
+                Limpar Dados da Planilha
+              </button>
+            </GlassCard>
+          </section>
         </div>
       </main>
+
+      <ClearDataModal
+        isOpen={isClearModalOpen}
+        onClose={() => setIsClearModalOpen(false)}
+      />
+
+      <CustomColorModal
+        isOpen={isColorModalOpen}
+        onClose={() => setIsColorModalOpen(false)}
+      />
     </>
   );
 }

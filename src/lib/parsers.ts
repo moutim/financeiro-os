@@ -2,12 +2,13 @@ import type {
   Transaction, Income, Pending, SavingsGoal,
   CreditCard, CardStatement, AppConfig,
   Category, CardBrand,
+  TransactionType, TransactionNature, TransactionRecurrency, PaymentMethod,
 } from '@/lib/types';
 
 export function parseSheetNumber(val: string | number | undefined | null): number {
   if (val === undefined || val === null || val === '') return 0;
   if (typeof val === 'number') return val;
-  let str = String(val).trim();
+  const str = String(val).trim();
   // Se contiver R$ ou for formato PT-BR com ponto e vírgula
   let cleaned = str.replace(/[^\d.,-]/g, '');
   if (cleaned.includes(',') && cleaned.includes('.')) {
@@ -25,25 +26,51 @@ export function parseSheetNumber(val: string | number | undefined | null): numbe
 }
 
 // ─── Transacoes ───────────────────────────────────────────────────────────────
-// Columns: ID | Nome | Valor | Categoria | MesKey | Parcelas | Data | GoalId | CardId | ParentId
+// Columns: ID | Nome | Valor | Categoria | MesKey | Parcelas | Data | GoalId | CardId | ParentId | IsPaid
+//        | Subcategoria | Natureza | Recorrencia | MeioPagamento | TipoMovimentacao
+// As colunas a partir de "Subcategoria" são preenchidas pelo modo detalhado. A categoria é
+// gravada como veio (legada ou macro); a conversão entre modos acontece só na exibição
+// (ver src/lib/taxonomy.ts), então a planilha nunca é reescrita ao trocar de modo.
 export function rowToTransaction(row: string[]): Transaction {
   return {
-    id:           row[0] ?? '',
-    name:         row[1] ?? '',
-    amount:       parseSheetNumber(row[2]),
-    category:     (row[3] ?? 'Outros') as Category,
-    monthKey:     row[4] ?? '',
-    installments: row[5] || null,
-    date:         row[6] || null,
-    goalId:       row[7] || null,
-    cardId:       row[8] || null,
-    parentId:     row[9] || null,
-    isPaid:       String(row[10]).toLowerCase() === 'true',
+    id:              row[0] ?? '',
+    name:            row[1] ?? '',
+    amount:          parseSheetNumber(row[2]),
+    category:        (row[3] || 'Outros') as Category,
+    monthKey:        row[4] ?? '',
+    installments:    row[5] || null,
+    date:            row[6] || null,
+    goalId:          row[7] || null,
+    cardId:          row[8] || null,
+    parentId:        row[9] || null,
+    isPaid:          String(row[10]).toLowerCase() === 'true',
+    subcategory:     row[11] || null,
+    nature:          (row[12] || null) as TransactionNature | null,
+    recurrency:      (row[13] || null) as TransactionRecurrency | null,
+    paymentMethod:   (row[14] || null) as PaymentMethod | null,
+    transactionType: (row[15] || undefined) as TransactionType | undefined,
   };
 }
 
 export function transactionToRow(t: Transaction): (string | number | null)[] {
-  return [t.id, t.name, t.amount, t.category, t.monthKey, t.installments ?? '', t.date ?? '', t.goalId ?? '', t.cardId ?? '', t.parentId ?? '', t.isPaid ? 'true' : 'false'];
+  return [
+    t.id,
+    t.name,
+    t.amount,
+    t.category,
+    t.monthKey,
+    t.installments ?? '',
+    t.date ?? '',
+    t.goalId ?? '',
+    t.cardId ?? '',
+    t.parentId ?? '',
+    t.isPaid ? 'true' : 'false',
+    t.subcategory ?? '',
+    t.nature ?? '',
+    t.recurrency ?? '',
+    t.paymentMethod ?? '',
+    t.transactionType ?? '',
+  ];
 }
 
 // ─── Receitas ─────────────────────────────────────────────────────────────────
@@ -82,7 +109,7 @@ export function pendingToRow(p: Pending): (string | number | null)[] {
 }
 
 // ─── Metas ────────────────────────────────────────────────────────────────────
-// Columns: ID | Nome | Atual | Meta | Previsao | Deadline | Notes | IsShared | OwnerSpreadsheetId
+// Columns: ID | Nome | Atual | Meta | Previsao | Deadline | Notes | IsShared | OwnerSpreadsheetId | Icon
 export function rowToGoal(row: string[]): SavingsGoal {
   return {
     id:                row[0] || `g-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -94,15 +121,16 @@ export function rowToGoal(row: string[]): SavingsGoal {
     notes:             row[6] || null,
     isShared:          String(row[7]).toLowerCase() === 'true',
     ownerSpreadsheetId: row[8] || null,
+    icon:              row[9] || null,
   };
 }
 
 export function goalToRow(g: SavingsGoal): (string | number | null)[] {
-  return [g.id, g.name, g.current, g.target, g.monthlyPrediction, g.deadline ?? '', g.notes ?? '', g.isShared ? 'true' : 'false', g.ownerSpreadsheetId ?? ''];
+  return [g.id, g.name, g.current, g.target, g.monthlyPrediction, g.deadline ?? '', g.notes ?? '', g.isShared ? 'true' : 'false', g.ownerSpreadsheetId ?? '', g.icon ?? ''];
 }
 
 // ─── Cartões ──────────────────────────────────────────────────────────────────
-// Columns: ID | Nome | Limite | Usado | Cor | CorClara | Bandeira | DiaPagamento | DiaFechamento | Notes | FreedMonthKey | LastDigits
+// Columns: ID | Nome | Limite | Usado | Cor | CorClara | Bandeira | DiaPagamento | DiaFechamento | Notes | FreedMonthKey | LastDigits | BankId | Priority
 export function rowToCard(row: string[]): CreditCard {
   return {
     id:         row[0] ?? '',
@@ -118,11 +146,12 @@ export function rowToCard(row: string[]): CreditCard {
     freedMonthKey: row[10] || null,
     lastDigits: row[11] || null,
     bankId: row[12] || null,
+    priority: row[13] ? parseInt(row[13], 10) || null : null,
   };
 }
 
 export function cardToRow(c: CreditCard): (string | number | null)[] {
-  return [c.id, c.name, c.limit, c.used, c.color, c.colorLight, c.brand, c.dueDay ?? '', c.closeDay ?? '', c.notes ?? '', c.freedMonthKey ?? '', c.lastDigits ?? '', c.bankId ?? ''];
+  return [c.id, c.name, c.limit, c.used, c.color, c.colorLight, c.brand, c.dueDay ?? '', c.closeDay ?? '', c.notes ?? '', c.freedMonthKey ?? '', c.lastDigits ?? '', c.bankId ?? '', c.priority ?? ''];
 }
 
 // ─── Faturas de Cartão ────────────────────────────────────────────────────────

@@ -25,8 +25,9 @@ export type SheetTab = (typeof SHEET_TABS)[keyof typeof SHEET_TABS];
 // ─── Canonical headers (source of truth for column order) ─────────────────────
 // Keep these in sync with parsers.ts — column index === array index.
 export const SHEET_HEADERS: Record<SheetTab, string[]> = {
-  // ID | Nome | Valor | Categoria | MesKey | Parcelas | Data | GoalId | CardId | ParentId
-  [SHEET_TABS.TRANSACOES]:     ['ID', 'Nome', 'Valor', 'Categoria', 'MesKey', 'Parcelas', 'Data', 'GoalId', 'CardId', 'ParentId'],
+  // ID | Nome | Valor | Categoria | MesKey | Parcelas | Data | GoalId | CardId | ParentId | IsPaid
+  // | Subcategoria | Natureza | Recorrencia | MeioPagamento | TipoMovimentacao  (modo detalhado)
+  [SHEET_TABS.TRANSACOES]:     ['ID', 'Nome', 'Valor', 'Categoria', 'MesKey', 'Parcelas', 'Data', 'GoalId', 'CardId', 'ParentId', 'IsPaid', 'Subcategoria', 'Natureza', 'Recorrencia', 'MeioPagamento', 'TipoMovimentacao'],
 
   // ID | Nome | Valor | MesKey | IsRecurring | ParentId | Parcelas
   [SHEET_TABS.RECEITAS]:       ['ID', 'Nome', 'Valor', 'MesKey', 'IsRecurring', 'ParentId', 'Parcelas'],
@@ -34,11 +35,11 @@ export const SHEET_HEADERS: Record<SheetTab, string[]> = {
   // ID | Nome | Valor | DueDate | Notes
   [SHEET_TABS.PENDENCIAS]:     ['ID', 'Nome', 'Valor', 'DueDate', 'Notes'],
 
-  // ID | Nome | Atual | Meta | Previsao | Deadline | Notes | IsShared | OwnerSpreadsheetId
-  [SHEET_TABS.METAS]:          ['ID', 'Nome', 'Atual', 'Meta', 'Previsao', 'Deadline', 'Notes', 'IsShared', 'OwnerSpreadsheetId'],
+  // ID | Nome | Atual | Meta | Previsao | Deadline | Notes | IsShared | OwnerSpreadsheetId | Icon
+  [SHEET_TABS.METAS]:          ['ID', 'Nome', 'Atual', 'Meta', 'Previsao', 'Deadline', 'Notes', 'IsShared', 'OwnerSpreadsheetId', 'Icon'],
 
-  // ID | Nome | Limite | Usado | Cor | CorClara | Bandeira | DiaPagamento | DiaFechamento | Notes | FreedMonthKey | LastDigits
-  [SHEET_TABS.CARTOES]:        ['ID', 'Nome', 'Limite', 'Usado', 'Cor', 'CorClara', 'Bandeira', 'DiaPagamento', 'DiaFechamento', 'Notes', 'FreedMonthKey', 'LastDigits'],
+  // ID | Nome | Limite | Usado | Cor | CorClara | Bandeira | DiaPagamento | DiaFechamento | Notes | FreedMonthKey | LastDigits | BankId | Priority
+  [SHEET_TABS.CARTOES]:        ['ID', 'Nome', 'Limite', 'Usado', 'Cor', 'CorClara', 'Bandeira', 'DiaPagamento', 'DiaFechamento', 'Notes', 'FreedMonthKey', 'LastDigits', 'BankId', 'Priority'],
 
   // ID | CardId | MesKey | Valor | IsPaid | PaidAt
   [SHEET_TABS.FATURAS_CARTAO]: ['ID', 'CardId', 'MesKey', 'Valor', 'IsPaid', 'PaidAt'],
