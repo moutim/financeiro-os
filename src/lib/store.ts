@@ -2,13 +2,10 @@
 
 import { create } from 'zustand';
 import type { Transaction, Income, Pending, SavingsGoal, Category, CreditCard } from '@/lib/types';
-import { toCanonicalMonthKey, sortMonthKeys, getContinuousMonthKeys } from '@/lib/currency';
 
 const now = new Date();
-const currentYear = now.getFullYear();
-const CURRENT_MONTH_KEY = `${currentYear}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-// Inclui os 12 meses do ano atual por padrão para manter a ordem natural dos meses
-const INITIAL_MONTHS = Array.from({ length: 12 }, (_, i) => `${currentYear}-${String(i + 1).padStart(2, '0')}`);
+const CURRENT_MONTH_KEY = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+const INITIAL_MONTHS = [CURRENT_MONTH_KEY];
 
 type LoadingState = 'idle' | 'loading' | 'success' | 'error';
 
@@ -49,7 +46,6 @@ interface FinanceStore {
   addCard: (card: Omit<CreditCard, 'id'>) => Promise<CreditCard>;
   updateCard: (id: string, updates: Partial<Omit<CreditCard, 'id'>>) => Promise<void>;
   deleteCard: (id: string) => Promise<void>;
-  seedMockData: () => Promise<void>;
 
   // Computed
   getMonthTransactions: (monthKey: string) => Transaction[];
@@ -94,7 +90,7 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
         throw new Error(errBody.error ?? 'Erro ao carregar dados');
       }
 
-      let [transactions, incomes, pending, goals, cards] = await Promise.all([
+      const [transactions, incomes, pending, goals, cards] = await Promise.all([
         txRes.json() as Promise<Transaction[]>,
         incRes.json() as Promise<Income[]>,
         pendRes.json() as Promise<Pending[]>,
@@ -103,22 +99,14 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
       ]);
 
       const uniqueMonths = new Set<string>();
-      // Inclui os 12 meses do ano atual
-      for (let m = 1; m <= 12; m++) {
-        uniqueMonths.add(`${currentYear}-${String(m).padStart(2, '0')}`);
-      }
-      transactions.forEach(t => {
-        if (t.monthKey) uniqueMonths.add(toCanonicalMonthKey(t.monthKey));
-      });
-      incomes.forEach(i => {
-        if (i.monthKey) uniqueMonths.add(toCanonicalMonthKey(i.monthKey));
-      });
-      const continuousMonths = getContinuousMonthKeys(Array.from(uniqueMonths));
-      const finalMonths = sortMonthKeys(continuousMonths);
+      transactions.forEach(t => uniqueMonths.add(t.monthKey));
+      incomes.forEach(i => uniqueMonths.add(i.monthKey));
+      const loadedMonths = Array.from(uniqueMonths).sort();
+      const finalMonths = loadedMonths.length > 0 ? loadedMonths : [get().selectedMonth];
 
       let newSelectedMonth = get().selectedMonth;
-      if (finalMonths.length > 0 && !finalMonths.includes(newSelectedMonth)) {
-        newSelectedMonth = finalMonths.includes(CURRENT_MONTH_KEY) ? CURRENT_MONTH_KEY : finalMonths[0];
+      if (loadedMonths.length > 0 && !loadedMonths.includes(newSelectedMonth)) {
+        newSelectedMonth = loadedMonths[loadedMonths.length - 1];
       }
 
       set({ 
@@ -137,12 +125,10 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
     }
   },
 
-  setSelectedMonth: (month) => set({ selectedMonth: toCanonicalMonthKey(month) }),
+  setSelectedMonth: (month) => set({ selectedMonth: month }),
   addAvailableMonth: (month) => set((state) => {
-    const canonical = toCanonicalMonthKey(month);
-    if (!state.availableMonths.includes(canonical)) {
-      const merged = getContinuousMonthKeys([...state.availableMonths, canonical]);
-      return { availableMonths: sortMonthKeys(merged) };
+    if (!state.availableMonths.includes(month)) {
+      return { availableMonths: [...state.availableMonths, month].sort() };
     }
     return state;
   }),
@@ -377,30 +363,6 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
     }
   },
 
-  seedMockData: async () => {
-    set({ loadingState: 'loading', error: null });
-    try {
-      const res = await fetch('/api/seed-mock', { method: 'POST' });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error ?? 'Erro ao popular dados mock');
-      }
-      await get().loadAll();
-    } catch (err) {
-      console.error('[seedMockData]', err);
-      const { SEED_TRANSACTIONS, SEED_INCOMES, SEED_PENDING, SEED_GOALS, SEED_CARDS } = await import('@/lib/seed');
-      set({
-        transactions: [...SEED_TRANSACTIONS],
-        incomes: [...SEED_INCOMES],
-        pending: [...SEED_PENDING],
-        goals: [...SEED_GOALS],
-        cards: [...SEED_CARDS],
-        selectedMonth: '2026-09',
-        loadingState: 'success',
-      });
-    }
-  },
-
   deleteMonth: async (monthKey) => {
     try {
       const txs = get().transactions.filter(t => t.monthKey === monthKey).map(t => t.id);
@@ -453,43 +415,20 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
     const incomes = get().getMonthIncomes(monthKey);
 
     const income = incomes.reduce((s, i) => s + i.amount, 0);
-    
-    // Investimentos (aportes e aplicações não entram em despesas de consumo)
     const totalInvestments = transactions
-      .filter((t) => t.category === 'Investimentos' || t.transactionType === 'investment')
+      .filter((t) => t.category === 'Investimentos')
       .reduce((s, t) => s + t.amount, 0);
-
-    // Gastos com recorrência fixa ou categoria legada Fixos
     const totalFixed = transactions
-      .filter((t) => t.recurrency === 'Fixo' || t.category === 'Fixos')
+      .filter((t) => t.category === 'Fixos')
       .reduce((s, t) => s + t.amount, 0);
-
-    // Alimentação / Comida
     const totalFood = transactions
-      .filter((t) => t.category === 'Alimentação' || t.category === 'Comida')
+      .filter((t) => t.category === 'Comida')
       .reduce((s, t) => s + t.amount, 0);
-
-    // Compras e bens / Compras
     const totalPurchases = transactions
-      .filter((t) => t.category === 'Compras e bens' || t.category === 'Compras')
+      .filter((t) => t.category === 'Compras')
       .reduce((s, t) => s + t.amount, 0);
-
-    // Despesas de consumo:
-    // Exclui investimentos, receitas acidentais, transferências entre contas próprias
-    const totalExpenses = transactions
-      .filter((t) => {
-        if (t.transactionType === 'investment' || t.category === 'Investimentos') return false;
-        if (t.transactionType === 'income' || t.category === 'Receitas' || t.category === 'Dividendos') return false;
-        if (
-          (t.transactionType === 'transfer' || t.category === 'Transferências') &&
-          (!t.subcategory || t.subcategory === 'Entre contas próprias')
-        ) return false;
-        return true;
-      })
-      .reduce((s, t) => s + t.amount, 0);
-
-    // Sobra líquida do mês (Renda - Despesas de Consumo - Investimentos)
-    const balance = income - totalExpenses - totalInvestments;
+    const totalExpenses = transactions.reduce((s, t) => s + t.amount, 0);
+    const balance = income - totalExpenses;
 
     return { income, totalExpenses, totalInvestments, totalFixed, totalFood, totalPurchases, balance };
   },

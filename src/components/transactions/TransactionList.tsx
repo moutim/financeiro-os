@@ -122,13 +122,8 @@ export default function TransactionList({ transactions, showDelete = true }: Tra
                     );
                   })()}
                 </div>
-                <span style={{ fontSize: 12, color: 'var(--text-tertiary)', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4 }}>
-                  • {cfg.label}{tx.subcategory && tx.subcategory !== cfg.label ? ` › ${tx.subcategory}` : ''}
-                  {tx.recurrency === 'Fixo' && (
-                    <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', background: 'var(--bg-2)', padding: '1px 5px', borderRadius: 4, marginLeft: 2 }}>
-                      Fixo
-                    </span>
-                  )}
+                <span style={{ fontSize: 12, color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>
+                  • {cfg.label}
                 </span>
               </div>
               

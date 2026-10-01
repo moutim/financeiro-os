@@ -16,7 +16,6 @@ export interface CardData {
   freedMonthKey?: string | null;
   lastDigits?: string | null;
   bankId?: string | null;
-  priority?: number | null;
 }
 
 interface CardFormModalProps {
@@ -44,7 +43,6 @@ export default function CardFormModal({ initialData, onSave, onClose, onDelete }
   const [freedYear, setFreedYear] = useState(initialData?.freedMonthKey ? initialData.freedMonthKey.split('-')[0] : '');
   const [lastDigits, setLastDigits] = useState(initialData?.lastDigits ? initialData.lastDigits.split('-').pop() ?? '' : '');
   const [bankId, setBankId] = useState(initialData?.bankId ?? '');
-  const [priority, setPriority] = useState<string>(initialData?.priority ? String(initialData.priority) : '1');
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -76,7 +74,6 @@ export default function CardFormModal({ initialData, onSave, onClose, onDelete }
       freedMonthKey: (freedYear && freedMonth) ? `${freedYear}-${freedMonth}` : null,
       lastDigits: finalLastDigits,
       bankId: bankId || null,
-      priority: priority ? parseInt(priority, 10) : 1,
     };
     
     setIsSubmitting(true);
@@ -163,30 +160,6 @@ export default function CardFormModal({ initialData, onSave, onClose, onDelete }
                 disabled={isLoading}
               />
             </div>
-          </div>
-
-          <div className="form-group" style={{ marginBottom: 16 }}>
-            <label className="form-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span>Prioridade de Exibição</span>
-              <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-tertiary)' }}>(Ordem nos cartões)</span>
-            </label>
-            <select 
-              className="form-select" 
-              value={priority} 
-              onChange={e => setPriority(e.target.value)} 
-              disabled={isLoading}
-            >
-              <option value="1">1º - Cartão Principal</option>
-              <option value="2">2º - Prioridade Alta</option>
-              <option value="3">3º - Prioridade Média</option>
-              <option value="4">4º - Quarto Cartão</option>
-              <option value="5">5º - Quinto Cartão</option>
-              <option value="6">6º - Sexto Cartão</option>
-              <option value="7">7º - Sétimo Cartão</option>
-              <option value="8">8º - Oitavo Cartão</option>
-              <option value="9">9º - Nono Cartão</option>
-              <option value="10">10º - Décimo Cartão</option>
-            </select>
           </div>
 
           <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>

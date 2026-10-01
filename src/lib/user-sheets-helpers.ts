@@ -161,17 +161,3 @@ export async function updateUserRowById(
     requestBody: { values: [values] },
   });
 }
-
-/** Limpa todas as linhas de dados de uma aba, preservando a linha 1 (cabeçalhos) */
-export async function clearUserTab(
-  accessToken: string,
-  spreadsheetId: string,
-  tab: string
-): Promise<void> {
-  const sheets = getUserSheetsClient(accessToken);
-  await sheets.spreadsheets.values.clear({
-    spreadsheetId,
-    range: `${tab}!A2:Z`,
-  });
-}
-
