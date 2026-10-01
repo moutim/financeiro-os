@@ -80,7 +80,16 @@ export default function JoinGoalModal({ onClose }: JoinGoalModalProps) {
           {error && <p style={{ color: 'var(--red)', fontSize: 13, marginBottom: 16 }}>{error}</p>}
 
           <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
-            <button type="submit" className="btn-primary" style={{ flex: 1, padding: '14px', display: 'flex', justifyContent: 'center', alignItems: 'center' }} disabled={isSubmitting}>
+            <button 
+              type="button" 
+              className="btn-ghost" 
+              onClick={onClose} 
+              disabled={isSubmitting} 
+              style={{ flex: 1, padding: '14px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+            >
+              Cancelar
+            </button>
+            <button type="submit" className="btn-primary" style={{ flex: 2, padding: '14px', display: 'flex', justifyContent: 'center', alignItems: 'center' }} disabled={isSubmitting}>
               {isSubmitting ? <div className="btn-spinner" /> : 'Entrar na Meta'}
             </button>
           </div>

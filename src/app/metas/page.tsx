@@ -561,6 +561,28 @@ export default function MetasPage() {
         <Plus size={24} strokeWidth={2.5} />
       </button>
 
+      {goals.length === 0 && !showFabMenu && (
+        <div 
+          className="fab-menu animate-fade-in-up" 
+          style={{
+            background: 'var(--blue)',
+            color: 'white',
+            padding: '12px 16px',
+            borderRadius: 14,
+            boxShadow: 'var(--shadow-lg)',
+            width: '240px',
+            pointerEvents: 'none',
+            animationDelay: '500ms',
+            animationFillMode: 'both'
+          }}
+        >
+          {/* Seta apontando pro botão */}
+          <div style={{ position: 'absolute', bottom: -5, right: 22, width: 12, height: 12, background: 'var(--blue)', transform: 'rotate(45deg)', borderRadius: 2 }} />
+          <h4 style={{ fontSize: 14, fontWeight: 700, marginBottom: 4, letterSpacing: '-0.01em' }}>Comece a poupar</h4>
+          <p style={{ fontSize: 13, opacity: 0.9, lineHeight: 1.4 }}>Crie sua primeira meta para acompanhar a evolução dos seus investimentos.</p>
+        </div>
+      )}
+
       {showPendingModal && (
         <PendingEditModal
           pending={pendingToEdit}

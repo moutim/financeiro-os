@@ -22,8 +22,8 @@ interface GoalFormModalProps {
 export default function GoalFormModal({ initialData, onSave, onClose, onDelete }: GoalFormModalProps) {
   const [name, setName] = useState(initialData?.name ?? '');
   const [target, setTarget] = useState(initialData?.target ? String(Math.round(initialData.target * 100)) : '');
-  const [current, setCurrent] = useState(initialData?.current ? String(Math.round(initialData.current * 100)) : '0');
-  const [monthlyPrediction, setMonthlyPrediction] = useState(initialData?.monthlyPrediction ? String(Math.round(initialData.monthlyPrediction * 100)) : '0');
+  const [current, setCurrent] = useState(initialData?.current ? String(Math.round(initialData.current * 100)) : '');
+  const [monthlyPrediction, setMonthlyPrediction] = useState(initialData?.monthlyPrediction ? String(Math.round(initialData.monthlyPrediction * 100)) : '');
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -94,6 +94,7 @@ export default function GoalFormModal({ initialData, onSave, onClose, onDelete }
                 inputMode="numeric"
                 className="form-input" 
                 required 
+                placeholder="R$ 0,00"
                 value={formatMask(target)} 
                 onChange={e => setTarget(parseMask(e.target.value))} 
                 disabled={isSubmitting || isDeleting}
@@ -106,6 +107,7 @@ export default function GoalFormModal({ initialData, onSave, onClose, onDelete }
                 inputMode="numeric"
                 className="form-input" 
                 required 
+                placeholder="R$ 0,00"
                 value={formatMask(current)} 
                 onChange={e => setCurrent(parseMask(e.target.value))} 
                 disabled={isSubmitting || isDeleting}
@@ -130,19 +132,32 @@ export default function GoalFormModal({ initialData, onSave, onClose, onDelete }
           </div>
 
           <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
+            {!initialData && (
+              <button 
+                type="button"
+                className="btn-ghost"
+                onClick={onClose}
+                disabled={isSubmitting || isDeleting}
+                style={{ flex: 1, padding: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                Cancelar
+              </button>
+            )}
             {initialData && onDelete && (
               <button 
                 type="button"
                 className="btn-ghost" 
-                style={{ color: 'var(--red)', background: 'var(--red-light)', flex: 1, padding: '14px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+                style={{ color: 'var(--red)', background: 'var(--red-light)', flex: 1, padding: '14px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8 }}
                 onClick={handleDelete}
                 disabled={isSubmitting || isDeleting}
               >
-                {isDeleting ? <div className="btn-spinner" style={{ borderColor: 'var(--red)', borderTopColor: 'transparent' }} /> : 'Excluir'}
+                {isDeleting && <div className="btn-spinner" style={{ borderColor: 'rgba(255,59,48,0.3)', borderTopColor: 'var(--red)' }} />}
+                {isDeleting ? 'Excluindo...' : 'Excluir'}
               </button>
             )}
-            <button type="submit" className="btn-primary" style={{ flex: 2, padding: '14px', display: 'flex', justifyContent: 'center', alignItems: 'center' }} disabled={isSubmitting || isDeleting}>
-              {isSubmitting ? <div className="btn-spinner" /> : 'Salvar'}
+            <button type="submit" className="btn-primary" style={{ flex: 2, padding: '14px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8 }} disabled={isSubmitting || isDeleting}>
+              {isSubmitting && <div className="btn-spinner" />}
+              {isSubmitting ? 'Salvando...' : (initialData ? 'Salvar' : 'Adicionar')}
             </button>
           </div>
         </form>

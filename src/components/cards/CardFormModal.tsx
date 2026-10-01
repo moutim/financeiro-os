@@ -37,7 +37,7 @@ const BRAND_COLORS: Record<string, { color: string; colorLight: string }> = {
 export default function CardFormModal({ initialData, onSave, onClose, onDelete }: CardFormModalProps) {
   const [name, setName] = useState(initialData?.name ?? '');
   const [limit, setLimit] = useState(initialData?.limit ? String(Math.round(initialData.limit * 100)) : '');
-  const [used, setUsed] = useState(initialData?.used ? String(Math.round(initialData.used * 100)) : '0');
+  const [used, setUsed] = useState(initialData?.used ? String(Math.round(initialData.used * 100)) : '');
   const [brand, setBrand] = useState(initialData?.brand ?? 'Mastercard');
   const [freedMonth, setFreedMonth] = useState(initialData?.freedMonthKey ? initialData.freedMonthKey.split('-')[1] : '');
   const [freedYear, setFreedYear] = useState(initialData?.freedMonthKey ? initialData.freedMonthKey.split('-')[0] : '');
@@ -170,6 +170,7 @@ export default function CardFormModal({ initialData, onSave, onClose, onDelete }
                 inputMode="numeric"
                 className="form-input" 
                 required 
+                placeholder="R$ 0,00"
                 value={formatMask(limit)} 
                 onChange={e => setLimit(parseMask(e.target.value))} 
                 disabled={isLoading}
@@ -182,6 +183,7 @@ export default function CardFormModal({ initialData, onSave, onClose, onDelete }
                 inputMode="numeric"
                 className="form-input" 
                 required 
+                placeholder="R$ 0,00"
                 value={formatMask(used)} 
                 onChange={e => setUsed(parseMask(e.target.value))} 
                 disabled={isLoading}
@@ -237,6 +239,17 @@ export default function CardFormModal({ initialData, onSave, onClose, onDelete }
           </div>
 
           <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
+            {!initialData && (
+              <button 
+                type="button"
+                className="btn-ghost"
+                onClick={onClose}
+                disabled={isLoading}
+                style={{ flex: 1, padding: '14px', opacity: isLoading ? 0.5 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                Cancelar
+              </button>
+            )}
             {initialData && onDelete && (
               <button 
                 type="button"
@@ -251,7 +264,7 @@ export default function CardFormModal({ initialData, onSave, onClose, onDelete }
             )}
             <button type="submit" className="btn-primary" disabled={isLoading} style={{ flex: 2, padding: '14px', opacity: isLoading ? 0.5 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
               {isSubmitting && <div className="btn-spinner" />}
-              {isSubmitting ? 'Salvando...' : 'Salvar'}
+              {isSubmitting ? 'Salvando...' : (initialData ? 'Salvar' : 'Adicionar')}
             </button>
           </div>
         </form>

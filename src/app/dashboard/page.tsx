@@ -2,7 +2,7 @@
 
 import { AlertTriangle, Wallet, TrendingDown, TrendingUp, CheckCircle, Pencil, Trash2, Check } from 'lucide-react';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '@/components/layout/Sidebar';
 import StatCard from '@/components/ui/StatCard';
 import GlassCard from '@/components/ui/GlassCard';
@@ -13,6 +13,7 @@ import TransactionForm from '@/components/transactions/TransactionForm';
 import StartMonthWizard from '@/components/transactions/StartMonthWizard';
 import IncomeEditModal from '@/components/transactions/IncomeEditModal';
 import IncomeDeleteModal from '@/components/transactions/IncomeDeleteModal';
+import WelcomeTourModal from '@/components/ui/WelcomeTourModal';
 import SpendingDonut from '@/components/charts/SpendingDonut';
 import MonthlyBar from '@/components/charts/MonthlyBar';
 import CategoryBadge from '@/components/ui/CategoryBadge';
@@ -30,6 +31,8 @@ export default function DashboardPage() {
   const [isDeletingMonth, setIsDeletingMonth] = useState(false);
   const [editingIncome, setEditingIncome] = useState<Income | null>(null);
   const [deletingIncome, setDeletingIncome] = useState<Income | null>(null);
+  const [showWelcomeTour, setShowWelcomeTour] = useState(false);
+  const [showFabTooltip, setShowFabTooltip] = useState(false);
 
   const {
     selectedMonth,
@@ -43,6 +46,27 @@ export default function DashboardPage() {
     deleteMonth,
     availableMonths,
   } = useFinanceStore();
+
+  // Evaluate conditions for the welcome tour
+  const allTx = getMonthTransactions(selectedMonth);
+  const allInc = getMonthIncomes(selectedMonth);
+  const isMonthEmpty = allTx.length === 0 && allInc.length === 0;
+  const hasPastMonths = availableMonths.some(m => m < selectedMonth);
+
+  // Tour para novos usuários
+  useEffect(() => {
+    if (loadingState === 'success' && isMonthEmpty && !hasPastMonths) {
+      const hasSeenTour = localStorage.getItem('@financeiro-os:hasSeenWelcomeTour');
+      
+      if (!hasSeenTour) {
+        setShowWelcomeTour(true);
+      } else {
+        setShowFabTooltip(true);
+      }
+    } else {
+      setShowFabTooltip(false);
+    }
+  }, [loadingState, isMonthEmpty, hasPastMonths]);
 
   // ── Loading / Error states ─────────────────────────────────────────────
   if (loadingState === 'loading' || loadingState === 'idle') {
@@ -93,7 +117,8 @@ export default function DashboardPage() {
   // Isso permite que o banner apareça mesmo que o mês já tenha recebido algumas parcelas de compras do passado!
   const hasNoRecurring = salarios.length === 0;
   const hasNoFixed = allTransactions.filter(t => t.category === 'Fixos').length === 0;
-  const isMonthMissingSetup = hasNoRecurring && hasNoFixed;
+  const hasPreviousMonths = availableMonths.some(m => m < selectedMonth);
+  const isMonthMissingSetup = hasNoRecurring && hasNoFixed && hasPreviousMonths;
   const isCompletelyEmpty = allTransactions.length === 0 && allIncomes.length === 0;
 
   const chartData = availableMonths.map((mk) => {
@@ -108,6 +133,7 @@ export default function DashboardPage() {
       balance: s.balance,
     };
   });
+
 
   return (
     <>
@@ -400,13 +426,49 @@ export default function DashboardPage() {
         )}
       </main>
 
-      {/* FAB */}
-      <button className="fab" onClick={() => setShowForm(true)} aria-label="Nova transação">+</button>
+      {/* FAB and Tooltip */}
+      <button 
+        className="fab" 
+        onClick={() => setShowForm(true)} 
+        aria-label="Nova transação"
+      >
+        +
+      </button>
+
+      {showFabTooltip && (
+        <div 
+          className="fab-menu animate-fade-in-up" 
+          style={{
+            background: 'var(--blue)',
+            color: 'white',
+            padding: '12px 16px',
+            borderRadius: 14,
+            boxShadow: 'var(--shadow-lg)',
+            width: '240px',
+            pointerEvents: 'none',
+            animationDelay: '500ms',
+            animationFillMode: 'both'
+          }}
+        >
+          {/* Seta apontando pro botão */}
+          <div style={{ position: 'absolute', bottom: -5, right: 22, width: 12, height: 12, background: 'var(--blue)', transform: 'rotate(45deg)', borderRadius: 2 }} />
+          <h4 style={{ fontSize: 14, fontWeight: 700, marginBottom: 4, letterSpacing: '-0.01em' }}>Comece por aqui</h4>
+          <p style={{ fontSize: 13, opacity: 0.9, lineHeight: 1.4 }}>Adicione seu salário ou saldo inicial para começar o mês com o pé direito.</p>
+        </div>
+      )}
 
       {showForm && <TransactionForm onClose={() => setShowForm(false)} />}
       {showWizard && <StartMonthWizard targetMonth={selectedMonth} onClose={() => setShowWizard(false)} />}
       {editingIncome && <IncomeEditModal income={editingIncome} onClose={() => setEditingIncome(null)} />}
       {deletingIncome && <IncomeDeleteModal income={deletingIncome} onClose={() => setDeletingIncome(null)} />}
+      
+      {showWelcomeTour && (
+        <WelcomeTourModal onClose={() => {
+          localStorage.setItem('@financeiro-os:hasSeenWelcomeTour', 'true');
+          setShowWelcomeTour(false);
+          setTimeout(() => setShowFabTooltip(true), 1000);
+        }} />
+      )}
 
       {showDeleteConfirm && (
         <div className="modal-overlay animate-fade-in" onClick={!isDeletingMonth ? () => setShowDeleteConfirm(false) : undefined}>

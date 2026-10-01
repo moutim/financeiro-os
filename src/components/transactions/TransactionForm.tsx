@@ -331,7 +331,7 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
             <input
               className="form-input"
               type="text"
-              placeholder="Ex: Spotify, Almoço..."
+              placeholder={type === 'expense' ? 'Ex: Spotify, Almoço...' : 'Ex: Salário, Freelance...'}
               value={name}
               onChange={(e) => setName(e.target.value)}
               disabled={isSubmitting}
@@ -460,7 +460,7 @@ export default function TransactionForm({ onClose }: TransactionFormProps) {
                       }}
                     >
                       {opt === 'salary'
-                        ? <><Banknote size={15} strokeWidth={1.8} /> Salário / Fixo</>
+                        ? <><Banknote size={15} strokeWidth={1.8} /> Salário</>
                         : <><Sparkles size={15} strokeWidth={1.8} /> Recebimento Extra</>}
                     </button>
                   );

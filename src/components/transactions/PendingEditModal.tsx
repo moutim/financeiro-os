@@ -140,7 +140,7 @@ export default function PendingEditModal({ pending, onClose }: PendingEditModalP
             </button>
             <button type="submit" className="btn-primary" disabled={isSubmitting} style={{ flex: 1, padding: '14px', opacity: isSubmitting ? 0.5 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
               {isSubmitting && <div className="btn-spinner" />}
-              {isSubmitting ? 'Salvando...' : 'Salvar'}
+              {isSubmitting ? 'Salvando...' : (pending ? 'Salvar' : 'Adicionar')}
             </button>
           </div>
         </form>
