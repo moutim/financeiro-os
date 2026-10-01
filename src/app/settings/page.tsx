@@ -46,17 +46,19 @@ export default function SettingsPage() {
                 <UserIcon size={18} color="var(--blue)" />
                 Perfil da Conta
               </h2>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              {/* flexWrap: em telas estreitas o botão Sair desce para uma linha própria */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
                 {user?.image ? (
                   <img
                     src={user.image}
                     alt={user.name ?? 'Avatar'}
-                    style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover' }}
+                    style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
                   />
                 ) : (
                   <div style={{
                     width: 64,
                     height: 64,
+                    flexShrink: 0,
                     borderRadius: '50%',
                     background: 'linear-gradient(135deg, var(--blue), var(--green))',
                     display: 'flex',
@@ -70,19 +72,20 @@ export default function SettingsPage() {
                   </div>
                 )}
                 
-                <div>
-                  <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 4 }}>
+                {/* minWidth 0 deixa nome e e-mail longos encolherem com reticências */}
+                <div style={{ flex: '1 1 160px', minWidth: 0 }}>
+                  <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {user?.name ?? 'Usuário'}
                   </div>
-                  <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
+                  <div style={{ fontSize: 14, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {user?.email ?? 'Conta conectada'}
                   </div>
                 </div>
                 
                 <button
                   onClick={() => signOut({ callbackUrl: '/login' })}
-                  className="btn-ghost"
-                  style={{ marginLeft: 'auto', color: 'var(--red)' }}
+                  className="btn-ghost account-signout"
+                  style={{ marginLeft: 'auto', color: 'var(--red)', flexShrink: 0 }}
                 >
                   <LogOut size={16} />
                   Sair

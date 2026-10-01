@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useFinanceStore } from '@/lib/store';
+import { useAppConfigStore } from '@/lib/appConfigStore';
 
 /**
  * Mounts once at the app root and loads all data from Google Sheets.
@@ -18,6 +19,13 @@ export default function DataProvider({ children }: { children: React.ReactNode }
       loadAll();
     }
   }, [status, loadingState, loadAll]);
+
+  // Modo simples/detalhado salvo na planilha (acompanha o usuário entre dispositivos)
+  useEffect(() => {
+    if (status === 'authenticated') {
+      useAppConfigStore.getState().fetchFromServer();
+    }
+  }, [status]);
 
   return <>{children}</>;
 }

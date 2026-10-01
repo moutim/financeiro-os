@@ -68,6 +68,11 @@ export const useThemeStore = create<ThemeState>()(
     }),
     {
       name: 'finance-os-theme',
+      // isLoaded fica só na memória: a cada abertura do app a planilha é lida de novo,
+      // então mudanças feitas em outro dispositivo chegam aqui
+      partialize: (state) => ({ tintColor: state.tintColor, isDarkMode: state.isDarkMode }),
+      // ignora o isLoaded que versões anteriores gravaram no localStorage
+      merge: (persisted, current) => ({ ...current, ...(persisted as Partial<ThemeState>), isLoaded: false }),
     }
   )
 );

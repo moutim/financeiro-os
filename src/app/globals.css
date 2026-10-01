@@ -1211,6 +1211,13 @@ body {
     gap: 8px;
   }
 
+  /* Configurações › Perfil: Sair vira um botão de largura total abaixo do perfil */
+  .account-signout {
+    width: 100%;
+    margin-left: 0 !important;
+    background: var(--red-light);
+  }
+
   .stat-card {
     padding: 12px 10px;
   }
