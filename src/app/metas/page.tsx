@@ -12,7 +12,6 @@ import ShareGoalModal from '@/components/goals/ShareGoalModal';
 import JoinGoalModal from '@/components/goals/JoinGoalModal';
 import { useFinanceStore } from '@/lib/store';
 import { formatCurrency } from '@/lib/currency';
-import { getGoalIconDef } from '@/lib/goalIcons';
 import type { Pending, SavingsGoal } from '@/lib/types';
 
 export default function MetasPage() {
@@ -131,7 +130,10 @@ export default function MetasPage() {
         </div>
 
         {/* Goals List */}
-        <div className="goals-grid">
+        <div 
+          className="goals-grid"
+          style={{ '--goals-count': Math.max(1, goals.length) } as React.CSSProperties}
+        >
           {goals.length === 0 && (
             <div style={{ padding: '20px', color: 'var(--text-tertiary)', background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--separator)' }}>
               Nenhuma meta cadastrada.
@@ -154,32 +156,24 @@ export default function MetasPage() {
             return (
               <GlassCard key={goal.id} className="stagger" style={{ animationDelay: `${index * 60}ms` }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
-                  {(() => {
-                    const iconDef = getGoalIconDef(goal.icon, goal.name);
-                    const GoalIcon = iconDef.icon;
-                    return (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <div style={{
-                          width: 48,
-                          height: 48,
-                          borderRadius: 14,
-                          background: iconDef.color,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: '#FFF',
-                          boxShadow: `0 4px 12px ${iconDef.bgColor}`,
-                          flexShrink: 0,
-                        }}>
-                          <GoalIcon size={24} />
-                        </div>
-                        <div>
-                          <h2 style={{ fontWeight: 700, fontSize: 18 }}>{goal.name}</h2>
-                          <p style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>{iconDef.label}</p>
-                        </div>
-                      </div>
-                    );
-                  })()}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: 14,
+                      background: 'var(--blue)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#FFF',
+                    }}>
+                      <Target size={24} />
+                    </div>
+                    <div>
+                      <h2 style={{ fontWeight: 700, fontSize: 18 }}>{goal.name}</h2>
+                      <p style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>Meta de poupança</p>
+                    </div>
+                  </div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     {!goal.isShared && (
                       <button 

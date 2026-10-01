@@ -100,8 +100,6 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  overflow-x: hidden;
-  max-width: 100vw;
 }
 
 body {
@@ -112,8 +110,6 @@ body {
   line-height: 1.5;
   font-size: 16px;
   min-height: 100dvh;
-  overflow-x: hidden;
-  max-width: 100vw;
 }
 
 /* ─── Typography ──────────────────────────────────────────────────────────── */
@@ -344,9 +340,6 @@ body {
   margin-left: var(--sidebar-width);
   min-height: 100dvh;
   padding: 24px 28px;
-  min-width: 0;
-  max-width: 100%;
-  overflow-x: hidden;
 }
 
 /* ─── Page Header ─────────────────────────────────────────────────────────── */
@@ -364,13 +357,9 @@ body {
 
 .goals-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--goals-count, 1), 1fr);
   gap: 20px;
   margin-bottom: 32px;
-}
-
-.goals-grid > * {
-  min-width: 0;
 }
 
 .stat-card {
@@ -482,10 +471,6 @@ body {
   padding-bottom: 4px;
   scrollbar-width: none;
   -ms-overflow-style: none;
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  -webkit-overflow-scrolling: touch;
 }
 
 .month-selector::-webkit-scrollbar {
@@ -496,35 +481,24 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 8px 16px;
-  min-width: 58px;
+  padding: 8px 14px;
   border-radius: var(--radius-lg);
   cursor: pointer;
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.15s ease;
   flex-shrink: 0;
-  border: 1px solid var(--separator);
-  background: #FFFFFF;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  user-select: none;
-}
-
-.dark .month-chip {
+  border: 1px solid transparent;
   background: var(--surface);
-  border-color: var(--separator);
+  user-select: none;
 }
 
 .month-chip:hover {
   border-color: var(--blue);
   background: var(--blue-light);
-  transform: translateY(-1px);
 }
 
 .month-chip.active {
-  background: var(--blue) !important;
-  color: white !important;
-  border-color: var(--blue) !important;
-  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.28);
+  background: var(--blue);
+  color: white;
 }
 
 .month-chip:active {
@@ -816,169 +790,9 @@ body {
 
 .cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
-  gap: 20px;
-  margin-bottom: 32px;
-}
-
-/* ─── Cards Carousel ──────────────────────────────────────────────────────── */
-.cards-carousel-container {
-  position: relative;
-  margin-bottom: 28px;
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.cards-carousel {
-  display: flex;
+  grid-template-columns: repeat(4, 1fr);
   gap: 16px;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
-  scroll-behavior: smooth;
-  padding: 4px 4px 16px 4px;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-}
-
-.cards-carousel::-webkit-scrollbar {
-  display: none;
-}
-
-.cards-carousel-item {
-  flex: 0 0 320px;
-  width: 320px;
-  max-width: calc(100vw - 64px);
-  scroll-snap-align: start;
-  min-width: 0;
-}
-
-/* ─── Real Physical Credit Card Aesthetics ────────────────────────────────── */
-.real-physical-card {
-  background: var(--surface);
-  border-radius: 20px;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  padding: 16px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: 
-    0 1px 3px rgba(0, 0, 0, 0.04),
-    0 6px 16px -2px rgba(0, 0, 0, 0.08),
-    0 16px 36px -6px rgba(0, 0, 0, 0.12),
-    0 26px 54px -12px rgba(0, 0, 0, 0.14),
-    inset 0 1px 1.5px rgba(255, 255, 255, 0.95);
-  transition: transform 0.25s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.25s cubic-bezier(0.25, 1, 0.5, 1);
-  overflow: hidden;
-}
-
-.real-physical-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 
-    0 2px 6px rgba(0, 0, 0, 0.06),
-    0 10px 22px -2px rgba(0, 0, 0, 0.10),
-    0 24px 46px -6px rgba(0, 0, 0, 0.16),
-    0 36px 70px -12px rgba(0, 0, 0, 0.18),
-    inset 0 1px 1.5px rgba(255, 255, 255, 1);
-}
-
-.dark .real-physical-card {
-  background: #1c1c1e;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 
-    0 2px 4px rgba(0, 0, 0, 0.4),
-    0 10px 26px -4px rgba(0, 0, 0, 0.6),
-    0 24px 48px -8px rgba(0, 0, 0, 0.75),
-    inset 0 1px 1px rgba(255, 255, 255, 0.15);
-}
-
-.dark .real-physical-card:hover {
-  box-shadow: 
-    0 4px 8px rgba(0, 0, 0, 0.5),
-    0 16px 34px -4px rgba(0, 0, 0, 0.7),
-    0 32px 64px -8px rgba(0, 0, 0, 0.85),
-    inset 0 1px 1.5px rgba(255, 255, 255, 0.25);
-}
-
-/* Specific extra realistic depth when card is white or light */
-.real-physical-card.card-theme-light {
-  border: 1px solid rgba(0, 0, 0, 0.09);
-  box-shadow: 
-    0 2px 5px rgba(0, 0, 0, 0.04),
-    0 8px 20px -2px rgba(0, 0, 0, 0.09),
-    0 20px 42px -6px rgba(0, 0, 0, 0.14),
-    0 32px 62px -12px rgba(0, 0, 0, 0.18),
-    inset 0 1px 2px rgba(255, 255, 255, 1);
-}
-
-.real-physical-card.card-theme-light:hover {
-  box-shadow: 
-    0 4px 10px rgba(0, 0, 0, 0.06),
-    0 14px 28px -3px rgba(0, 0, 0, 0.12),
-    0 30px 56px -8px rgba(0, 0, 0, 0.18),
-    0 44px 80px -14px rgba(0, 0, 0, 0.22),
-    inset 0 1px 2.5px rgba(255, 255, 255, 1);
-}
-
-.card-face-preview {
-  position: relative;
-  border-radius: 14px;
-  padding: 14px 16px;
-  overflow: hidden;
-  box-shadow: 
-    0 4px 14px rgba(0, 0, 0, 0.12),
-    0 1px 3px rgba(0, 0, 0, 0.08),
-    inset 0 1px 1.5px rgba(255, 255, 255, 0.4),
-    inset 0 -1px 1px rgba(0, 0, 0, 0.15);
-  display: flex;
-  flex-direction: column;
-  justifyContent: space-between;
-  min-height: 144px;
-  margin-bottom: 16px;
-}
-
-.card-face-preview.is-white-card {
-  box-shadow: 
-    0 4px 14px rgba(0, 0, 0, 0.08),
-    0 1px 3px rgba(0, 0, 0, 0.05),
-    0 0 0 1px rgba(0, 0, 0, 0.08),
-    inset 0 1.5px 2px rgba(255, 255, 255, 1),
-    inset 0 -1px 1px rgba(0, 0, 0, 0.04);
-}
-
-.card-sheen {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(125deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0.06) 45%, rgba(0, 0, 0, 0.06) 100%);
-  pointer-events: none;
-}
-
-.emv-chip {
-  width: 32px;
-  height: 24px;
-  border-radius: 5px;
-  background: linear-gradient(135deg, #d4af37 0%, #f3e5ab 40%, #c59b27 70%, #aa820a 100%);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  position: relative;
-  border: 0.5px solid rgba(0, 0, 0, 0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.card-number-embossed {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
+  margin-bottom: 32px;
 }
 
 .metas-grid {
@@ -991,7 +805,7 @@ body {
 /* ─── Mobile responsive ───────────────────────────────────────────────────── */
 @media (max-width: 1024px) {
   .cards-grid {
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
@@ -1073,10 +887,6 @@ body {
     margin-left: 0;
     padding: 16px;
     padding-bottom: 116px;
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-    overflow-x: hidden;
     /* Space for floating nav */
   }
 
@@ -1092,43 +902,12 @@ body {
   }
 
   .stat-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-  }
-
-  .stat-card {
-    padding: 14px 12px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
   }
 
   .stat-card-value {
-    font-size: 18px;
-  }
-
-  .category-filter-bar {
-    width: 100%;
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .category-search-input {
-    width: 100% !important;
-  }
-
-  .category-sort-group {
-    width: 100%;
-    display: flex;
-  }
-
-  .category-sort-group button {
-    flex: 1;
-    text-align: center;
-    justify-content: center;
-    font-size: 11px !important;
-    padding: 6px 4px !important;
-  }
-
-  .category-cards-grid {
-    grid-template-columns: minmax(0, 1fr);
+    font-size: 20px;
   }
 
   .goals-grid {
@@ -1145,25 +924,6 @@ body {
 
   .metas-grid {
     grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-@media (max-width: 480px) {
-  .stat-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-  }
-
-  .stat-card {
-    padding: 12px 10px;
-  }
-
-  .stat-card-value {
-    font-size: 15px;
-  }
-
-  .text-title-1 {
-    font-size: 24px;
   }
 }
 

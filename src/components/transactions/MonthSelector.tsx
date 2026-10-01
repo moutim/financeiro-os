@@ -2,14 +2,9 @@
 
 import { useEffect, useRef } from 'react';
 import { useFinanceStore } from '@/lib/store';
-import { sortMonthKeys } from '@/lib/currency';
+import { monthKeyToShortLabel } from '@/lib/currency';
 
-interface MonthSelectorProps {
-  title?: string;
-  showTitle?: boolean;
-}
-
-export default function MonthSelector({ title, showTitle }: MonthSelectorProps) {
+export default function MonthSelector() {
   const { selectedMonth, setSelectedMonth, availableMonths, addAvailableMonth } = useFinanceStore();
   const activeRef = useRef<HTMLButtonElement>(null);
 
@@ -18,26 +13,11 @@ export default function MonthSelector({ title, showTitle }: MonthSelectorProps) 
       activeRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
     }
   }, [selectedMonth]);
-
-  const rawMonths = availableMonths.includes(selectedMonth)
-    ? availableMonths
-    : [...availableMonths, selectedMonth];
-
-  const monthsToRender = sortMonthKeys(rawMonths);
-
-  const handleAddPrevMonth = () => {
-    const firstMonth = monthsToRender[0];
-    const [y, m] = firstMonth.split('-').map(Number);
-    let prevM = m - 1;
-    let prevY = y;
-    if (prevM < 1) {
-      prevM = 12;
-      prevY -= 1;
-    }
-    const prevMonthKey = `${prevY}-${prevM.toString().padStart(2, '0')}`;
-    addAvailableMonth(prevMonthKey);
-    setSelectedMonth(prevMonthKey);
-  };
+  const monthsToRender = [...availableMonths];
+  if (!monthsToRender.includes(selectedMonth)) {
+    monthsToRender.push(selectedMonth);
+    monthsToRender.sort();
+  }
 
   const handleAddNextMonth = () => {
     const lastMonth = monthsToRender[monthsToRender.length - 1];
@@ -53,10 +33,23 @@ export default function MonthSelector({ title, showTitle }: MonthSelectorProps) 
     setSelectedMonth(nextMonthKey);
   };
 
+  const handleAddPrevMonth = () => {
+    const firstMonth = monthsToRender[0];
+    const [y, m] = firstMonth.split('-').map(Number);
+    let prevM = m - 1;
+    let prevY = y;
+    if (prevM < 1) {
+      prevM = 12;
+      prevY -= 1;
+    }
+    const prevMonthKey = `${prevY}-${prevM.toString().padStart(2, '0')}`;
+    addAvailableMonth(prevMonthKey);
+    setSelectedMonth(prevMonthKey);
+  };
+
   return (
     <div className="month-selector">
       <button
-        type="button"
         className="month-chip"
         onClick={handleAddPrevMonth}
         style={{
@@ -70,7 +63,7 @@ export default function MonthSelector({ title, showTitle }: MonthSelectorProps) 
         }}
         title="Adicionar mês anterior"
       >
-        <span style={{ fontSize: 18, fontWeight: 600, lineHeight: 1 }}>+</span>
+        <span style={{ fontSize: 18, fontWeight: 600 }}>+</span>
       </button>
 
       {monthsToRender.map((mk) => {
@@ -84,35 +77,29 @@ export default function MonthSelector({ title, showTitle }: MonthSelectorProps) 
           <button
             key={mk}
             ref={active ? activeRef : null}
-            type="button"
             className={`month-chip ${active ? 'active' : ''}`}
             onClick={() => setSelectedMonth(mk)}
             style={{ color: active ? 'white' : undefined }}
           >
-            <span
-              style={{
-                fontSize: 13,
-                fontWeight: 600,
-                textTransform: 'capitalize',
-                color: 'inherit',
-              }}
-            >
+            <span style={{
+              fontSize: 13,
+              fontWeight: 600,
+              textTransform: 'capitalize',
+              color: 'inherit',
+            }}>
               {shortMonth}
             </span>
-            <span
-              style={{
-                fontSize: 11,
-                color: active ? 'rgba(255,255,255,0.75)' : 'var(--text-tertiary)',
-              }}
-            >
+            <span style={{
+              fontSize: 11,
+              color: active ? 'rgba(255,255,255,0.75)' : 'var(--text-tertiary)',
+            }}>
               {yearLabel}
             </span>
           </button>
         );
       })}
-
+      
       <button
-        type="button"
         className="month-chip"
         onClick={handleAddNextMonth}
         style={{
@@ -126,7 +113,7 @@ export default function MonthSelector({ title, showTitle }: MonthSelectorProps) 
         }}
         title="Iniciar próximo mês"
       >
-        <span style={{ fontSize: 18, fontWeight: 600, lineHeight: 1 }}>+</span>
+        <span style={{ fontSize: 18, fontWeight: 600 }}>+</span>
       </button>
     </div>
   );

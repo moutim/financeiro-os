@@ -17,7 +17,7 @@ import SpendingDonut from '@/components/charts/SpendingDonut';
 import MonthlyBar from '@/components/charts/MonthlyBar';
 import CategoryBadge from '@/components/ui/CategoryBadge';
 import { useFinanceStore } from '@/lib/store';
-import { monthKeyToLabel, formatCurrency, toCanonicalMonthKey } from '@/lib/currency';
+import { monthKeyToLabel, formatCurrency } from '@/lib/currency';
 import { CATEGORY_CONFIG } from '@/lib/categories';
 import type { Category, Income } from '@/lib/types';
 
@@ -92,20 +92,18 @@ export default function DashboardPage() {
   // Consideramos que o mês precisa de configuração (exibir o banner) se ele não tem NENHUMA entrada recorrente E nenhuma despesa Fixa.
   // Isso permite que o banner apareça mesmo que o mês já tenha recebido algumas parcelas de compras do passado!
   const hasNoRecurring = salarios.length === 0;
-  const hasNoFixed = allTransactions.filter(t => t.category === 'Fixos' || t.recurrency === 'Fixo').length === 0;
+  const hasNoFixed = allTransactions.filter(t => t.category === 'Fixos').length === 0;
   const isMonthMissingSetup = hasNoRecurring && hasNoFixed;
   const isCompletelyEmpty = allTransactions.length === 0 && allIncomes.length === 0;
 
   const chartData = availableMonths.map((mk) => {
     const s = getMonthSummary(mk);
-    const canonical = toCanonicalMonthKey(mk);
-    const [year, month] = canonical.split('-').map(Number);
-    const date = new Date(year, (month || 1) - 1, 1);
-    const monthName = date.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
-    const yr = date.toLocaleDateString('pt-BR', { year: '2-digit' });
+    const [year, month] = mk.split('-').map(Number);
+    const label = new Date(year, month - 1, 1)
+      .toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
     return {
-      month: `${monthName}/${yr}`,
-      expenses: s.totalExpenses,
+      month: label,
+      expenses: Math.max(0, s.totalExpenses - s.totalInvestments),
       investments: s.totalInvestments,
       balance: s.balance,
     };
@@ -348,96 +346,43 @@ export default function DashboardPage() {
               <TransactionList transactions={allTransactions} showDelete />
             </GlassCard>
 
-            {/* Análise Hierárquica do Mês */}
+            {/* Mini category breakdown */}
             <GlassCard padding="16px" className="order-5">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: 'var(--text-secondary)' }}>
-                  Análise de Gastos (Macro › Micro)
-                </h2>
-              </div>
+              <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12, color: 'var(--text-secondary)' }}>
+                Resumo do Mês
+              </h2>
+              {(() => {
+                const activeCategories = Object.keys(CATEGORY_CONFIG).map((catKey) => {
+                  const config = CATEGORY_CONFIG[catKey];
+                  const value = allTransactions
+                    .filter(t => t.category === catKey)
+                    .reduce((acc, t) => acc + t.amount, 0);
+                  return { key: catKey, config, value };
+                }).filter(cat => cat.value > 0);
 
-              {allTransactions.length === 0 ? (
-                <p style={{ fontSize: 14, color: 'var(--text-tertiary)' }}>Nenhum gasto registrado neste mês.</p>
-              ) : (
-                /* Visão: Macro → Micro com árvore elegante */
-                (() => {
-                  const macroMap: Record<string, { total: number; micros: Record<string, number> }> = {};
-                  allTransactions.forEach(t => {
-                    if (t.transactionType === 'transfer' || t.category === 'Transferências' || t.transactionType === 'income') return;
-                    
-                    const cat = t.category || 'Outros';
-                    if (!macroMap[cat]) macroMap[cat] = { total: 0, micros: {} };
-                    macroMap[cat].total += t.amount;
-                    if (t.subcategory && t.subcategory !== cat) {
-                      macroMap[cat].micros[t.subcategory] = (macroMap[cat].micros[t.subcategory] ?? 0) + t.amount;
-                    }
-                  });
+                if (activeCategories.length === 0) {
+                  return <p style={{ fontSize: 14, color: 'var(--text-tertiary)' }}>Nenhum gasto registrado neste mês.</p>;
+                }
 
-                  const sortedMacros = Object.entries(macroMap)
-                    .filter(([_, data]) => data.total > 0)
-                    .sort((a, b) => b[1].total - a[1].total);
-
-                  if (sortedMacros.length === 0) {
-                    return <p style={{ fontSize: 14, color: 'var(--text-tertiary)' }}>Nenhum gasto registrado neste mês.</p>;
-                  }
-
+                return activeCategories.map((cat, index) => {
+                  const isLast = index === activeCategories.length - 1;
                   return (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      {sortedMacros.map(([macroName, data], index) => {
-                        const cfg = CATEGORY_CONFIG[macroName] || CATEGORY_CONFIG['Outros'];
-                        const isLast = index === sortedMacros.length - 1;
-                        const sortedMicros = Object.entries(data.micros).sort((a, b) => b[1] - a[1]);
-
-                        return (
-                          <div 
-                            key={macroName} 
-                            style={{ 
-                              paddingBottom: isLast ? 0 : 10, 
-                              borderBottom: isLast ? 'none' : '1px solid var(--separator)' 
-                            }}
-                          >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <span style={{ display: 'flex', alignItems: 'center', color: cfg.color }}>
-                                  <cfg.icon size={16} />
-                                </span>
-                                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
-                                  {macroName}
-                                </span>
-                              </div>
-                              <span style={{ fontWeight: 700, fontSize: 13, color: cfg.color }}>
-                                {formatCurrency(data.total)}
-                              </span>
-                            </div>
-
-                            {/* Micro-categorias em árvore */}
-                            {sortedMicros.length > 0 && (
-                              <div style={{ marginTop: 4, marginLeft: 22, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                                {sortedMicros.map(([subName, subAmt], mIdx) => {
-                                  const isLastMicro = mIdx === sortedMicros.length - 1;
-                                  return (
-                                    <div key={subName} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11 }}>
-                                      <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                                        <span style={{ color: 'var(--text-quaternary)', fontFamily: 'monospace' }}>
-                                          {isLastMicro ? '└──' : '├──'}
-                                        </span>
-                                        {subName}
-                                      </span>
-                                      <span style={{ color: 'var(--text-tertiary)', fontWeight: 500 }}>
-                                        {formatCurrency(subAmt)}
-                                      </span>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
+                    <div key={cat.key} style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '8px 0',
+                      borderBottom: isLast ? 'none' : '1px solid var(--separator)',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ display: 'flex', alignItems: 'center', color: cat.config.color }}><cat.config.icon size={18} /></span>
+                        <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{cat.config.label}</span>
+                      </div>
+                      <span style={{ fontWeight: 700, fontSize: 14, color: cat.config.color }}>{formatCurrency(cat.value)}</span>
                     </div>
                   );
-                })()
-              )}
+                });
+              })()}
             </GlassCard>
           </div>
         </div>

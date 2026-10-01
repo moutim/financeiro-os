@@ -84,11 +84,9 @@ async function findOrCreateSpreadsheet(accessToken: string): Promise<string> {
 
 // ─── Helper: renova o access token usando o refresh token ────────────────────
 async function refreshAccessToken(refreshToken: string) {
-  const clientId = process.env.GOOGLE_CLIENT_ID || process.env.AUTH_GOOGLE_ID || '';
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET || process.env.AUTH_GOOGLE_SECRET || '';
   const params = new URLSearchParams({
-    client_id: clientId,
-    client_secret: clientSecret,
+    client_id: process.env.GOOGLE_CLIENT_ID!,
+    client_secret: process.env.GOOGLE_CLIENT_SECRET!,
     grant_type: 'refresh_token',
     refresh_token: refreshToken,
   });
@@ -118,11 +116,10 @@ import { authConfig } from './auth.config';
 // ─── NextAuth config ──────────────────────────────────────────────────────────
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
-  trustHost: true,
   providers: [
     Google({
-      clientId: process.env.GOOGLE_CLIENT_ID || process.env.AUTH_GOOGLE_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || process.env.AUTH_GOOGLE_SECRET,
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       authorization: {
         params: {
           scope: [

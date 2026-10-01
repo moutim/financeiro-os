@@ -11,27 +11,8 @@ interface ThemeState {
 }
 
 // Helpers to generate light version of hex color
-export function isValidHex(hex: string): boolean {
-  return /^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(hex.trim());
-}
-
-export function normalizeHex(hex: string): string {
-  const clean = hex.trim().replace(/^#/, '');
-  if (clean.length === 3) {
-    return `#${clean[0]}${clean[0]}${clean[1]}${clean[1]}${clean[2]}${clean[2]}`.toUpperCase();
-  }
-  return `#${clean}`.toUpperCase();
-}
-
 function hexToRgb(hex: string) {
-  const clean = hex.trim().replace(/^#/, '');
-  if (clean.length === 3) {
-    const r = parseInt(clean[0] + clean[0], 16);
-    const g = parseInt(clean[1] + clean[1], 16);
-    const b = parseInt(clean[2] + clean[2], 16);
-    if (!isNaN(r) && !isNaN(g) && !isNaN(b)) return { r, g, b };
-  }
-  const result = /^([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(clean);
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   return result ? {
     r: parseInt(result[1], 16),
     g: parseInt(result[2], 16),
