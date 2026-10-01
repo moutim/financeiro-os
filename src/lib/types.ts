@@ -1,17 +1,27 @@
-export type Category =
-  | 'Compras'
-  | 'Fixos'
-  | 'Comida'
+export type ExpenseMacro =
+  | 'Moradia'
+  | 'Alimentação'
   | 'Transporte'
-  | 'Lazer'
-  | 'Casa'
-  | 'Assinaturas'
-  | 'Investimentos'
   | 'Saúde'
-  | 'Estudos'
-  | 'Ajuda Financeira'
-  | 'Dividendos'
-  | 'Outros';
+  | 'Educação'
+  | 'Cuidados pessoais'
+  | 'Lazer'
+  | 'Viagens'
+  | 'Compras e bens'
+  | 'Serviços e assinaturas'
+  | 'Família e presentes'
+  | 'Pets'
+  | 'Impostos e obrigações'
+  | 'Financeiro';
+
+// Categorias são strings livres: o modo simples usa as legadas (Comida, Casa…)
+// e o modo detalhado usa as macros acima. Ver src/lib/taxonomy.ts.
+export type Category = string;
+
+export type TransactionType = 'expense' | 'income' | 'investment' | 'transfer';
+export type TransactionNature = 'Essencial' | 'Discricionário';
+export type TransactionRecurrency = 'Fixo' | 'Variável' | 'Pontual';
+export type PaymentMethod = 'Crédito' | 'Débito' | 'Pix' | 'Dinheiro' | 'Boleto' | 'Outro';
 
 export interface SubTransaction {
   id?: string;
@@ -25,7 +35,12 @@ export interface Transaction {
   id: string;
   name: string;
   amount: number;
-  category: Category;
+  category: Category; // Macro no modo detalhado (ex: "Alimentação") ou categoria legada (ex: "Comida")
+  subcategory?: string | null; // Micro (ex: "Delivery") — preenchida apenas pelo modo detalhado
+  transactionType?: TransactionType;
+  nature?: TransactionNature | null;
+  recurrency?: TransactionRecurrency | null;
+  paymentMethod?: PaymentMethod | null;
   monthKey: string; // "YYYY-MM"
   installments?: string | null;
   date?: string | null; // ISO date string
@@ -78,6 +93,7 @@ export interface SavingsGoal {
   notes?: string | null;
   isShared?: boolean;
   ownerSpreadsheetId?: string | null;
+  icon?: string | null; // chave de ícone (ver src/lib/goalIcons.ts)
 }
 
 // ─── Cartões de Crédito ───────────────────────────────────────────────────────
@@ -97,6 +113,7 @@ export interface CreditCard {
   freedMonthKey?: string | null; // "YYYY-MM" de quando o limite será totalmente liberado
   lastDigits?: string | null; // últimos 4 dígitos do cartão
   bankId?: string | null; // ID do banco para buscar logo
+  priority?: number | null; // Prioridade de exibição (1 = mais prioritário)
 }
 
 // ─── Faturas de Cartão ────────────────────────────────────────────────────────

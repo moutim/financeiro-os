@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { Inbox, Trash2, Pencil, Check } from 'lucide-react';
 
-import type { Transaction, Category } from '@/lib/types';
-import { getCategoryConfig } from '@/lib/categories';
+import type { Transaction } from '@/lib/types';
+import { useCategoryTaxonomy } from '@/lib/taxonomy';
 import { formatCurrency } from '@/lib/currency';
 import { useFinanceStore } from '@/lib/store';
 import TransactionEditModal from './TransactionEditModal';
@@ -18,6 +18,7 @@ interface TransactionListProps {
 export default function TransactionList({ transactions, showDelete = true }: TransactionListProps) {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [deletingTransaction, setDeletingTransaction] = useState<Transaction | null>(null);
+  const taxonomy = useCategoryTaxonomy();
 
   if (transactions.length === 0) {
     return (
@@ -35,18 +36,22 @@ export default function TransactionList({ transactions, showDelete = true }: Tra
     );
   }
 
-  const sortedTransactions = [...transactions].sort((a, b) => {
-    if (a.category === 'Fixos' && b.category !== 'Fixos') return -1;
-    if (a.category !== 'Fixos' && b.category === 'Fixos') return 1;
-    if (a.category < b.category) return -1;
-    if (a.category > b.category) return 1;
-    return 0;
-  });
+  // `view` traz a categoria no formato do modo atual (só exibição); `tx` segue
+  // original para edição e exclusão.
+  const sortedRows = transactions
+    .map((tx) => ({ tx, view: taxonomy.normalize(tx) }))
+    .sort(({ view: a }, { view: b }) => {
+      if (a.category === 'Fixos' && b.category !== 'Fixos') return -1;
+      if (a.category !== 'Fixos' && b.category === 'Fixos') return 1;
+      if (a.category < b.category) return -1;
+      if (a.category > b.category) return 1;
+      return 0;
+    });
 
   return (
     <div>
-      {sortedTransactions.map((tx, i) => {
-        const cfg = getCategoryConfig(tx.category);
+      {sortedRows.map(({ tx, view }, i) => {
+        const cfg = taxonomy.getConfig(view.category);
         return (
           <div
             key={tx.id}
@@ -122,8 +127,13 @@ export default function TransactionList({ transactions, showDelete = true }: Tra
                     );
                   })()}
                 </div>
-                <span style={{ fontSize: 12, color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>
-                  • {cfg.label}
+                <span style={{ fontSize: 12, color: 'var(--text-tertiary)', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  • {cfg.label}{view.subcategory && view.subcategory !== cfg.label ? ` › ${view.subcategory}` : ''}
+                  {taxonomy.mode === 'detailed' && view.recurrency === 'Fixo' && (
+                    <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', background: 'var(--bg-2)', padding: '1px 5px', borderRadius: 4, marginLeft: 2 }}>
+                      Fixo
+                    </span>
+                  )}
                 </span>
               </div>
               

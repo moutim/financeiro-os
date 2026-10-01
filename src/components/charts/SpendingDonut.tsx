@@ -1,10 +1,10 @@
 'use client';
 
 import {
-  PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
+  PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
   type PieLabelRenderProps,
 } from 'recharts';
-import { getCategoryConfig } from '@/lib/categories';
+import { groupByCategory, isSpending, useCategoryTaxonomy } from '@/lib/taxonomy';
 import { formatCurrency } from '@/lib/currency';
 import type { Transaction } from '@/lib/types';
 
@@ -67,17 +67,18 @@ function CustomTooltip({ active, payload }: CustomTooltipProps) {
 }
 
 export default function SpendingDonut({ transactions }: SpendingDonutProps) {
-  // Group by category
-  const byCategory: Record<string, number> = {};
-  transactions.forEach((t) => {
-    if (t.amount > 0) {
-      byCategory[t.category] = (byCategory[t.category] ?? 0) + t.amount;
-    }
-  });
+  const taxonomy = useCategoryTaxonomy();
 
-  const data = Object.entries(byCategory)
-    .map(([name, value]) => ({ name, value, color: getCategoryConfig(name).color }))
-    .sort((a, b) => b.value - a.value);
+  // Agrupa por categoria do modo atual (despesas e aportes, sem receitas/transferências)
+  const spending = transactions
+    .map(taxonomy.normalize)
+    .filter((t) => t.amount > 0 && isSpending(t));
+
+  const data = groupByCategory(spending).map((g) => ({
+    name: g.category,
+    value: g.total,
+    color: taxonomy.getConfig(g.category).color,
+  }));
 
   if (data.length === 0) {
     return (
@@ -88,33 +89,39 @@ export default function SpendingDonut({ transactions }: SpendingDonutProps) {
   }
 
   return (
-    <ResponsiveContainer width="100%" height={260}>
-      <PieChart>
-        <Pie
-          data={data}
-          cx="50%"
-          cy="50%"
-          innerRadius={60}
-          outerRadius={100}
-          paddingAngle={3}
-          dataKey="value"
-          labelLine={false}
-          label={CustomLabel}
-          stroke="none"
-        >
-          {data.map((entry, index) => (
-            <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
-          ))}
-        </Pie>
-        <Tooltip content={<CustomTooltip />} />
-        <Legend
-          iconType="circle"
-          iconSize={8}
-          formatter={(value) => (
-            <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{value}</span>
-          )}
-        />
-      </PieChart>
-    </ResponsiveContainer>
+    <>
+      <ResponsiveContainer width="100%" height={220}>
+        <PieChart>
+          <Pie
+            data={data}
+            cx="50%"
+            cy="50%"
+            // raios relativos à área do gráfico: o donut sempre cabe inteiro
+            innerRadius="57%"
+            outerRadius="95%"
+            paddingAngle={3}
+            dataKey="value"
+            labelLine={false}
+            label={CustomLabel}
+            stroke="none"
+          >
+            {data.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
+            ))}
+          </Pie>
+          <Tooltip content={<CustomTooltip />} />
+        </PieChart>
+      </ResponsiveContainer>
+
+      {/* Legenda fora do SVG: quebra em quantas linhas precisar sem encolher nem cobrir o donut */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '6px 14px', marginTop: 12 }}>
+        {data.map((entry) => (
+          <div key={entry.name} style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: entry.color, flexShrink: 0 }} />
+            <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{entry.name}</span>
+          </div>
+        ))}
+      </div>
+    </>
   );
 }

@@ -1,4 +1,6 @@
-import { getCategoryConfig } from '@/lib/categories';
+'use client';
+
+import { useCategoryTaxonomy } from '@/lib/taxonomy';
 
 interface CategoryBadgeProps {
   category: string;
@@ -6,7 +8,7 @@ interface CategoryBadgeProps {
 }
 
 export default function CategoryBadge({ category, small }: CategoryBadgeProps) {
-  const cfg = getCategoryConfig(category);
+  const cfg = useCategoryTaxonomy().getConfig(category);
   return (
     <span
       className="category-badge"

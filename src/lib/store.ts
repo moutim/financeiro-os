@@ -415,17 +415,18 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
     const incomes = get().getMonthIncomes(monthKey);
 
     const income = incomes.reduce((s, i) => s + i.amount, 0);
+    // Cada filtro reconhece a categoria legada (modo simples) e a equivalente do modo detalhado
     const totalInvestments = transactions
-      .filter((t) => t.category === 'Investimentos')
+      .filter((t) => t.category === 'Investimentos' || t.transactionType === 'investment')
       .reduce((s, t) => s + t.amount, 0);
     const totalFixed = transactions
-      .filter((t) => t.category === 'Fixos')
+      .filter((t) => t.category === 'Fixos' || t.recurrency === 'Fixo')
       .reduce((s, t) => s + t.amount, 0);
     const totalFood = transactions
-      .filter((t) => t.category === 'Comida')
+      .filter((t) => t.category === 'Comida' || t.category === 'Alimentação')
       .reduce((s, t) => s + t.amount, 0);
     const totalPurchases = transactions
-      .filter((t) => t.category === 'Compras')
+      .filter((t) => t.category === 'Compras' || t.category === 'Compras e bens')
       .reduce((s, t) => s + t.amount, 0);
     const totalExpenses = transactions.reduce((s, t) => s + t.amount, 0);
     const balance = income - totalExpenses;
