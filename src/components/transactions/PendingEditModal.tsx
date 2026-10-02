@@ -120,7 +120,7 @@ export default function PendingEditModal({ pending, onClose }: PendingEditModalP
             />
           </div>
 
-          <div className="form-group" style={{ marginBottom: 24 }}>
+          <div className="form-group" style={{ marginBottom: 16 }}>
             <label className="form-label">Valor (R$)</label>
             <input
               className="form-input"
@@ -134,11 +134,23 @@ export default function PendingEditModal({ pending, onClose }: PendingEditModalP
             />
           </div>
 
-          <div style={{ display: 'flex', gap: 12 }}>
-            <button type="button" className="btn-ghost" onClick={onClose} disabled={isSubmitting} style={{ flex: 1, padding: '14px', opacity: isSubmitting ? 0.5 : 1 }}>
+          {/* mesmo padrão dos botões da Nova Transação */}
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={onClose}
+              disabled={isSubmitting}
+              style={{ flex: 1, justifyContent: 'center', padding: '14px', opacity: isSubmitting ? 0.5 : 1 }}
+            >
               Cancelar
             </button>
-            <button type="submit" className="btn-primary" disabled={isSubmitting} style={{ flex: 1, padding: '14px', opacity: isSubmitting ? 0.5 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <button
+              type="submit"
+              className="btn-primary"
+              disabled={isSubmitting}
+              style={{ flex: 2, justifyContent: 'center', padding: '14px', opacity: isSubmitting ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: 8 }}
+            >
               {isSubmitting && <div className="btn-spinner" />}
               {isSubmitting ? 'Salvando...' : (pending ? 'Salvar' : 'Adicionar')}
             </button>

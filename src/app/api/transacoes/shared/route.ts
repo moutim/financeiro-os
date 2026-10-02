@@ -22,7 +22,8 @@ export async function POST(req: Request) {
     const sharedTx: Transaction = {
       ...transaction,
       parentId: 'SHARED',
-      id: newRowId('t-shared')
+      id: newRowId('t-shared'),
+      author: session.user?.name || session.user?.email || null,
     };
 
     const sheets = getUserSheetsClient(session.accessToken);

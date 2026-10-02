@@ -49,6 +49,7 @@ export interface Transaction {
   parentId?: string | null; // ID da transação macro
   subTransactions?: SubTransaction[] | null;
   isPaid?: boolean;
+  author?: string | null; // nome de quem fez o aporte — gravado nas cópias para a meta compartilhada
 }
 
 export interface MonthSummary {
@@ -94,6 +95,8 @@ export interface SavingsGoal {
   isShared?: boolean;
   ownerSpreadsheetId?: string | null;
   icon?: string | null; // chave de ícone (ver src/lib/goalIcons.ts)
+  // Meta de outra conta: aportes lidos da planilha do dono (só na resposta da API, não é gravado)
+  sharedContributions?: Transaction[] | null;
 }
 
 // ─── Cartões de Crédito ───────────────────────────────────────────────────────

@@ -15,7 +15,7 @@ interface TransactionFormProps {
 }
 
 export default function TransactionFormSimple({ onClose }: TransactionFormProps) {
-  const { addTransaction, addIncome, addEntriesBatch, selectedMonth, goals, availableMonths, cards } = useFinanceStore();
+  const { addTransaction, addIncome, addEntriesBatch, contributeToSharedGoal, selectedMonth, goals, availableMonths, cards } = useFinanceStore();
   const [name, setName] = useState('');
   const [rawDigits, setRawDigits] = useState(''); // apenas dígitos, ex: "123456" = R$ 1.234,56
   const [category, setCategory] = useState<Category>('Compras');
@@ -192,20 +192,11 @@ export default function TransactionFormSimple({ onClose }: TransactionFormProps)
 
           // If the goal is shared, we must also write this transaction to the owner's spreadsheet
           if (goalId && category === 'Investimentos') {
-            const goal = goals.find(g => g.id === goalId);
-            if (goal && goal.isShared && goal.ownerSpreadsheetId) {
-              await fetch('/api/transacoes/shared', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  ownerSpreadsheetId: goal.ownerSpreadsheetId,
-                  // Include the user's name in the transaction so the owner knows who deposited
-                  transaction: {
-                    ...transactionData,
-                    name: `${transactionData.name} (Compartilhado)`
-                  }
-                })
-              });
+            try {
+              await contributeToSharedGoal(goalId, transactionData);
+            } catch (err) {
+              // o lançamento já está salvo aqui: avisar em vez de pedir para tentar de novo (duplicaria)
+              alert(`O investimento foi salvo, mas não entrou na meta compartilhada. ${err instanceof Error ? err.message : err}`);
             }
           }
         }

@@ -48,6 +48,10 @@ interface FinanceStore {
   addGoal: (goal: SavingsGoal) => Promise<void>;
   updateGoal: (id: string, updates: Partial<SavingsGoal>) => Promise<void>;
   deleteGoal: (id: string) => Promise<void>;
+  /** Recarrega só as metas (saldo das compartilhadas vem da planilha do dono) */
+  refreshGoals: () => Promise<void>;
+  /** Aporte vinculado a meta de outra conta: grava a cópia na planilha do dono. Não faz nada se a meta não for compartilhada */
+  contributeToSharedGoal: (goalId: string, transaction: Omit<Transaction, 'id'>) => Promise<void>;
   deleteMonth: (monthKey: string) => Promise<void>;
   
   addCard: (card: Omit<CreditCard, 'id'>) => Promise<CreditCard>;
@@ -372,6 +376,35 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
       throw new Error(err.error ?? 'Erro ao excluir meta');
     }
     set((state) => ({ goals: state.goals.filter((g) => g.id !== id) }));
+  },
+
+  refreshGoals: async () => {
+    const res = await fetch('/api/metas', { cache: 'no-store' });
+    if (!res.ok) {
+      console.error('[refreshGoals]', await res.json());
+      return;
+    }
+    set({ goals: await res.json() as SavingsGoal[] });
+  },
+
+  // O saldo da meta compartilhada é lido da planilha do dono, então o aporte também precisa ser gravado lá
+  contributeToSharedGoal: async (goalId, transaction) => {
+    const goal = get().goals.find((g) => g.id === goalId);
+    if (!goal?.isShared || !goal.ownerSpreadsheetId) return;
+
+    const res = await fetch('/api/transacoes/shared', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ownerSpreadsheetId: goal.ownerSpreadsheetId,
+        transaction: { ...transaction, name: `${transaction.name} (Compartilhado)` },
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error ?? 'Erro ao registrar o aporte na meta compartilhada');
+    }
+    await get().refreshGoals();
   },
 
   // ─── Cards Actions ──────────────────────────────────────────────────────────

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { Target, AlertTriangle, Plus, Pencil, Trash2, CalendarClock, Users, TrendingUp } from 'lucide-react';
 
 import Sidebar from '@/components/layout/Sidebar';
@@ -15,10 +16,11 @@ import JoinGoalModal from '@/components/goals/JoinGoalModal';
 import { useFinanceStore } from '@/lib/store';
 import { formatCurrency } from '@/lib/currency';
 import { getGoalIconDef } from '@/lib/goalIcons';
-import type { Pending, SavingsGoal } from '@/lib/types';
+import type { Pending, SavingsGoal, Transaction } from '@/lib/types';
 
 export default function MetasPage() {
   const { pending, transactions, goals, deletePending, addGoal, updateGoal, deleteGoal, loadingState } = useFinanceStore();
+  const { data: session } = useSession();
   const [showPendingModal, setShowPendingModal] = useState(false);
   const [pendingToEdit, setPendingToEdit] = useState<Pending | null>(null);
   const [showFabMenu, setShowFabMenu] = useState(false);
@@ -45,10 +47,33 @@ export default function MetasPage() {
     localStorage.setItem('finance-os-goals-start-month', val);
   };
   
-  // Extrair todos os meses disponíveis nas transações para o dropdown
-  const allAvailableMonths = Array.from(new Set(transactions.map(t => t.monthKey))).sort((a, b) => a.localeCompare(b));
+  // Metas de outra conta: os aportes vêm da planilha do dono (que já recebe a cópia dos feitos aqui),
+  // então os lançamentos locais vinculados a elas saem da lista para não contar duas vezes.
+  // Sem sincronização (sem acesso à planilha do dono), ficam os lançamentos locais.
+  const syncedSharedGoalIds = new Set(goals.filter(g => g.isShared && g.sharedContributions).map(g => g.id));
+  const investmentTxs = [
+    ...transactions.filter(t => t.category === 'Investimentos' && !(t.goalId && syncedSharedGoalIds.has(t.goalId))),
+    ...goals.flatMap(g => (syncedSharedGoalIds.has(g.id) ? g.sharedContributions ?? [] : [])),
+  ];
 
-  const investmentTxs = transactions.filter(t => t.category === 'Investimentos');
+  // Metas com mais de uma pessoa: as compartilhadas comigo e as minhas que já receberam aporte de convidado
+  const collaborativeGoalIds = new Set([
+    ...syncedSharedGoalIds,
+    ...investmentTxs.flatMap(t => (t.parentId === 'SHARED' && t.goalId ? [t.goalId] : [])),
+  ]);
+
+  // Quem fez o aporte (só nas metas com mais de uma pessoa). Sem autor gravado, o lançamento da minha planilha
+  // é meu; cópia de convidado anterior à coluna Autor fica como "Convidado"
+  const myName = session?.user?.name || session?.user?.email;
+  const getContributor = (tx: Transaction) => {
+    if (!tx.goalId || !collaborativeGoalIds.has(tx.goalId)) return null;
+    const author = tx.author || (tx.parentId === 'SHARED' ? 'Convidado' : myName);
+    return author === myName ? 'Você' : author;
+  };
+
+  // Extrair todos os meses disponíveis nas transações para o dropdown
+  const allAvailableMonths = Array.from(new Set([...transactions, ...investmentTxs].map(t => t.monthKey))).sort((a, b) => a.localeCompare(b));
+
   const totalInvestedGlobal = investmentTxs.reduce((sum, tx) => sum + tx.amount, 0);
 
   // If no goals exist, we can render an empty state or a default one
@@ -96,12 +121,8 @@ export default function MetasPage() {
   
   const totalHistoryFiltered = historyTxs.reduce((sum, tx) => sum + tx.amount, 0);
 
-  // Função para calcular o total de uma meta
+  // Função para calcular o total de uma meta (nas compartilhadas, investmentTxs já traz os aportes do dono)
   const getGoalCurrent = (goalId: string, initialCurrent: number) => {
-    const goal = goals.find(g => g.id === goalId);
-    if (goal?.isShared) {
-      return initialCurrent; // Synced value is the absolute truth
-    }
     const linkedTxs = investmentTxs.filter(t => t.goalId === goalId);
     const linkedSum = linkedTxs.reduce((sum, tx) => sum + tx.amount, 0);
     return initialCurrent + linkedSum;
@@ -141,7 +162,7 @@ export default function MetasPage() {
           )}
           {goals.map((goal, index) => {
             const actualCurrent = getGoalCurrent(goal.id, goal.current);
-            const goalPct = Math.min((actualCurrent / goal.target) * 100, 100);
+            const goalPct = goal.target > 0 ? Math.min((actualCurrent / goal.target) * 100, 100) : 0;
             const remaining = goal.target - actualCurrent;
             
             // Predição de meses faltantes
@@ -410,21 +431,28 @@ export default function MetasPage() {
                       {monthTxs.map(tx => {
                         const goalName = tx.goalId ? goals.find(g => g.id === tx.goalId)?.name : null;
                         const itemLabel = goalName || tx.name;
+                        const contributor = getContributor(tx);
+                        const ItemIcon = contributor ? Users : Target;
                         return (
-                          <div key={tx.id} style={{ 
-                            display: 'flex', 
-                            justifyContent: 'space-between', 
+                          <div key={tx.id} style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
                             alignItems: 'center',
                             fontSize: 13,
                             color: 'var(--text-secondary)'
                           }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                              <Target size={12} style={{ opacity: 0.5 }} />
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                              <ItemIcon size={12} style={{ opacity: 0.5, flexShrink: 0 }} />
                               <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>
                                 {itemLabel}
                               </span>
+                              {contributor && (
+                                <span style={{ color: 'var(--text-tertiary)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                                  · {contributor}
+                                </span>
+                              )}
                             </div>
-                            <span>+{formatCurrency(tx.amount)}</span>
+                            <span style={{ flexShrink: 0 }}>+{formatCurrency(tx.amount)}</span>
                           </div>
                         );
                       })}

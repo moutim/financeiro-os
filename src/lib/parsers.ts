@@ -27,7 +27,7 @@ export function parseSheetNumber(val: string | number | undefined | null): numbe
 
 // ─── Transacoes ───────────────────────────────────────────────────────────────
 // Columns: ID | Nome | Valor | Categoria | MesKey | Parcelas | Data | GoalId | CardId | ParentId | IsPaid
-//        | Subcategoria | Natureza | Recorrencia | MeioPagamento | TipoMovimentacao
+//        | Subcategoria | Natureza | Recorrencia | MeioPagamento | TipoMovimentacao | Autor
 // As colunas a partir de "Subcategoria" são preenchidas pelo modo detalhado. A categoria é
 // gravada como veio (legada ou macro); a conversão entre modos acontece só na exibição
 // (ver src/lib/taxonomy.ts), então a planilha nunca é reescrita ao trocar de modo.
@@ -49,6 +49,7 @@ export function rowToTransaction(row: string[]): Transaction {
     recurrency:      (row[13] || null) as TransactionRecurrency | null,
     paymentMethod:   (row[14] || null) as PaymentMethod | null,
     transactionType: (row[15] || undefined) as TransactionType | undefined,
+    author:          row[16] || null,
   };
 }
 
@@ -70,6 +71,7 @@ export function transactionToRow(t: Transaction): (string | number | null)[] {
     t.recurrency ?? '',
     t.paymentMethod ?? '',
     t.transactionType ?? '',
+    t.author ?? '',
   ];
 }
 

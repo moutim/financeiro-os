@@ -50,7 +50,7 @@ interface TransactionFormProps {
 }
 
 export default function TransactionFormDetailed({ onClose }: TransactionFormProps) {
-  const { addTransaction, addIncome, addEntriesBatch, selectedMonth, goals, cards } = useFinanceStore();
+  const { addTransaction, addIncome, addEntriesBatch, contributeToSharedGoal, selectedMonth, goals, cards } = useFinanceStore();
   
   // Tipo de movimentação: Despesa, Receita, Investimento
   const [movementType, setMovementType] = useState<TransactionType>('expense');
@@ -328,19 +328,11 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
         await addTransaction(transactionData);
 
         if (goalId) {
-          const goal = goals.find(g => g.id === goalId);
-          if (goal && goal.isShared && goal.ownerSpreadsheetId) {
-            await fetch('/api/transacoes/shared', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                ownerSpreadsheetId: goal.ownerSpreadsheetId,
-                transaction: {
-                  ...transactionData,
-                  name: `${transactionData.name} (Compartilhado)`
-                }
-              })
-            });
+          try {
+            await contributeToSharedGoal(goalId, transactionData);
+          } catch (err) {
+            // o lançamento já está salvo aqui: avisar em vez de pedir para tentar de novo (duplicaria)
+            alert(`O investimento foi salvo, mas não entrou na meta compartilhada. ${err instanceof Error ? err.message : err}`);
           }
         }
       } else {

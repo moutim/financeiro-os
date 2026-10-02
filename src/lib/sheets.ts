@@ -27,7 +27,8 @@ export type SheetTab = (typeof SHEET_TABS)[keyof typeof SHEET_TABS];
 export const SHEET_HEADERS: Record<SheetTab, string[]> = {
   // ID | Nome | Valor | Categoria | MesKey | Parcelas | Data | GoalId | CardId | ParentId | IsPaid
   // | Subcategoria | Natureza | Recorrencia | MeioPagamento | TipoMovimentacao  (modo detalhado)
-  [SHEET_TABS.TRANSACOES]:     ['ID', 'Nome', 'Valor', 'Categoria', 'MesKey', 'Parcelas', 'Data', 'GoalId', 'CardId', 'ParentId', 'IsPaid', 'Subcategoria', 'Natureza', 'Recorrencia', 'MeioPagamento', 'TipoMovimentacao'],
+  // | Autor  (aportes de convidados em meta compartilhada)
+  [SHEET_TABS.TRANSACOES]:     ['ID', 'Nome', 'Valor', 'Categoria', 'MesKey', 'Parcelas', 'Data', 'GoalId', 'CardId', 'ParentId', 'IsPaid', 'Subcategoria', 'Natureza', 'Recorrencia', 'MeioPagamento', 'TipoMovimentacao', 'Autor'],
 
   // ID | Nome | Valor | MesKey | IsRecurring | ParentId | Parcelas
   [SHEET_TABS.RECEITAS]:       ['ID', 'Nome', 'Valor', 'MesKey', 'IsRecurring', 'ParentId', 'Parcelas'],

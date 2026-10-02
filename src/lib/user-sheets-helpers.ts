@@ -1,4 +1,5 @@
 import { getUserSheetsClient } from '@/lib/user-sheets';
+import { SHEET_TABS } from '@/lib/sheets';
 
 /** Lê todas as linhas de uma aba (exceto o header) */
 export async function readUserTab(
@@ -178,4 +179,63 @@ export async function clearUserTab(
     spreadsheetId,
     range: `${tab}!A2:Z`,
   });
+}
+
+// ─── _Config (chave → valor) ──────────────────────────────────────────────────
+
+/** Nome do dono da planilha, exibido aos convidados nos aportes dele em metas compartilhadas */
+export const USER_NAME_CONFIG_KEY = 'userName';
+
+/** Lê a aba _Config como chave → valor (vazio se a aba ainda não existir) */
+export async function readUserConfig(
+  accessToken: string,
+  spreadsheetId: string
+): Promise<Record<string, string>> {
+  const sheets = getUserSheetsClient(accessToken);
+  try {
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${SHEET_TABS.CONFIG}!A2:B`,
+    });
+    const config: Record<string, string> = {};
+    for (const row of (res.data.values ?? []) as string[][]) {
+      if (row[0]) config[row[0]] = row[1] ?? '';
+    }
+    return config;
+  } catch (e) {
+    if (e instanceof Error && e.message.includes('Unable to parse range')) return {};
+    throw e;
+  }
+}
+
+/** Grava uma chave na aba _Config, atualizando a linha se ela já existir */
+export async function setUserConfigValue(
+  accessToken: string,
+  spreadsheetId: string,
+  key: string,
+  value: string
+): Promise<void> {
+  const sheets = getUserSheetsClient(accessToken);
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: `${SHEET_TABS.CONFIG}!A:B`,
+  });
+  const rowIndex = ((res.data.values ?? []) as string[][]).findIndex(row => row[0] === key);
+
+  if (rowIndex !== -1) {
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${SHEET_TABS.CONFIG}!B${rowIndex + 1}`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: [[value]] },
+    });
+  } else {
+    await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: `${SHEET_TABS.CONFIG}!A:B`,
+      valueInputOption: 'USER_ENTERED',
+      insertDataOption: 'INSERT_ROWS',
+      requestBody: { values: [[key, value]] },
+    });
+  }
 }
