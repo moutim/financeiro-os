@@ -369,43 +369,36 @@ export default function SettingsPage() {
           {/* Gerenciamento e Limpeza de Dados da Planilha */}
           <section>
             <GlassCard>
-              <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-primary)' }}>
-                <Trash2 size={18} color="var(--red)" />
+              <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-primary)' }}>
+                <Trash2 size={18} color="var(--blue)" />
                 Gerenciamento e Limpeza de Dados
               </h2>
-              
-              <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 16 }}>
-                Deseja recomeçar ou limpar registros da sua planilha? Você pode escolher exatamente quais abas quer esvaziar (Transações, Cartões, Receitas, Metas ou Pendências). A estrutura de colunas e cabeçalhos é 100% preservada.
-              </p>
 
-              <button
-                type="button"
-                onClick={() => setIsClearModalOpen(true)}
-                style={{
-                  color: 'var(--red)',
-                  background: 'var(--red-light)',
-                  fontWeight: 600,
-                  padding: '12px 20px',
-                  borderRadius: 24,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  cursor: 'pointer',
-                  border: 'none',
-                  transition: 'all 0.2s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.opacity = '0.8';
-                  e.currentTarget.style.transform = 'scale(0.98)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.opacity = '1';
-                  e.currentTarget.style.transform = 'scale(1)';
-                }}
-              >
-                <Trash2 size={16} />
-                Limpar Dados da Planilha
-              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                  Deseja recomeçar ou limpar registros da sua planilha? Você pode escolher exatamente quais abas quer esvaziar (Transações, Cartões, Receitas, Metas ou Pendências). A estrutura de colunas e cabeçalhos é 100% preservada.
+                </p>
+
+                <div style={{
+                  display: 'flex',
+                  marginTop: 12,
+                  paddingTop: 20,
+                  borderTop: '1px solid var(--separator)',
+                  flexWrap: 'wrap',
+                  gap: 16
+                }}>
+                  {/* mesmo botão do "Acessar sua Planilha Base", em vermelho por ser destrutivo */}
+                  <button
+                    type="button"
+                    onClick={() => setIsClearModalOpen(true)}
+                    className="btn-secondary"
+                    style={{ color: 'var(--red)', background: 'var(--red-light)' }}
+                  >
+                    <Trash2 size={16} />
+                    Limpar Dados da Planilha
+                  </button>
+                </div>
+              </div>
             </GlassCard>
           </section>
         </div>

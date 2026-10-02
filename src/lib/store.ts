@@ -4,7 +4,7 @@ import { create } from 'zustand';
 import type { Transaction, Income, Pending, SavingsGoal, Category, CreditCard } from '@/lib/types';
 
 const now = new Date();
-const CURRENT_MONTH_KEY = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+export const CURRENT_MONTH_KEY =`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 const INITIAL_MONTHS = [CURRENT_MONTH_KEY];
 
 type LoadingState = 'idle' | 'loading' | 'success' | 'error';

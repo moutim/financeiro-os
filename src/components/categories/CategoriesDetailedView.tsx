@@ -162,20 +162,8 @@ export default function CategoriesDetailedView() {
                     onClick={() => setSortBy(opt.id)}
                     title={opt.title}
                     aria-pressed={isActive}
-                    style={{
-                      padding: '6px 12px',
-                      borderRadius: 8,
-                      border: 'none',
-                      fontSize: 12,
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      // selecionado na cor do usuário, como as abas da Análise Avançada
-                      background: isActive ? 'var(--blue)' : 'transparent',
-                      color: isActive ? '#FFF' : 'var(--text-tertiary)',
-                      boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                      transition: 'all 0.15s ease',
-                      whiteSpace: 'nowrap',
-                    }}
+                    // mesmo visual das abas da Análise Avançada (selecionado na cor do usuário)
+                    className={`segmented-tab ${isActive ? 'active' : ''}`}
                   >
                     {opt.label}
                   </button>

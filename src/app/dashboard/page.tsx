@@ -22,10 +22,14 @@ import MonthlyBar from '@/components/charts/MonthlyBar';
 import CategoryBadge from '@/components/ui/CategoryBadge';
 import MonthSummaryList from '@/components/dashboard/MonthSummaryList';
 import SpendingTree from '@/components/dashboard/SpendingTree';
+import ScrollArea from '@/components/ui/ScrollArea';
 import { useFinanceStore } from '@/lib/store';
 import { useIsDetailedMode } from '@/lib/appConfigStore';
 import { monthKeyToLabel, formatCurrency } from '@/lib/currency';
 import type { Category, Income } from '@/lib/types';
+
+/** Altura máxima das listas longas (Transações, Análise de Gastos); o excedente rola dentro do card */
+const LIST_MAX_HEIGHT = 440;
 
 export default function DashboardPage() {
   const [showForm, setShowForm] = useState(false);
@@ -361,7 +365,7 @@ export default function DashboardPage() {
 
             {/* Transaction list card */}
             <SectionCard icon={ReceiptText} title="Transações" className="order-2">
-              <TransactionList transactions={allTransactions} showDelete />
+              <TransactionList transactions={allTransactions} showDelete maxHeight={LIST_MAX_HEIGHT} />
             </SectionCard>
 
             {/* Resumo do mês: lista por categoria (simples) ou árvore Macro › Micro (detalhado) */}
@@ -371,7 +375,7 @@ export default function DashboardPage() {
               className="order-5"
             >
               {isDetailed
-                ? <SpendingTree transactions={allTransactions} />
+                ? <ScrollArea maxHeight={LIST_MAX_HEIGHT}><SpendingTree transactions={allTransactions} /></ScrollArea>
                 : <MonthSummaryList transactions={allTransactions} />}
             </SectionCard>
           </div>

@@ -362,6 +362,9 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
   }
 
   const availableMicros = getMicrosForMacro(macro);
+  // parcelas dividem a linha com o valor; com sub-transações, cada item tem as suas
+  const showInstallments = movementType === 'expense' && !hasSubTxs;
+  const addSubTransaction = () => setSubTransactions([...subTransactions, { name: '', rawAmount: '', installments: '' }]);
 
   return (
     <div className="modal-overlay animate-fade-in" onClick={!isSubmitting ? onClose : undefined}>
@@ -370,20 +373,13 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
         onClick={(e) => e.stopPropagation()}
         style={swipeToClose.style}
       >
-        <div {...swipeToClose.handlers} style={{ paddingBottom: 16, touchAction: 'none' }}>
+        <div {...swipeToClose.handlers} style={{ paddingBottom: 12, touchAction: 'none' }}>
           <div className="modal-handle" />
-          <div>
-            <h2 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.015em' }}>
-              {movementType === 'expense' && 'Nova Despesa'}
-              {movementType === 'income' && 'Nova Receita'}
-              {movementType === 'investment' && 'Novo Investimento'}
-            </h2>
-            <p style={{ fontSize: 14, color: 'var(--text-tertiary)', marginTop: 2 }}>
-              {movementType === 'expense' && 'Cadastre gastos de consumo com detalhamento Macro e Micro'}
-              {movementType === 'income' && (incomeType === 'salary' ? 'Salário ou renda fixa mensal' : 'Dividendos, freelance ou receita extra')}
-              {movementType === 'investment' && 'Aportes em renda fixa, ações, FIIs ou fundos (não afetam despesas de consumo)'}
-            </p>
-          </div>
+          <h2 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.015em' }}>
+            {movementType === 'expense' && 'Nova Despesa'}
+            {movementType === 'income' && 'Nova Receita'}
+            {movementType === 'investment' && 'Novo Investimento'}
+          </h2>
         </div>
 
         {/* ── Seletor de Tipo de Movimentação ── */}
@@ -421,8 +417,9 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
           })}
         </div>
 
+        {/* campos em pares (Valor + Parcelas, Macro + Micro, Mês + Ano) para a gaveta caber sem rolagem */}
         <form onSubmit={handleSubmit}>
-          <div className="form-group">
+          <div className="form-group" style={{ marginBottom: 12 }}>
             <label className="form-label">Descrição / Nome</label>
             <input
               className="form-input"
@@ -439,41 +436,79 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
             />
           </div>
 
-          <div className="form-group" style={{ marginBottom: 10 }}>
-            <label className="form-label">
-              Valor
-            </label>
-            <input
-              className="form-input"
-              type="text"
-              inputMode="numeric"
-              placeholder="R$ 0,00"
-              value={displayAmount}
-              onChange={(e) => {
-                if (hasSubTxs) return;
-                const digits = parseMask(e.target.value);
-                setRawDigits(digits);
-              }}
-              disabled={isSubmitting || hasSubTxs}
-              required={!hasSubTxs}
-            />
+          {/* ── Valor + Parcelas ── */}
+          <div style={{ display: 'grid', gridTemplateColumns: showInstallments ? '1fr 1fr' : '1fr', gap: '0 12px', alignItems: 'end' }}>
+            <div className="form-group" style={{ marginBottom: 12 }}>
+              <label className="form-label">Valor</label>
+              <input
+                className="form-input"
+                type="text"
+                inputMode="numeric"
+                placeholder="R$ 0,00"
+                value={displayAmount}
+                onChange={(e) => {
+                  if (hasSubTxs) return;
+                  const digits = parseMask(e.target.value);
+                  setRawDigits(digits);
+                }}
+                disabled={isSubmitting || hasSubTxs}
+                required={!hasSubTxs}
+              />
+            </div>
+
+            {/* Parcelas com preenchimento livre e suporte retroativo */}
+            {showInstallments && (
+              <div className="form-group" style={{ marginBottom: 12 }}>
+                <label className="form-label">Parcelas</label>
+                <input
+                  className="form-input"
+                  type="text"
+                  placeholder="Ex: 3/3 ou 12"
+                  value={installments}
+                  onChange={(e) => setInstallments(e.target.value)}
+                  disabled={isSubmitting}
+                />
+              </div>
+            )}
           </div>
 
-          {/* Subtransações (opcional) */}
+          {showInstallments && installments && (() => {
+            const p = parseInstallmentInput(installments);
+            if (!p || p.total <= 1) return null;
+            if (p.current === 1) {
+              const endMonth = addMonths(monthKey, p.total - 1);
+              return (
+                <p style={{ fontSize: 12, color: 'var(--blue)', margin: '-4px 0 12px', fontWeight: 500 }}>
+                  ✨ Serão criadas {p.total} parcelas consecutivas de {monthKeyToShortLabel(monthKey)} até {monthKeyToShortLabel(endMonth)}.
+                </p>
+              );
+            }
+            const startMonth = addMonths(monthKey, 1 - p.current);
+            const endMonth = addMonths(monthKey, p.total - p.current);
+            const backCount = p.current - 1;
+            return (
+              <p style={{ fontSize: 12, color: 'var(--blue)', margin: '-4px 0 12px', fontWeight: 500 }}>
+                ✨ Parcela {p.current} de {p.total}. {backCount} parcela(s) retroativa(s) a partir de <strong>{monthKeyToShortLabel(startMonth)}</strong> até <strong>{monthKeyToShortLabel(endMonth)}</strong>. Meses faltantes serão criados automaticamente!
+              </p>
+            );
+          })()}
+
+          {/* Sub-transações (opcional) */}
           {movementType === 'expense' && (
-            <div className="form-group" style={{ marginBottom: 16 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <div className="form-group" style={{ marginBottom: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: hasSubTxs ? 8 : 0 }}>
                 <label className="form-label" style={{ marginBottom: 0 }}>Sub-transações (opcional)</label>
                 <button
                   type="button"
-                  onClick={() => setSubTransactions([...subTransactions, { name: '', rawAmount: '', installments: '' }])}
+                  onClick={addSubTransaction}
+                  disabled={isSubmitting}
                   style={{ background: 'none', border: 'none', color: 'var(--blue)', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
                 >
                   + Adicionar
                 </button>
               </div>
-              
-              {subTransactions.length > 0 && (
+
+              {hasSubTxs && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px', background: 'var(--bg-2)', borderRadius: 8 }}>
                   {subTransactions.map((sub, idx) => (
                     <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -534,7 +569,8 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
           {/* ── CAMPOS DE DESPESA: MACRO → MICRO DINÂMICO ── */}
           {movementType === 'expense' && (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
+              {/* alignItems end: se um rótulo quebrar linha (mobile), os selects seguem alinhados */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px', alignItems: 'end' }}>
                 <div className="form-group" style={{ marginBottom: 12 }}>
                   <label className="form-label">Categoria Macro</label>
                   <select
@@ -551,8 +587,9 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
                   </select>
                 </div>
 
+                {/* opcional: o padrão "Nenhuma / Geral" já indica isso, sem quebrar o rótulo */}
                 <div className="form-group" style={{ marginBottom: 12 }}>
-                  <label className="form-label">Categoria Micro (opcional)</label>
+                  <label className="form-label">Categoria Micro</label>
                   <select
                     className="form-select"
                     value={micro}
@@ -662,7 +699,7 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
           {/* ── CAMPOS DE INVESTIMENTO ── */}
           {movementType === 'investment' && (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px', alignItems: 'end' }}>
                 <div className="form-group" style={{ marginBottom: 12 }}>
                   <label className="form-label">Tipo de Ativo</label>
                   <select
@@ -713,10 +750,22 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
             </>
           )}
 
-          {/* ── Data da Transação ── */}
-          <div style={{ marginTop: 8, marginBottom: 14 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 10 }}>
-              Data da Transação
+          {/* ── Data da Transação: Mês + Ano ── */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
+            <div className="form-group" style={{ marginBottom: 12 }}>
+              <label className="form-label">Mês</label>
+              <select
+                className="form-select"
+                value={selectedMonthNum}
+                onChange={(e) => setSelectedMonthNum(Number(e.target.value))}
+                disabled={isSubmitting}
+              >
+                {MONTHS_LIST.map(m => (
+                  <option key={m.num} value={m.num}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="form-group" style={{ marginBottom: 12 }}>
@@ -732,70 +781,13 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
                 ))}
               </select>
             </div>
-
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Mês</label>
-              <select
-                className="form-select"
-                value={selectedMonthNum}
-                onChange={(e) => setSelectedMonthNum(Number(e.target.value))}
-                disabled={isSubmitting}
-              >
-                {MONTHS_LIST.map(m => (
-                  <option key={m.num} value={m.num}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
-            </div>
           </div>
 
-          {/* ── Parcelas com preenchimento livre e suporte retroativo ── */}
-          {movementType === 'expense' && !hasSubTxs && (
-            <div className="form-group" style={{ marginBottom: 14 }}>
-              <label className="form-label">Parcelas (opcional)</label>
-              <input
-                className="form-input"
-                type="text"
-                placeholder="Ex: 3/3, 2/5 ou 12"
-                value={installments}
-                onChange={(e) => setInstallments(e.target.value)}
-                disabled={isSubmitting}
-              />
-              {installments && (
-                <div style={{ marginTop: 6 }}>
-                  {(() => {
-                    const p = parseInstallmentInput(installments);
-                    if (!p || p.total <= 1) return null;
-                    if (p.current === 1) {
-                      const endMonth = addMonths(monthKey, p.total - 1);
-                      return (
-                        <p style={{ fontSize: 12, color: 'var(--blue)', margin: 0, fontWeight: 500 }}>
-                          ✨ Serão criadas {p.total} parcelas consecutivas de {monthKeyToShortLabel(monthKey)} até {monthKeyToShortLabel(endMonth)}.
-                        </p>
-                      );
-                    }
-                    const startMonth = addMonths(monthKey, 1 - p.current);
-                    const endMonth = addMonths(monthKey, p.total - p.current);
-                    const backCount = p.current - 1;
-                    return (
-                      <p style={{ fontSize: 12, color: 'var(--blue)', margin: 0, fontWeight: 500 }}>
-                        ✨ Parcela {p.current} de {p.total}. {backCount} parcela(s) retroativa(s) a partir de <strong>{monthKeyToShortLabel(startMonth)}</strong> até <strong>{monthKeyToShortLabel(endMonth)}</strong>. Meses faltantes serão criados automaticamente!
-                      </p>
-                    );
-                  })()}
-                </div>
-              )}
-            </div>
-          )}
-
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', marginBottom: 16 }}>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>
-                {movementType === 'expense' ? 'Marcar como pago' : 
-                 movementType === 'income' ? 'Marcar como recebido' :
-                 movementType === 'investment' ? 'Marcar como executado' : 'Marcar como concluído'}
-              </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0', marginBottom: 16 }}>
+            <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>
+              {movementType === 'expense' ? 'Marcar como pago' : 
+               movementType === 'income' ? 'Marcar como recebido' :
+               movementType === 'investment' ? 'Marcar como executado' : 'Marcar como concluído'}
             </div>
             <button
               type="button"
@@ -827,7 +819,7 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
             </button>
           </div>
 
-          <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+          <div style={{ display: 'flex', gap: 10 }}>
             <button
               type="button"
               className="btn-ghost"

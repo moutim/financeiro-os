@@ -17,7 +17,9 @@ interface SegmentedTabsProps<T extends string> {
 /**
  * Abas de visualização para as `actions` de um SectionCard. A selecionada usa a
  * cor do usuário, como o seletor Saída/Entrada. O layout responsivo (na linha
- * do título / colunas iguais / 2 por linha) fica no .segmented-tabs do globals.css.
+ * do título / colunas iguais / controle segmentado do iOS no celular, com só o
+ * ícone nas abas não selecionadas quando são 4 ou mais) fica no
+ * .segmented-tabs do globals.css.
  */
 export default function SegmentedTabs<T extends string>({ tabs, value, onChange }: SegmentedTabsProps<T>) {
   return (
@@ -30,27 +32,13 @@ export default function SegmentedTabs<T extends string>({ tabs, value, onChange 
             type="button"
             onClick={() => onChange(id)}
             aria-pressed={isActive}
-            style={{
-              padding: '6px 12px',
-              borderRadius: 8,
-              border: 'none',
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 6,
-              whiteSpace: 'nowrap',
-              minWidth: 0,
-              background: isActive ? 'var(--blue)' : 'transparent',
-              color: isActive ? '#FFF' : 'var(--text-tertiary)',
-              boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-              transition: 'all 0.15s ease',
-            }}
+            // no celular, com 4+ abas, as não selecionadas mostram só o ícone: o nome fica acessível aqui
+            aria-label={label}
+            title={label}
+            className={`segmented-tab ${isActive ? 'active' : ''}`}
           >
             <Icon size={14} />
-            {label}
+            <span className="segmented-tab-label">{label}</span>
           </button>
         );
       })}

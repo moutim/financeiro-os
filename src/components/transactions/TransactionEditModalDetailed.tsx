@@ -358,7 +358,8 @@ export default function TransactionEditModalDetailed({ transaction, onClose }: T
           </div>
 
           {/* ── Macro e Micro ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px', marginBottom: 12 }}>
+          {/* alignItems end: se o rótulo do Micro quebrar linha (mobile), os selects seguem alinhados */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px', marginBottom: 12, alignItems: 'end' }}>
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Categoria Macro</label>
               <select

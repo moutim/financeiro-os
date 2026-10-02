@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Target, AlertTriangle, Plus, Pencil, Trash2, CalendarClock, Users } from 'lucide-react';
+import { Target, AlertTriangle, Plus, Pencil, Trash2, CalendarClock, Users, TrendingUp } from 'lucide-react';
 
 import Sidebar from '@/components/layout/Sidebar';
 import GlassCard from '@/components/ui/GlassCard';
+import SectionCard from '@/components/ui/SectionCard';
+import ToolbarSelect from '@/components/ui/ToolbarSelect';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import PendingEditModal from '@/components/transactions/PendingEditModal';
 import GoalFormModal, { GoalData } from '@/components/goals/GoalFormModal';
@@ -254,28 +256,11 @@ export default function MetasPage() {
         </div>
 
 
-        <div className="metas-grid">
+        <div className="metas-grid stagger">
           {/* Pending "A Resolver" */}
-          <GlassCard className="animate-fade-in-up" style={{ opacity: 0, animationDelay: '60ms', minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-              <div style={{
-                width: 48,
-                height: 48,
-                borderRadius: 14,
-                background: 'var(--red-light)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--red)',
-              }}>
-                <AlertTriangle size={24} />
-              </div>
-              <div>
-                <h2 style={{ fontWeight: 700, fontSize: 18 }}>A Resolver</h2>
-              </div>
-            </div>
-
-            <div 
+          {/* height 100%: o card preenche a linha da grade, mesma altura do Histórico ao lado */}
+          <SectionCard icon={AlertTriangle} iconColor="var(--red)" title="A Resolver" className="animate-fade-in-up" style={{ height: '100%' }}>
+            <div
               style={{ 
                 marginBottom: 16,
                 maxHeight: 320, 
@@ -356,30 +341,22 @@ export default function MetasPage() {
                   Adicionar item
                 </button>
             </div>
-          </GlassCard>
+          </SectionCard>
 
           {/* Histórico Geral de Investimentos do App */}
-          <GlassCard className="animate-fade-in-up" style={{ opacity: 0, animationDelay: '120ms', minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div>
-                  <h2 style={{ fontWeight: 700, fontSize: 18 }}>Histórico de Investimentos</h2>
-                  <p style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>Aportes registrados nas transações</p>
-                </div>
-              </div>
-              <select
+          <SectionCard
+            icon={TrendingUp}
+            iconColor="var(--green)"
+            title="Histórico de Investimentos"
+            description="Aportes registrados nas transações"
+            className="animate-fade-in-up"
+            style={{ height: '100%' }}
+            actions={
+              <ToolbarSelect
                 value={startMonth}
                 onChange={handleMonthChange}
-                className="form-select"
-                style={{ 
-                  padding: '8px 16px', 
-                  fontSize: 13, 
-                  borderRadius: 12, 
-                  maxWidth: 240,
-                  fontWeight: 500,
-                  background: 'var(--surface-hover)',
-                  border: '1px solid var(--separator)'
-                }}
+                style={{ maxWidth: 240 }}
+                aria-label="Período do histórico"
               >
                 <option value="">Desde o primeiro aporte</option>
                 {allAvailableMonths.map(mk => {
@@ -387,9 +364,9 @@ export default function MetasPage() {
                   const label = new Date(year, month - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
                   return <option key={mk} value={mk}>A partir de {label.charAt(0).toUpperCase() + label.slice(1)}</option>;
                 })}
-              </select>
-            </div>
-
+              </ToolbarSelect>
+            }
+          >
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               {dynamicMonths.length === 0 && (
                 <div style={{ padding: '16px 0', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 14 }}>
@@ -463,7 +440,7 @@ export default function MetasPage() {
                 <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--green)' }}>{formatCurrency(totalHistoryFiltered)}</span>
               </div>
             </div>
-          </GlassCard>
+          </SectionCard>
         </div>
 
       </main>

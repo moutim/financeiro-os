@@ -9,9 +9,10 @@ import CreditProjectionSection from '@/components/cards/CreditProjectionSection'
 import WalletCardFace from '@/components/cards/WalletCardFace';
 import CreditLimitComposition from '@/components/cards/CreditLimitComposition';
 import SectionCard from '@/components/ui/SectionCard';
+import ToolbarSelect from '@/components/ui/ToolbarSelect';
 import { DetailedOnly } from '@/components/mode/ModeSwitch';
 import { formatCurrency } from '@/lib/currency';
-import { Plus, CheckCircle2, AlertTriangle, ChevronLeft, ChevronRight, WalletCards } from 'lucide-react';
+import { Plus, CheckCircle2, AlertTriangle, ChevronLeft, ChevronRight, WalletCards, ArrowUpDown } from 'lucide-react';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import MonthSelector from '@/components/transactions/MonthSelector';
 import { getBankById } from '@/lib/banks';
@@ -178,8 +179,8 @@ export default function CartoesPage() {
               <>
                 <DetailedOnly>
                   {cards.length > 1 && (
-                    <select
-                      className="toolbar-select"
+                    <ToolbarSelect
+                      icon={ArrowUpDown}
                       value={sortOption}
                       onChange={(e) => handleSortChange(e.target.value as CardSortOption)}
                       aria-label="Ordenar cartões"
@@ -188,7 +189,7 @@ export default function CartoesPage() {
                       {CARD_SORT_OPTIONS.map((opt) => (
                         <option key={opt.id} value={opt.id}>{opt.label}</option>
                       ))}
-                    </select>
+                    </ToolbarSelect>
                   )}
                 </DetailedOnly>
                 <div className="carousel-arrows" style={{ display: 'flex', gap: 6 }}>
