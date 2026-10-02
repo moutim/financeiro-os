@@ -40,21 +40,28 @@ const DETAILED_TO_SIMPLE: Record<string, string> = {
   Transporte: 'Transporte',
   Saúde: 'Saúde',
   Educação: 'Estudos',
-  'Cuidados pessoais': 'Compras',
+  'Cuidados pessoais': 'Cuidados pessoais',
   Lazer: 'Lazer',
-  Viagens: 'Lazer',
+  Viagens: 'Viagens',
   'Compras e bens': 'Compras',
   'Serviços e assinaturas': 'Assinaturas',
   'Família e presentes': 'Ajuda Financeira',
-  Pets: 'Outros',
-  'Impostos e obrigações': 'Outros',
+  Pets: 'Pets',
+  'Impostos e obrigações': 'Impostos',
   Financeiro: 'Outros',
+};
+
+/** Micros do modo detalhado que têm categoria própria no modo simples */
+const DETAILED_MICRO_TO_SIMPLE: Record<string, Record<string, string>> = {
+  Financeiro: { 'Empréstimos e financiamentos': 'Empréstimos', 'Dívidas e acordos': 'Dívidas' },
+  'Família e presentes': { Presentes: 'Presentes' },
 };
 
 function toSimpleCategory(t: Transaction): string {
   if (t.recurrency === 'Fixo') return 'Fixos';
   if (t.category in SIMPLE_CONFIG) return t.category;
-  return DETAILED_TO_SIMPLE[t.category] ?? 'Outros';
+  const byMicro = t.subcategory ? DETAILED_MICRO_TO_SIMPLE[t.category]?.[t.subcategory] : undefined;
+  return byMicro ?? DETAILED_TO_SIMPLE[t.category] ?? 'Outros';
 }
 
 export const SIMPLE_TAXONOMY: CategoryTaxonomy = {

@@ -504,8 +504,9 @@ export default function TransactionFormSimple({ onClose }: TransactionFormProps)
               </select>
             </div>
 
+            {/* linha inteira: Cartão e Parcelas seguem lado a lado logo abaixo */}
             {type === 'expense' && category === 'Investimentos' && (
-              <div className="form-group" style={{ marginBottom: 10, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+              <div className="form-group" style={{ gridColumn: '1 / -1', marginBottom: 10, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
                 <label className="form-label">Meta Vinculada (opcional)</label>
                 <select
                   className="form-select"

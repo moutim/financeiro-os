@@ -12,7 +12,14 @@ import {
   Car,
   Ticket,
   Home,
-  Tv
+  Tv,
+  Plane,
+  PawPrint,
+  Sparkles,
+  Gift,
+  Landmark,
+  Receipt,
+  FileText
 } from 'lucide-react';
 
 export const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
@@ -81,6 +88,50 @@ export const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
     color: '#AF52DE',
     bgColor: 'rgba(175,82,222,0.12)',
     icon: Handshake,
+  },
+  // Viagens, Pets e Cuidados pessoais têm o mesmo nome das macros do modo
+  // detalhado, então valem nos dois modos sem conversão
+  Viagens: {
+    label: 'Viagens',
+    color: '#00C7BE',
+    bgColor: 'rgba(0,199,190,0.12)',
+    icon: Plane,
+  },
+  Pets: {
+    label: 'Pets',
+    color: '#B4710C',
+    bgColor: 'rgba(180,113,12,0.12)',
+    icon: PawPrint,
+  },
+  'Cuidados pessoais': {
+    label: 'Cuidados pessoais',
+    color: '#30B0C7',
+    bgColor: 'rgba(48,176,199,0.12)',
+    icon: Sparkles,
+  },
+  Presentes: {
+    label: 'Presentes',
+    color: '#D88AB6',
+    bgColor: 'rgba(216,138,182,0.12)',
+    icon: Gift,
+  },
+  Empréstimos: {
+    label: 'Empréstimos',
+    color: '#536D0C',
+    bgColor: 'rgba(83,109,12,0.12)',
+    icon: Landmark,
+  },
+  Dívidas: {
+    label: 'Dívidas',
+    color: '#C2185B',
+    bgColor: 'rgba(194,24,91,0.12)',
+    icon: Receipt,
+  },
+  Impostos: {
+    label: 'Impostos',
+    color: '#883839',
+    bgColor: 'rgba(136,56,57,0.12)',
+    icon: FileText,
   },
   Dividendos: {
     label: 'Dividendos',

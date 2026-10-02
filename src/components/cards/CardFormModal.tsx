@@ -136,8 +136,9 @@ export default function CardFormModal({ initialData, onSave, onClose, onDelete }
             />
           </div>
           
-          <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-            <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+          {/* Banco, Bandeira e Final: grade em globals.css (no celular o Banco ganha a linha toda) */}
+          <div className="card-form-identity">
+            <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Banco</label>
               <select className="form-select" value={bankId} onChange={e => setBankId(e.target.value)} disabled={isLoading}>
                 <option value="">(Nenhum)</option>
@@ -147,7 +148,7 @@ export default function CardFormModal({ initialData, onSave, onClose, onDelete }
               </select>
             </div>
 
-            <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+            <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Bandeira</label>
               <select className="form-select" value={brand} onChange={e => setBrand(e.target.value)} disabled={isLoading}>
                 <option value="Mastercard">Mastercard</option>
@@ -158,12 +159,13 @@ export default function CardFormModal({ initialData, onSave, onClose, onDelete }
               </select>
             </div>
 
-            <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+            <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Final do Cartão</label>
               <input 
-                type="text" 
-                className="form-input" 
-                placeholder="Ex: 4321" 
+                type="text"
+                inputMode="numeric"
+                className="form-input"
+                placeholder="Ex: 4321"
                 maxLength={4}
                 value={lastDigits}
                 onChange={e => setLastDigits(e.target.value.replace(/\D/g, ''))} 

@@ -188,6 +188,8 @@ export const EXPENSE_HIERARCHY: Record<ExpenseMacro, readonly string[]> = {
     'Outras obrigações',
   ],
   Financeiro: [
+    'Empréstimos e financiamentos',
+    'Dívidas e acordos',
     'Juros e encargos',
     'Tarifas bancárias',
     'Anuidade e taxas de cartão',
@@ -379,6 +381,30 @@ export const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
     color: '#D88AB6',
     bgColor: 'rgba(216,138,182,0.12)',
     icon: Gift,
+  },
+  Presentes: {
+    label: 'Família e presentes',
+    color: '#D88AB6',
+    bgColor: 'rgba(216,138,182,0.12)',
+    icon: Gift,
+  },
+  Empréstimos: {
+    label: 'Financeiro',
+    color: '#536D0C',
+    bgColor: 'rgba(83,109,12,0.12)',
+    icon: Percent,
+  },
+  Dívidas: {
+    label: 'Financeiro',
+    color: '#536D0C',
+    bgColor: 'rgba(83,109,12,0.12)',
+    icon: Percent,
+  },
+  Impostos: {
+    label: 'Impostos e obrigações',
+    color: '#883839',
+    bgColor: 'rgba(136,56,57,0.14)',
+    icon: FileText,
   },
   Dividendos: {
     label: 'Receitas',
@@ -592,6 +618,26 @@ export function migrateTransactionCategory(
       return { macro: 'Família e presentes', micro: 'Ajuda financeira', transactionType: 'expense' };
     }
 
+    case 'Presentes': {
+      return { macro: 'Família e presentes', micro: 'Presentes', transactionType: 'expense' };
+    }
+
+    case 'Empréstimos': {
+      return { macro: 'Financeiro', micro: 'Empréstimos e financiamentos', transactionType: 'expense' };
+    }
+
+    case 'Dívidas': {
+      return { macro: 'Financeiro', micro: 'Dívidas e acordos', transactionType: 'expense' };
+    }
+
+    case 'Impostos': {
+      let micro = 'Outras obrigações';
+      if (lowerName.includes('imposto de renda') || lowerName.includes('irpf')) micro = 'Imposto de renda';
+      else if (lowerName.includes('multa')) micro = 'Multas';
+      else if (lowerName.includes('cartorio') || lowerName.includes('cartório')) micro = 'Cartório';
+      return { macro: 'Impostos e obrigações', micro, transactionType: 'expense' };
+    }
+
     case 'Investimentos': {
       let micro = 'Outros investimentos';
       if (lowerName.includes('cdb') || lowerName.includes('tesouro') || lowerName.includes('lci') || lowerName.includes('lca')) micro = 'Renda fixa';
@@ -619,7 +665,10 @@ export function migrateTransactionCategory(
         if (lowerName.includes('das')) {
           return { macro: 'Impostos e obrigações', micro: 'Taxas governamentais', recurrency: 'Fixo', transactionType: 'expense' };
         }
-        return { macro: 'Financeiro', micro: 'Juros e encargos', recurrency: 'Fixo', transactionType: 'expense' };
+        const micro = lowerName.includes('emprestimo') ? 'Empréstimos e financiamentos'
+          : lowerName.includes('acordo') ? 'Dívidas e acordos'
+          : 'Juros e encargos';
+        return { macro: 'Financeiro', micro, recurrency: 'Fixo', transactionType: 'expense' };
       }
       if (lowerName.includes('aluguel') || lowerName.includes('condominio') || lowerName.includes('iptu') || lowerName.includes('luz') || lowerName.includes('energia') || lowerName.includes('agua') || lowerName.includes('gas')) {
         return { macro: 'Moradia', micro: 'Outros - Moradia', recurrency: 'Fixo', transactionType: 'expense' };

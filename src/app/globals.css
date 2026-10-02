@@ -1164,6 +1164,28 @@ body {
   }
 }
 
+/* ─── Cartões › Novo/Editar Cartão: Banco, Bandeira e Final ─────────────────── */
+/* colunas iguais e alinhadas pela base, mesmo se um rótulo quebrar linha */
+.card-form-identity {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px 12px;
+  align-items: end;
+  margin-bottom: 16px;
+}
+
+/* celular: 3 colunas não cabem; o Banco (nomes longos) ganha a linha toda e
+   Bandeira + Final dividem a de baixo */
+@media (max-width: 520px) {
+  .card-form-identity {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .card-form-identity > :first-child {
+    grid-column: 1 / -1;
+  }
+}
+
 /* ─── Cartões › Composição de Limite ───────────────────────────────────────── */
 /* O corpo do card é o container: no card estreito o limite total sai do cabeçalho
    e a legenda vira lista, para os valores não ficarem espremidos */
