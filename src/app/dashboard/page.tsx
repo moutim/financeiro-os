@@ -12,6 +12,7 @@ import SectionCard from '@/components/ui/SectionCard';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import MonthSelector from '@/components/transactions/MonthSelector';
 import TransactionList from '@/components/transactions/TransactionList';
+import MarkAllPaidButton from '@/components/transactions/MarkAllPaidButton';
 import TransactionForm from '@/components/transactions/TransactionForm';
 import StartMonthWizard from '@/components/transactions/StartMonthWizard';
 import IncomeEditModal from '@/components/transactions/IncomeEditModal';
@@ -364,7 +365,12 @@ export default function DashboardPage() {
 
 
             {/* Transaction list card */}
-            <SectionCard icon={ReceiptText} title="Transações" className="order-2">
+            <SectionCard
+              icon={ReceiptText}
+              title="Transações"
+              className="order-2"
+              actions={<MarkAllPaidButton transactions={allTransactions} />}
+            >
               <TransactionList transactions={allTransactions} showDelete maxHeight={LIST_MAX_HEIGHT} />
             </SectionCard>
 

@@ -31,6 +31,8 @@ interface FinanceStore {
   setFilterCategory: (cat: Category | 'Todas' | null) => void;
   addTransaction: (t: Omit<Transaction, 'id'>) => Promise<Transaction>;
   updateTransaction: (id: string, updates: Partial<Omit<Transaction, 'id'>>) => Promise<void>;
+  /** Marca várias transações como pagas numa única gravação */
+  markTransactionsPaid: (ids: string[]) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   addIncome: (income: Omit<Income, 'id'>) => Promise<Income>;
   /** Vários lançamentos numa única gravação (parcelas, cópias para meses futuros) */
@@ -165,6 +167,27 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
       await get().loadAll();
       const err = await res.json();
       throw new Error(err.error ?? 'Erro ao deletar transação');
+    }
+  },
+
+  // ─── Mark many as paid ────────────────────────────────────────────────────
+  markTransactionsPaid: async (ids) => {
+    if (ids.length === 0) return;
+    const targets = new Set(ids);
+    // Optimistic update
+    set((state) => ({
+      transactions: state.transactions.map((t) => (targets.has(t.id) ? { ...t, isPaid: true } : t)),
+    }));
+    const res = await fetch('/api/transacoes/mark-paid', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    });
+    if (!res.ok) {
+      // Rollback on failure — reload from server
+      await get().loadAll();
+      const err = await res.json();
+      throw new Error(err.error ?? 'Erro ao marcar as transações como pagas');
     }
   },
 

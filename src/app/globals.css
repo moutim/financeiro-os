@@ -327,6 +327,44 @@ body {
   color: var(--text-primary);
 }
 
+/* Botão de texto da barra (ex: Marcar todas como pagas) */
+.toolbar-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 999px;
+  background: var(--blue-light);
+  color: var(--blue);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+
+/* segundo toque confirma: verde, a cor de "pago" */
+.toolbar-button.confirming,
+.toolbar-button.confirming:hover:not(:disabled) {
+  background: var(--green);
+  color: #FFF;
+}
+
+.toolbar-button:disabled {
+  cursor: default;
+}
+
+/* spinner na cor do texto (o .btn-spinner padrão é branco, para fundos cheios) */
+.toolbar-button .btn-spinner {
+  width: 14px;
+  height: 14px;
+  border-color: color-mix(in srgb, currentColor 30%, transparent);
+  border-top-color: currentColor;
+}
+
 /* Botão de ícone circular (ex: setas de carrossel) */
 .toolbar-icon-button {
   display: inline-flex;
@@ -343,16 +381,19 @@ body {
 }
 
 .toolbar-select:hover,
+.toolbar-button:hover:not(:disabled),
 .toolbar-icon-button:hover:not(:disabled) {
   background-color: color-mix(in srgb, var(--blue-light), var(--blue) 10%);
 }
 
 .toolbar-select:active,
+.toolbar-button:active:not(:disabled),
 .toolbar-icon-button:active:not(:disabled) {
   transform: scale(0.94);
 }
 
 .toolbar-select:focus-visible,
+.toolbar-button:focus-visible,
 .toolbar-icon-button:focus-visible {
   outline: 2px solid var(--blue);
   outline-offset: 2px;
