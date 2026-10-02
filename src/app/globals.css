@@ -357,6 +357,34 @@ body {
   cursor: default;
 }
 
+/* Transações › Marcar todas como pagas: sempre ao lado do título; em card estreito
+   (mobile) o botão encolhe e usa o rótulo curto. Consulta o .section-card-header
+   (!important: o SectionCard define flex-wrap inline) */
+.section-card-header:has(.mark-all-paid) {
+  flex-wrap: nowrap !important;
+}
+
+.mark-all-paid .label-short {
+  display: none;
+}
+
+@container (max-width: 400px) {
+  .toolbar-button.mark-all-paid {
+    height: 28px;
+    padding: 0 10px;
+    gap: 5px;
+    font-size: 12px;
+  }
+
+  .mark-all-paid .label-full {
+    display: none;
+  }
+
+  .mark-all-paid .label-short {
+    display: inline;
+  }
+}
+
 /* spinner na cor do texto (o .btn-spinner padrão é branco, para fundos cheios) */
 .toolbar-button .btn-spinner {
   width: 14px;

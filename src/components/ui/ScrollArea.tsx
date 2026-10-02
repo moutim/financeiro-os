@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, type ReactNode } from 'react';
+import { useScrollChaining } from '@/hooks/useScrollChaining';
 
 interface ScrollAreaProps {
   /** Altura máxima; acima disso o conteúdo rola dentro da área */
@@ -10,11 +11,13 @@ interface ScrollAreaProps {
 
 /**
  * Rolagem interna no estilo Apple: barra fina que só aparece no hover e
- * esmaecimento suave na borda em que ainda há conteúdo escondido.
+ * esmaecimento suave na borda em que ainda há conteúdo escondido. No toque,
+ * chegando ao fim (ou ao topo), o próximo gesto rola a página.
  */
 export default function ScrollArea({ maxHeight, children }: ScrollAreaProps) {
   const areaRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  useScrollChaining(areaRef);
 
   useEffect(() => {
     const area = areaRef.current;

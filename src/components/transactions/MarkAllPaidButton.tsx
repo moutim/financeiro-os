@@ -44,20 +44,27 @@ export default function MarkAllPaidButton({ transactions }: { transactions: Tran
     }
   };
 
+  const fullLabel = confirming
+    ? `Marcar ${unpaidIds.length} como ${unpaidIds.length === 1 ? 'paga' : 'pagas'}?`
+    : 'Marcar todas como pagas';
+
   return (
     <button
       type="button"
-      className={`toolbar-button ${confirming ? 'confirming' : ''}`}
+      className={`toolbar-button mark-all-paid ${confirming ? 'confirming' : ''}`}
       onClick={handleClick}
       onBlur={() => setConfirming(false)}
       disabled={isSaving}
+      aria-label={isSaving ? 'Marcando…' : fullLabel}
     >
       {isSaving ? <span className="btn-spinner" /> : <CheckCheck size={14} strokeWidth={2.25} />}
-      {isSaving
-        ? 'Marcando…'
-        : confirming
-          ? `Marcar ${unpaidIds.length} como ${unpaidIds.length === 1 ? 'paga' : 'pagas'}?`
-          : 'Marcar todas como pagas'}
+      {isSaving ? 'Marcando…' : (
+        <>
+          <span className="label-full">{fullLabel}</span>
+          {/* card estreito (mobile): rótulo curto para caber ao lado do título */}
+          <span className="label-short">{confirming ? `Confirmar ${unpaidIds.length}?` : 'Marcar pagas'}</span>
+        </>
+      )}
     </button>
   );
 }
