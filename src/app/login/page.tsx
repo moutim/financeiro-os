@@ -4,6 +4,7 @@ import { signIn } from 'next-auth/react';
 import { useState } from 'react';
 import { Wallet, Cloud, Lock, Zap } from 'lucide-react';
 import Link from 'next/link';
+import InstallAppSheet from '@/components/ui/InstallAppSheet';
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
@@ -91,6 +92,9 @@ export default function LoginPage() {
           <Link href="/privacidade" style={{ color: 'var(--text-primary)', textDecoration: 'underline' }}>Política de Privacidade</Link>.
         </p>
       </div>
+
+      {/* some ao clicar em entrar, para não cobrir o redirecionamento do Google */}
+      <InstallAppSheet placement="login" enabled={!loading} />
 
       <style>{`
         .login-root {

@@ -26,6 +26,8 @@ import {
   parseInstallmentInput,
 } from '@/lib/currency';
 import { useSwipeToClose } from '@/hooks/useSwipeToClose';
+import { isFixedTransaction, copyFixedToMonth, hasRepeatingInstallments } from '@/lib/fixedTransactions';
+import FixedToggle from './FixedToggle';
 
 const CURRENT_YEAR = new Date().getFullYear();
 const YEARS = Array.from({ length: 16 }, (_, i) => 2020 + i);
@@ -83,6 +85,7 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
   const [subTransactions, setSubTransactions] = useState<{name: string, rawAmount: string, installments: string}[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPaid, setIsPaid] = useState(false);
+  const [isFixed, setIsFixed] = useState(false);
 
   const swipeToClose = useSwipeToClose(onClose);
 
@@ -101,6 +104,10 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
     return acc + amt;
   }, 0);
   const displayAmount = hasSubTxs ? totalSubAmount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : formatMask(rawDigits);
+
+  // investimentos não têm parcelas; nas despesas, parcelas já se repetem e não combinam com fixo
+  const hasInstallments = movementType === 'expense' && hasRepeatingInstallments(hasSubTxs ? null : installments, subTransactions);
+  const fixedRecurrency = isFixed && !hasInstallments ? 'Fixo' as const : null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -145,7 +152,7 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
           const newTransactions: Omit<Transaction, 'id'>[] = [];
           const newIncomes: Omit<Income, 'id'>[] = [];
           const baseIncomes = state.getMonthIncomes(monthKey);
-          const baseFixos = state.getMonthTransactions(monthKey).filter(t => t.category === 'Fixos' || t.recurrency === 'Fixo');
+          const baseFixos = state.getMonthTransactions(monthKey).filter(isFixedTransaction);
           
           const amountPerInstallment = Math.floor((numAmount / total) * 100) / 100;
           const remainder = numAmount - (amountPerInstallment * total);
@@ -184,7 +191,7 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
             // Para meses futuros criados e vazios, copia custos fixos e salários para facilitar o planejamento
             if (offset > 0) {
               const futureIncomes = state.getMonthIncomes(targetMonthKey);
-              const futureFixos = state.getMonthTransactions(targetMonthKey).filter(t => t.category === 'Fixos' || t.recurrency === 'Fixo');
+              const futureFixos = state.getMonthTransactions(targetMonthKey).filter(isFixedTransaction);
                
               if (futureIncomes.length === 0 && futureFixos.length === 0) {
                 for (const inc of baseIncomes) {
@@ -198,16 +205,7 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
                   }
                 }
                 for (const fixo of baseFixos) {
-                  newTransactions.push({ 
-                    name: fixo.name, 
-                    amount: fixo.amount, 
-                    category: fixo.category, 
-                    subcategory: fixo.subcategory || null,
-                    transactionType: 'expense',
-                    nature: null,
-                    recurrency: null,
-                    monthKey: targetMonthKey 
-                  });
+                  newTransactions.push(copyFixedToMonth(fixo, targetMonthKey));
                 }
               }
             }
@@ -225,7 +223,7 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
             subcategory: finalSubcategory,
             transactionType: 'expense' as const,
             nature: null,
-            recurrency: null,
+            recurrency: fixedRecurrency,
             paymentMethod: finalPaymentMethod,
             monthKey,
             installments: installments.trim() || null,
@@ -294,7 +292,7 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
               subcategory: finalSubcategory,
               transactionType: 'expense',
               nature: null,
-              recurrency: null,
+              recurrency: fixedRecurrency,
               paymentMethod: finalPaymentMethod,
               monthKey,
               installments: installments.trim() || null,
@@ -315,7 +313,7 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
           subcategory: investmentAsset,
           transactionType: 'investment' as const,
           nature: null,
-          recurrency: null,
+          recurrency: fixedRecurrency,
           paymentMethod: null,
           monthKey,
           installments: null,
@@ -329,7 +327,8 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
 
         if (goalId) {
           try {
-            await contributeToSharedGoal(goalId, transactionData);
+            // a marcação de fixo vale só para quem lançou: o dono da meta não deve copiá-la todo mês
+            await contributeToSharedGoal(goalId, { ...transactionData, recurrency: null });
           } catch (err) {
             // o lançamento já está salvo aqui: avisar em vez de pedir para tentar de novo (duplicaria)
             alert(`O investimento foi salvo, mas não entrou na meta compartilhada. ${err instanceof Error ? err.message : err}`);
@@ -777,6 +776,16 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
               </select>
             </div>
           </div>
+
+          {movementType !== 'income' && (
+            <FixedToggle
+              checked={isFixed}
+              onChange={setIsFixed}
+              disabled={isSubmitting}
+              hasInstallments={hasInstallments}
+              label={movementType === 'investment' ? 'Investimento fixo' : 'Despesa fixa'}
+            />
+          )}
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0', marginBottom: 16 }}>
             <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>

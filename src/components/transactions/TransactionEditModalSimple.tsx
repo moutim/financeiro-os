@@ -8,6 +8,8 @@ import { SIMPLE_TAXONOMY } from '@/lib/taxonomy';
 import { formatMask, parseMask } from '@/lib/currency';
 import { useSwipeToClose } from '@/hooks/useSwipeToClose';
 import { triggerSuccessConfetti } from '@/lib/confetti';
+import { isFixedTransaction, copyFixedToMonth, hasRepeatingInstallments, LEGACY_FIXED_CATEGORY } from '@/lib/fixedTransactions';
+import FixedToggle from './FixedToggle';
 
 const CATEGORIES = CATEGORY_NAMES as Category[];
 
@@ -34,9 +36,11 @@ export default function TransactionEditModalSimple({ transaction, onClose }: Tra
   // Transações lançadas no modo detalhado aparecem com a categoria simples
   // equivalente. Se o usuário não trocar a categoria, a Macro › Micro original
   // é preservada; se trocar, a micro deixa de fazer sentido e é limpa.
+  // A categoria legada "Fixos" não é preservada: ao salvar, vira a categoria exibida.
   const initialCategory = SIMPLE_TAXONOMY.normalize(transaction).category;
   const [category, setCategory] = useState<Category>(initialCategory);
-  const categoryFields = category === initialCategory
+  const keepOriginalCategory = category === initialCategory && transaction.category !== LEGACY_FIXED_CATEGORY;
+  const categoryFields = keepOriginalCategory
     ? { category: transaction.category, subcategory: transaction.subcategory ?? null }
     : { category, subcategory: null };
   const [cardId, setCardId] = useState(transaction.cardId || '');
@@ -48,9 +52,12 @@ export default function TransactionEditModalSimple({ transaction, onClose }: Tra
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPaid, setIsPaid] = useState(transaction.isPaid || false);
+  const [isFixed, setIsFixed] = useState(isFixedTransaction(transaction));
   const swipeToClose = useSwipeToClose(onClose);
 
   const hasSubTxs = subTransactions.length > 0;
+  const hasInstallments = hasRepeatingInstallments(hasSubTxs ? null : installments, subTransactions);
+  const fixedRecurrency = isFixed && !hasInstallments ? 'Fixo' as const : null;
   const totalSubAmount = subTransactions.reduce((acc, sub) => acc + (parseInt(sub.rawAmount || '0', 10) / 100), 0);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -89,7 +96,7 @@ export default function TransactionEditModalSimple({ transaction, onClose }: Tra
         let firstInstallment: Partial<Omit<Transaction, 'id'>> | null = null;
         const state = useFinanceStore.getState();
         const baseIncomes = state.getMonthIncomes(transaction.monthKey);
-        const baseFixos = state.getMonthTransactions(transaction.monthKey).filter(t => t.category === 'Fixos');
+        const baseFixos = state.getMonthTransactions(transaction.monthKey).filter(isFixedTransaction);
         
         const amountPerInstallment = hasValidSubTxs ? 0 : numAmount;
 
@@ -126,7 +133,8 @@ export default function TransactionEditModalSimple({ transaction, onClose }: Tra
               subTransactions: currentSubs,
               isPaid,
               cardId: cardId || null,
-              installments: installmentLabel
+              installments: installmentLabel,
+              recurrency: fixedRecurrency,
             };
           } else {
             newTransactions.push({
@@ -142,7 +150,7 @@ export default function TransactionEditModalSimple({ transaction, onClose }: Tra
             });
 
             const futureIncomes = state.getMonthIncomes(nextMonthKey);
-            const futureFixos = state.getMonthTransactions(nextMonthKey).filter(t => t.category === 'Fixos');
+            const futureFixos = state.getMonthTransactions(nextMonthKey).filter(isFixedTransaction);
             if (futureIncomes.length === 0 && futureFixos.length === 0) {
               for (const inc of baseIncomes) {
                 newIncomes.push({ 
@@ -150,9 +158,7 @@ export default function TransactionEditModalSimple({ transaction, onClose }: Tra
                 });
               }
               for (const fixo of baseFixos) {
-                newTransactions.push({ 
-                  name: fixo.name, amount: fixo.amount, category: fixo.category, monthKey: nextMonthKey 
-                });
+                newTransactions.push(copyFixedToMonth(fixo, nextMonthKey));
               }
             }
           }
@@ -174,7 +180,8 @@ export default function TransactionEditModalSimple({ transaction, onClose }: Tra
           subTransactions: currentSubs,
           isPaid,
           cardId: cardId || null,
-          installments: installments || null
+          installments: installments || null,
+          recurrency: fixedRecurrency,
         });
       }
       
@@ -343,6 +350,13 @@ export default function TransactionEditModalSimple({ transaction, onClose }: Tra
               </div>
             )}
           </div>
+
+          <FixedToggle
+            checked={isFixed}
+            onChange={setIsFixed}
+            disabled={isSubmitting}
+            hasInstallments={hasInstallments}
+          />
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', marginBottom: 16 }}>
             <div>

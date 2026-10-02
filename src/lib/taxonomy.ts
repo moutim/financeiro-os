@@ -11,6 +11,7 @@ import {
   isValidMicroForMacro,
   migrateTransactionCategory,
 } from '@/lib/detailedCategories';
+import { LEGACY_FIXED_CATEGORY } from '@/lib/fixedTransactions';
 
 /**
  * Taxonomia de categorias por modo.
@@ -60,7 +61,12 @@ const DETAILED_MICRO_TO_SIMPLE: Record<string, Record<string, string>> = {
 };
 
 function toSimpleCategory(t: Transaction): string {
-  if (t.recurrency === 'Fixo') return 'Fixos';
+  // "Fixos" deixou de ser categoria (virou a marcação de fixo): linhas antigas
+  // aparecem com a categoria real inferida pelo nome, como no modo detalhado
+  if (t.category === LEGACY_FIXED_CATEGORY) {
+    const migrated = migrateTransactionCategory(t.category, t.subcategory, t.name);
+    return toSimpleCategory({ ...t, category: migrated.macro, subcategory: migrated.micro });
+  }
   // micro antes do nome da categoria: "Cuidados pessoais" existe nos dois modos,
   // mas Cuidados pessoais › Roupas deve aparecer como Roupas
   const byMicro = t.subcategory ? DETAILED_MICRO_TO_SIMPLE[t.category]?.[t.subcategory] : undefined;

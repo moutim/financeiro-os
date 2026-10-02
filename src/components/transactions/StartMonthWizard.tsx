@@ -5,6 +5,8 @@ import { useFinanceStore } from '@/lib/store';
 import { monthKeyToLabel, formatMask, parseMask } from '@/lib/currency';
 import { Trash2 } from 'lucide-react';
 import { useSwipeToClose } from '@/hooks/useSwipeToClose';
+import { isFixedTransaction, copyFixedToMonth } from '@/lib/fixedTransactions';
+import type { Transaction } from '@/lib/types';
 
 interface StartMonthWizardProps {
   onClose: () => void;
@@ -27,7 +29,7 @@ export default function StartMonthWizard({ onClose, targetMonth }: StartMonthWiz
   const prevMonth = getPrevMonth(targetMonth);
 
   const [incomes, setIncomes] = useState<{ id: string; name: string; amount: string; isRecurring?: boolean }[]>([]);
-  const [expenses, setExpenses] = useState<{ id: string; name: string; amount: string }[]>([]);
+  const [expenses, setExpenses] = useState<{ id: string; name: string; amount: string; source: Transaction }[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const swipeToClose = useSwipeToClose(onClose);
 
@@ -46,11 +48,11 @@ export default function StartMonthWizard({ onClose, targetMonth }: StartMonthWiz
     
     const combinedIncomes = [...prevIncomes, ...Array.from(recurringMap.values())];
 
-    // Apenas despesas "Fixos" do mês anterior
-    const prevExpenses = getMonthTransactions(prevMonth).filter(t => t.category === 'Fixos');
+    // Apenas transações marcadas como fixas no mês anterior
+    const prevExpenses = getMonthTransactions(prevMonth).filter(isFixedTransaction);
 
     setIncomes(combinedIncomes.map(i => ({ id: i.id, name: i.name, amount: String(Math.round(i.amount * 100)), isRecurring: i.isRecurring })));
-    setExpenses(prevExpenses.map(e => ({ id: e.id, name: e.name, amount: String(Math.round(e.amount * 100)) })));
+    setExpenses(prevExpenses.map(e => ({ id: e.id, name: e.name, amount: String(Math.round(e.amount * 100)), source: e })));
   }, [prevMonth, targetMonth, getMonthIncomes, getMonthTransactions]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -66,12 +68,8 @@ export default function StartMonthWizard({ onClose, targetMonth }: StartMonthWiz
       for (const exp of expenses) {
         const numAmount = parseInt(exp.amount || '0', 10) / 100;
         if (isNaN(numAmount) || numAmount <= 0) continue;
-        await addTransaction({
-          name: exp.name.trim(),
-          amount: numAmount,
-          category: 'Fixos',
-          monthKey: targetMonth,
-        });
+        // mantém categoria, cartão e a marcação de fixo da transação original
+        await addTransaction(copyFixedToMonth(exp.source, targetMonth, numAmount));
       }
       onClose();
     } catch (err) {

@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Inbox, Trash2, Pencil, Check } from 'lucide-react';
+import { Inbox, Trash2, Pencil, Check, Repeat } from 'lucide-react';
 
 import type { Transaction } from '@/lib/types';
 import { useCategoryTaxonomy } from '@/lib/taxonomy';
+import { isFixedTransaction } from '@/lib/fixedTransactions';
 import { formatCurrency } from '@/lib/currency';
 import { useFinanceStore } from '@/lib/store';
 import TransactionEditModal from './TransactionEditModal';
@@ -40,18 +41,17 @@ export default function TransactionList({ transactions, showDelete = true, maxHe
   }
 
   // `view` traz a categoria no formato do modo atual (só exibição); `tx` segue
-  // original para edição e exclusão.
+  // original para edição e exclusão. Fixos primeiro, depois por categoria.
   const sortedRows = transactions
-    .map((tx) => ({ tx, view: taxonomy.normalize(tx) }))
-    .sort(({ view: a }, { view: b }) => {
-      if (a.category === 'Fixos' && b.category !== 'Fixos') return -1;
-      if (a.category !== 'Fixos' && b.category === 'Fixos') return 1;
-      if (a.category < b.category) return -1;
-      if (a.category > b.category) return 1;
+    .map((tx) => ({ tx, view: taxonomy.normalize(tx), isFixed: isFixedTransaction(tx) }))
+    .sort((a, b) => {
+      if (a.isFixed !== b.isFixed) return a.isFixed ? -1 : 1;
+      if (a.view.category < b.view.category) return -1;
+      if (a.view.category > b.view.category) return 1;
       return 0;
     });
 
-  const rows = sortedRows.map(({ tx, view }, i) => {
+  const rows = sortedRows.map(({ tx, view, isFixed }, i) => {
     const cfg = taxonomy.getConfig(view.category);
     return (
       <div
@@ -121,6 +121,27 @@ export default function TransactionList({ transactions, showDelete = true, maxHe
                         {inst}
                       </span>
                     )}
+                    {isFixed && (
+                      <span
+                        title="Transação fixa: repete todo mês"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 3,
+                          fontSize: 10,
+                          fontWeight: 700,
+                          background: 'var(--orange-light)',
+                          color: 'var(--orange)',
+                          padding: '2px 6px',
+                          borderRadius: 4,
+                          marginLeft: 6,
+                          flexShrink: 0
+                        }}
+                      >
+                        <Repeat size={10} strokeWidth={2.5} />
+                        Fixo
+                      </span>
+                    )}
                     {tx.isPaid && (
                       <Check size={14} color="var(--green)" style={{ marginLeft: 4, flexShrink: 0 }} />
                     )}
@@ -133,11 +154,6 @@ export default function TransactionList({ transactions, showDelete = true, maxHe
               <span className="transaction-category-label">
                 {cfg.label}{view.subcategory && view.subcategory !== cfg.label ? ` › ${view.subcategory}` : ''}
               </span>
-              {taxonomy.mode === 'detailed' && view.recurrency === 'Fixo' && (
-                <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', background: 'var(--bg-2)', padding: '1px 5px', borderRadius: 4, marginLeft: 2, flexShrink: 0 }}>
-                  Fixo
-                </span>
-              )}
             </span>
           </div>
               

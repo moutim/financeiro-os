@@ -2,6 +2,7 @@
 
 import { create } from 'zustand';
 import type { Transaction, Income, Pending, SavingsGoal, Category, CreditCard } from '@/lib/types';
+import { isFixedTransaction } from '@/lib/fixedTransactions';
 
 const now = new Date();
 export const CURRENT_MONTH_KEY =`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -509,7 +510,7 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
       .filter((t) => t.category === 'Investimentos' || t.transactionType === 'investment')
       .reduce((s, t) => s + t.amount, 0);
     const totalFixed = transactions
-      .filter((t) => t.category === 'Fixos' || t.recurrency === 'Fixo')
+      .filter(isFixedTransaction)
       .reduce((s, t) => s + t.amount, 0);
     const totalFood = transactions
       .filter((t) => t.category === 'Comida' || t.category === 'Alimentação')

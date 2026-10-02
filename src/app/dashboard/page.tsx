@@ -2,7 +2,7 @@
 
 import {
   AlertTriangle, Wallet, TrendingDown, TrendingUp, CheckCircle, Pencil, Trash2, Check,
-  ChartPie, HandCoins, Banknote, ReceiptText, ListTree, ClipboardList,
+  ChartPie, HandCoins, Banknote, ReceiptText, ListTree, ClipboardList, Plus,
 } from 'lucide-react';
 
 import { useState, useEffect } from 'react';
@@ -18,6 +18,7 @@ import StartMonthWizard from '@/components/transactions/StartMonthWizard';
 import IncomeEditModal from '@/components/transactions/IncomeEditModal';
 import IncomeDeleteModal from '@/components/transactions/IncomeDeleteModal';
 import WelcomeTourModal from '@/components/ui/WelcomeTourModal';
+import InstallAppSheet from '@/components/ui/InstallAppSheet';
 import SpendingDonut from '@/components/charts/SpendingDonut';
 import MonthlyBar from '@/components/charts/MonthlyBar';
 import CategoryBadge from '@/components/ui/CategoryBadge';
@@ -25,8 +26,9 @@ import MonthSummaryList from '@/components/dashboard/MonthSummaryList';
 import SpendingTree from '@/components/dashboard/SpendingTree';
 import ScrollArea from '@/components/ui/ScrollArea';
 import { useFinanceStore } from '@/lib/store';
-import { useIsDetailedMode } from '@/lib/appConfigStore';
+import { useIsDetailedMode, useAppConfigStore } from '@/lib/appConfigStore';
 import { monthKeyToLabel, formatCurrency } from '@/lib/currency';
+import { isFixedTransaction } from '@/lib/fixedTransactions';
 import type { Category, Income } from '@/lib/types';
 
 /** Altura máxima das listas longas (Transações, Análise de Gastos); o excedente rola dentro do card */
@@ -55,27 +57,29 @@ export default function DashboardPage() {
     availableMonths,
   } = useFinanceStore();
   const isDetailed = useIsDetailedMode();
+  const hasSeenWelcomeTour = useAppConfigStore((s) => s.hasSeenWelcomeTour);
+  const markWelcomeTourSeen = useAppConfigStore((s) => s.markWelcomeTourSeen);
 
   // Evaluate conditions for the welcome tour
   const allTx = getMonthTransactions(selectedMonth);
   const allInc = getMonthIncomes(selectedMonth);
   const isMonthEmpty = allTx.length === 0 && allInc.length === 0;
   const hasPastMonths = availableMonths.some(m => m < selectedMonth);
+  const isWelcomeTourPending = isMonthEmpty && !hasPastMonths && hasSeenWelcomeTour === false;
 
-  // Tour para novos usuários
+  // Tour para novos usuários (a marcação de "já viu" vem da aba _Config da planilha)
   useEffect(() => {
     if (loadingState === 'success' && isMonthEmpty && !hasPastMonths) {
-      const hasSeenTour = localStorage.getItem('@financeiro-os:hasSeenWelcomeTour');
-      
-      if (!hasSeenTour) {
+      // null: a planilha ainda não respondeu
+      if (hasSeenWelcomeTour === false) {
         setShowWelcomeTour(true);
-      } else {
+      } else if (hasSeenWelcomeTour) {
         setShowFabTooltip(true);
       }
     } else {
       setShowFabTooltip(false);
     }
-  }, [loadingState, isMonthEmpty, hasPastMonths]);
+  }, [loadingState, isMonthEmpty, hasPastMonths, hasSeenWelcomeTour]);
 
   // ── Loading / Error states ─────────────────────────────────────────────
   if (loadingState === 'loading' || loadingState === 'idle') {
@@ -125,7 +129,7 @@ export default function DashboardPage() {
   // Consideramos que o mês precisa de configuração (exibir o banner) se ele não tem NENHUMA entrada recorrente E nenhuma despesa Fixa.
   // Isso permite que o banner apareça mesmo que o mês já tenha recebido algumas parcelas de compras do passado!
   const hasNoRecurring = salarios.length === 0;
-  const hasNoFixed = allTransactions.filter(t => t.category === 'Fixos' || t.recurrency === 'Fixo').length === 0;
+  const hasNoFixed = !allTransactions.some(isFixedTransaction);
   const hasPreviousMonths = availableMonths.some(m => m < selectedMonth);
   const isMonthMissingSetup = hasNoRecurring && hasNoFixed && hasPreviousMonths;
   const isCompletelyEmpty = allTransactions.length === 0 && allIncomes.length === 0;
@@ -406,7 +410,7 @@ export default function DashboardPage() {
         onClick={() => setShowForm(true)} 
         aria-label="Nova transação"
       >
-        +
+        <Plus size={24} strokeWidth={2.5} />
       </button>
 
       {showFabTooltip && (
@@ -438,11 +442,20 @@ export default function DashboardPage() {
       
       {showWelcomeTour && (
         <WelcomeTourModal onClose={() => {
-          localStorage.setItem('@financeiro-os:hasSeenWelcomeTour', 'true');
           setShowWelcomeTour(false);
-          setTimeout(() => setShowFabTooltip(true), 1000);
+          // o efeito do tour exibe o tooltip do + quando a marcação muda
+          markWelcomeTourSeen();
         }} />
       )}
+
+      {/* Sugere instalar o app; espera o tour de boas-vindas e não abre por cima de outro modal */}
+      <InstallAppSheet
+        placement="dashboard"
+        enabled={
+          hasSeenWelcomeTour !== null && !isWelcomeTourPending && !showWelcomeTour &&
+          !showForm && !showWizard && !showDeleteConfirm && !editingIncome && !deletingIncome
+        }
+      />
 
       {showDeleteConfirm && (
         <div className="modal-overlay animate-fade-in" onClick={!isDeletingMonth ? () => setShowDeleteConfirm(false) : undefined}>

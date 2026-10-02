@@ -7,6 +7,8 @@ import { useFinanceStore } from '@/lib/store';
 import { CATEGORY_NAMES } from '@/lib/categories';
 import { monthKeyToLabel, formatMask, parseMask } from '@/lib/currency';
 import { useSwipeToClose } from '@/hooks/useSwipeToClose';
+import { isFixedTransaction, copyFixedToMonth, hasRepeatingInstallments } from '@/lib/fixedTransactions';
+import FixedToggle from './FixedToggle';
 
 const CATEGORIES = CATEGORY_NAMES as Category[];
 
@@ -28,10 +30,13 @@ export default function TransactionFormSimple({ onClose }: TransactionFormProps)
   const [subTransactions, setSubTransactions] = useState<{name: string, rawAmount: string, installments: string}[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPaid, setIsPaid] = useState(false);
+  const [isFixed, setIsFixed] = useState(false);
 
   const swipeToClose = useSwipeToClose(onClose);
 
   const hasSubTxs = subTransactions.length > 0;
+  const hasInstallments = hasRepeatingInstallments(hasSubTxs ? null : installments, subTransactions);
+  const fixedRecurrency = isFixed && !hasInstallments ? 'Fixo' as const : null;
   const totalSubAmount = subTransactions.reduce((acc, sub) => {
     const amt = parseInt(sub.rawAmount || '0', 10) / 100;
     return acc + amt; // O usuário insere o valor total, a divisão ocorre na submissão
@@ -98,7 +103,7 @@ export default function TransactionFormSimple({ onClose }: TransactionFormProps)
           const newIncomes: Omit<Income, 'id'>[] = [];
           const state = useFinanceStore.getState();
           const baseIncomes = state.getMonthIncomes(monthKey);
-          const baseFixos = state.getMonthTransactions(monthKey).filter(t => t.category === 'Fixos');
+          const baseFixos = state.getMonthTransactions(monthKey).filter(isFixedTransaction);
           
           let amountPerInstallment = 0;
           let firstInstallmentAmount = 0;
@@ -146,7 +151,7 @@ export default function TransactionFormSimple({ onClose }: TransactionFormProps)
 
             if (i > 0) {
               const futureIncomes = state.getMonthIncomes(nextMonthKey);
-              const futureFixos = state.getMonthTransactions(nextMonthKey).filter(t => t.category === 'Fixos');
+              const futureFixos = state.getMonthTransactions(nextMonthKey).filter(isFixedTransaction);
                
               if (futureIncomes.length === 0 && futureFixos.length === 0) {
                 for (const inc of baseIncomes) {
@@ -158,12 +163,7 @@ export default function TransactionFormSimple({ onClose }: TransactionFormProps)
                   });
                 }
                 for (const fixo of baseFixos) {
-                  newTransactions.push({ 
-                    name: fixo.name, 
-                    amount: fixo.amount, 
-                    category: fixo.category, 
-                    monthKey: nextMonthKey 
-                  });
+                  newTransactions.push(copyFixedToMonth(fixo, nextMonthKey));
                 }
               }
             }
@@ -186,6 +186,7 @@ export default function TransactionFormSimple({ onClose }: TransactionFormProps)
             cardId: cardId || null,
             subTransactions: currentSubs,
             isPaid,
+            recurrency: fixedRecurrency,
           };
           
           await addTransaction(transactionData);
@@ -193,7 +194,8 @@ export default function TransactionFormSimple({ onClose }: TransactionFormProps)
           // If the goal is shared, we must also write this transaction to the owner's spreadsheet
           if (goalId && category === 'Investimentos') {
             try {
-              await contributeToSharedGoal(goalId, transactionData);
+              // a marcação de fixo vale só para quem lançou: o dono da meta não deve copiá-la todo mês
+              await contributeToSharedGoal(goalId, { ...transactionData, recurrency: null });
             } catch (err) {
               // o lançamento já está salvo aqui: avisar em vez de pedir para tentar de novo (duplicaria)
               alert(`O investimento foi salvo, mas não entrou na meta compartilhada. ${err instanceof Error ? err.message : err}`);
@@ -545,6 +547,15 @@ export default function TransactionFormSimple({ onClose }: TransactionFormProps)
               </div>
             )}
           </div>
+
+          {type === 'expense' && (
+            <FixedToggle
+              checked={isFixed}
+              onChange={setIsFixed}
+              disabled={isSubmitting}
+              hasInstallments={hasInstallments}
+            />
+          )}
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0', marginBottom: 16 }}>
             <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>{type === 'expense' ? 'Marcar como pago' : 'Marcar como recebido'}</div>

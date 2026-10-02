@@ -1,7 +1,6 @@
 import type { CategoryConfig } from '@/lib/types';
 import { 
   ShoppingBag, 
-  Paperclip, 
   Utensils, 
   TrendingUp, 
   Activity, 
@@ -35,12 +34,6 @@ export const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
     color: '#3D5A80',
     bgColor: 'rgba(61,90,128,0.12)',
     icon: Shirt,
-  },
-  Fixos: {
-    label: 'Fixos',
-    color: '#FF9500',
-    bgColor: 'rgba(255,149,0,0.12)',
-    icon: Paperclip,
   },
   Comida: {
     label: 'Comida',
