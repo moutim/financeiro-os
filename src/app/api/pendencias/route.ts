@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
+import { newRowId } from '@/lib/sheetRows';
 import { SHEET_TABS } from '@/lib/sheets';
 import { rowToPending, pendingToRow } from '@/lib/parsers';
 import { readUserTab, appendUserRow } from '@/lib/user-sheets-helpers';
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json() as Omit<Pending, 'id'>;
-    const id = `pend-${Date.now()}`;
+    const id = newRowId('pend');
     const pending: Pending = { ...body, id };
     await appendUserRow(session.accessToken, session.spreadsheetId, SHEET_TABS.PENDENCIAS, pendingToRow(pending));
     return NextResponse.json(pending, { status: 201 });

@@ -67,37 +67,22 @@ export default function IncomeDeleteModal({ income, onClose }: IncomeDeleteModal
           Essa ação não pode ser desfeita.
         </p>
 
-        <div style={{ display: 'flex', gap: 12 }}>
+        <div style={{ display: 'flex', gap: 10 }}>
           <button
             type="button"
             className="btn-ghost"
             onClick={onClose}
             disabled={isDeleting}
-            style={{ flex: 1, padding: '14px', opacity: isDeleting ? 0.5 : 1 }}
+            style={{ flex: 1, justifyContent: 'center', padding: '14px', opacity: isDeleting ? 0.5 : 1 }}
           >
             Cancelar
           </button>
           <button
             type="button"
+            className="btn-primary btn-destructive"
             onClick={handleDelete}
             disabled={isDeleting}
-            style={{
-              flex: 1,
-              padding: '14px',
-              background: 'var(--red)',
-              color: 'white',
-              border: 'none',
-              borderRadius: 14,
-              fontWeight: 600,
-              fontSize: 15,
-              cursor: isDeleting ? 'not-allowed' : 'pointer',
-              opacity: isDeleting ? 0.6 : 1,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8,
-              transition: 'opacity 0.15s ease',
-            }}
+            style={{ flex: 2, justifyContent: 'center', padding: '14px', opacity: isDeleting ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: 8 }}
           >
             {isDeleting && <div className="btn-spinner" />}
             {isDeleting ? 'Removendo...' : 'Remover'}

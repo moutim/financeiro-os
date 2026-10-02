@@ -109,6 +109,7 @@ export async function appendRow(tab: string, values: (string | number | null)[])
     spreadsheetId,
     range: `${tab}!A1`,
     valueInputOption: 'USER_ENTERED',
+    insertDataOption: 'INSERT_ROWS',
     requestBody: { values: [values] },
   });
 }

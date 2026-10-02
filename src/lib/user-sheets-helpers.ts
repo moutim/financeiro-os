@@ -14,6 +14,9 @@ export async function readUserTab(
   return (res.data.values ?? []) as string[][];
 }
 
+// INSERT_ROWS: o padrão (OVERWRITE) escreve na "próxima linha livre", e dois appends
+// simultâneos podiam escolher a mesma linha, um apagando o outro
+
 /** Append de uma linha */
 export async function appendUserRow(
   accessToken: string,
@@ -26,6 +29,7 @@ export async function appendUserRow(
     spreadsheetId,
     range: `${tab}!A1`,
     valueInputOption: 'USER_ENTERED',
+    insertDataOption: 'INSERT_ROWS',
     requestBody: { values: [values] },
   });
 }
@@ -43,6 +47,7 @@ export async function appendUserRows(
     spreadsheetId,
     range: `${tab}!A1`,
     valueInputOption: 'USER_ENTERED',
+    insertDataOption: 'INSERT_ROWS',
     requestBody: { values },
   });
 }

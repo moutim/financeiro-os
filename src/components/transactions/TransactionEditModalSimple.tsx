@@ -2,14 +2,14 @@
 import { useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { useFinanceStore } from '@/lib/store';
-import type { Category, Transaction } from '@/lib/types';
-import { CATEGORY_CONFIG } from '@/lib/categories';
+import type { Category, Income, Transaction } from '@/lib/types';
+import { CATEGORY_NAMES } from '@/lib/categories';
 import { SIMPLE_TAXONOMY } from '@/lib/taxonomy';
 import { formatMask, parseMask } from '@/lib/currency';
 import { useSwipeToClose } from '@/hooks/useSwipeToClose';
 import { triggerSuccessConfetti } from '@/lib/confetti';
 
-const CATEGORIES = Object.keys(CATEGORY_CONFIG) as Category[];
+const CATEGORIES = CATEGORY_NAMES as Category[];
 
 // Helper: adiciona N meses a uma chave 'YYYY-MM'
 function addMonths(monthKey: string, add: number): string {
@@ -28,7 +28,7 @@ interface TransactionEditModalProps {
 }
 
 export default function TransactionEditModalSimple({ transaction, onClose }: TransactionEditModalProps) {
-  const { updateTransaction, addTransaction, addIncome, cards } = useFinanceStore();
+  const { updateTransaction, addEntriesBatch, cards } = useFinanceStore();
   const [name, setName] = useState(transaction.name);
   const [rawAmount, setRawAmount] = useState(String(Math.round(Math.abs(transaction.amount) * 100)));
   // Transações lançadas no modo detalhado aparecem com a categoria simples
@@ -84,7 +84,9 @@ export default function TransactionEditModalSimple({ transaction, onClose }: Tra
     setIsSubmitting(true);
     try {
       if (maxMonths > 1) {
-        const promises = [];
+        const newTransactions: Omit<Transaction, 'id'>[] = [];
+        const newIncomes: Omit<Income, 'id'>[] = [];
+        let firstInstallment: Partial<Omit<Transaction, 'id'>> | null = null;
         const state = useFinanceStore.getState();
         const baseIncomes = state.getMonthIncomes(transaction.monthKey);
         const baseFixos = state.getMonthTransactions(transaction.monthKey).filter(t => t.category === 'Fixos');
@@ -117,7 +119,7 @@ export default function TransactionEditModalSimple({ transaction, onClose }: Tra
           const installmentLabel = maxMonths > 1 && !hasValidSubTxs ? `${i + 1}/${maxMonths}` : null;
 
           if (i === 0) {
-            promises.push(updateTransaction(transaction.id, {
+            firstInstallment = {
               name: name.trim(),
               amount: currentParentAmount,
               ...categoryFields,
@@ -125,9 +127,9 @@ export default function TransactionEditModalSimple({ transaction, onClose }: Tra
               isPaid,
               cardId: cardId || null,
               installments: installmentLabel
-            }));
+            };
           } else {
-            promises.push(addTransaction({
+            newTransactions.push({
               name: name.trim(),
               amount: currentParentAmount,
               ...categoryFields,
@@ -137,25 +139,27 @@ export default function TransactionEditModalSimple({ transaction, onClose }: Tra
               cardId: cardId || null,
               subTransactions: currentSubs,
               isPaid: false,
-            }));
+            });
 
             const futureIncomes = state.getMonthIncomes(nextMonthKey);
             const futureFixos = state.getMonthTransactions(nextMonthKey).filter(t => t.category === 'Fixos');
             if (futureIncomes.length === 0 && futureFixos.length === 0) {
               for (const inc of baseIncomes) {
-                promises.push(addIncome({ 
+                newIncomes.push({ 
                   name: inc.name, amount: inc.amount, monthKey: nextMonthKey, isRecurring: inc.isRecurring 
-                }));
+                });
               }
               for (const fixo of baseFixos) {
-                promises.push(addTransaction({ 
+                newTransactions.push({ 
                   name: fixo.name, amount: fixo.amount, category: fixo.category, monthKey: nextMonthKey 
-                }));
+                });
               }
             }
           }
         }
-        await Promise.all(promises);
+        // em sequência: nunca duas gravações simultâneas na planilha
+        if (firstInstallment) await updateTransaction(transaction.id, firstInstallment);
+        await addEntriesBatch({ transactions: newTransactions, incomes: newIncomes });
       } else {
         const currentSubs = hasValidSubTxs ? parsedSubTxs.map(s => ({
           name: s.name,

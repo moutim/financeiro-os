@@ -2,20 +2,20 @@
 
 import { useState } from 'react';
 import { Banknote, Sparkles, Trash2 } from 'lucide-react';
-import type { Category } from '@/lib/types';
+import type { Category, Income, Transaction } from '@/lib/types';
 import { useFinanceStore } from '@/lib/store';
-import { CATEGORY_CONFIG } from '@/lib/categories';
+import { CATEGORY_NAMES } from '@/lib/categories';
 import { monthKeyToLabel, formatMask, parseMask } from '@/lib/currency';
 import { useSwipeToClose } from '@/hooks/useSwipeToClose';
 
-const CATEGORIES = Object.keys(CATEGORY_CONFIG) as Category[];
+const CATEGORIES = CATEGORY_NAMES as Category[];
 
 interface TransactionFormProps {
   onClose: () => void;
 }
 
 export default function TransactionFormSimple({ onClose }: TransactionFormProps) {
-  const { addTransaction, addIncome, selectedMonth, goals, availableMonths, cards } = useFinanceStore();
+  const { addTransaction, addIncome, addEntriesBatch, selectedMonth, goals, availableMonths, cards } = useFinanceStore();
   const [name, setName] = useState('');
   const [rawDigits, setRawDigits] = useState(''); // apenas dígitos, ex: "123456" = R$ 1.234,56
   const [category, setCategory] = useState<Category>('Compras');
@@ -94,7 +94,8 @@ export default function TransactionFormSimple({ onClose }: TransactionFormProps)
         }
 
         if (maxMonths > 1) {
-          const promises = [];
+          const newTransactions: Omit<Transaction, 'id'>[] = [];
+          const newIncomes: Omit<Income, 'id'>[] = [];
           const state = useFinanceStore.getState();
           const baseIncomes = state.getMonthIncomes(monthKey);
           const baseFixos = state.getMonthTransactions(monthKey).filter(t => t.category === 'Fixos');
@@ -131,7 +132,7 @@ export default function TransactionFormSimple({ onClose }: TransactionFormProps)
               }
             }
 
-            promises.push(addTransaction({
+            newTransactions.push({
               name: name.trim(),
               amount: currentParentAmount,
               category,
@@ -141,7 +142,7 @@ export default function TransactionFormSimple({ onClose }: TransactionFormProps)
               cardId: cardId || null,
               subTransactions: currentSubs,
               isPaid: i === 0 ? isPaid : false,
-            }));
+            });
 
             if (i > 0) {
               const futureIncomes = state.getMonthIncomes(nextMonthKey);
@@ -149,25 +150,25 @@ export default function TransactionFormSimple({ onClose }: TransactionFormProps)
                
               if (futureIncomes.length === 0 && futureFixos.length === 0) {
                 for (const inc of baseIncomes) {
-                  promises.push(addIncome({ 
+                  newIncomes.push({ 
                     name: inc.name, 
                     amount: inc.amount, 
                     monthKey: nextMonthKey, 
                     isRecurring: inc.isRecurring 
-                  }));
+                  });
                 }
                 for (const fixo of baseFixos) {
-                  promises.push(addTransaction({ 
+                  newTransactions.push({ 
                     name: fixo.name, 
                     amount: fixo.amount, 
                     category: fixo.category, 
                     monthKey: nextMonthKey 
-                  }));
+                  });
                 }
               }
             }
           }
-          await Promise.all(promises);
+          await addEntriesBatch({ transactions: newTransactions, incomes: newIncomes });
         } else {
           const currentSubs = hasValidSubTxs ? parsedSubTxs.map(s => ({
             name: s.name,
@@ -211,7 +212,7 @@ export default function TransactionFormSimple({ onClose }: TransactionFormProps)
       } else {
         // Receitas
         if (maxMonths > 1) {
-          const promises = [];
+          const newIncomes: Omit<Income, 'id'>[] = [];
           for (let i = 0; i < maxMonths; i++) {
             const nextMonthKey = addMonths(monthKey, i);
             
@@ -226,17 +227,17 @@ export default function TransactionFormSimple({ onClose }: TransactionFormProps)
             
             if (subsForMonth.length > 0) {
               const currentParentAmount = subsForMonth.reduce((acc, curr) => acc + curr.amount, 0);
-              promises.push(addIncome({
+              newIncomes.push({
                 name: name.trim(),
                 amount: currentParentAmount,
                 monthKey: nextMonthKey,
                 isRecurring: incomeType === 'salary',
                 subTransactions: subsForMonth,
                 isPaid: i === 0 ? isPaid : false,
-              }));
+              });
             }
           }
-          await Promise.all(promises);
+          await addEntriesBatch({ incomes: newIncomes });
         } else {
           const currentSubs = hasValidSubTxs ? parsedSubTxs.map(s => ({
             name: s.name,
@@ -270,16 +271,12 @@ export default function TransactionFormSimple({ onClose }: TransactionFormProps)
         onClick={(e) => e.stopPropagation()}
         style={swipeToClose.style}
       >
-        <div {...swipeToClose.handlers} style={{ paddingBottom: 16, touchAction: 'none' }}>
+        {/* espaçamentos enxutos: com Investimentos (+ Meta Vinculada) a gaveta ainda cabe sem rolagem no desktop */}
+        <div {...swipeToClose.handlers} style={{ paddingBottom: 12, touchAction: 'none' }}>
           <div className="modal-handle" />
-          <div>
-            <h2 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.015em' }}>
-              {type === 'expense' ? 'Nova Saída' : 'Nova Entrada'}
-            </h2>
-            <p style={{ fontSize: 14, color: 'var(--text-tertiary)', marginTop: 2 }}>
-              {type === 'expense' ? 'Adicione um novo gasto ou investimento' : incomeType === 'salary' ? 'Salário ou renda fixa mensal' : 'Dividendos, freelance ou renda extra'}
-            </p>
-          </div>
+          <h2 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.015em' }}>
+            {type === 'expense' ? 'Nova Saída' : 'Nova Entrada'}
+          </h2>
         </div>
 
         <div style={{ display: 'flex', background: 'var(--bg-2)', padding: 4, borderRadius: 8, marginBottom: 16 }}>
@@ -326,7 +323,7 @@ export default function TransactionFormSimple({ onClose }: TransactionFormProps)
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="form-group">
+          <div className="form-group" style={{ marginBottom: 12 }}>
             <label className="form-label">Nome</label>
             <input
               className="form-input"
@@ -359,8 +356,8 @@ export default function TransactionFormSimple({ onClose }: TransactionFormProps)
             />
           </div>
 
-          <div className="form-group" style={{ marginBottom: 16 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <div className="form-group" style={{ marginBottom: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: hasSubTxs ? 8 : 0 }}>
               <label className="form-label" style={{ marginBottom: 0 }}>Sub-transações (opcional)</label>
               <button
                 type="button"
@@ -558,10 +555,8 @@ export default function TransactionFormSimple({ onClose }: TransactionFormProps)
             )}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', marginBottom: 16 }}>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>{type === 'expense' ? 'Marcar como pago' : 'Marcar como recebido'}</div>
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0', marginBottom: 16 }}>
+            <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>{type === 'expense' ? 'Marcar como pago' : 'Marcar como recebido'}</div>
             <button
               type="button"
               onClick={() => setIsPaid(!isPaid)}
@@ -592,7 +587,7 @@ export default function TransactionFormSimple({ onClose }: TransactionFormProps)
             </button>
           </div>
 
-          <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+          <div style={{ display: 'flex', gap: 10 }}>
             <button
               type="button"
               className="btn-ghost"

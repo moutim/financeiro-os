@@ -2,6 +2,7 @@ import type { CategoryConfig, Transaction } from '@/lib/types';
 import { useAppMode, type AppMode } from '@/lib/appConfigStore';
 import {
   CATEGORY_CONFIG as SIMPLE_CONFIG,
+  CATEGORY_NAMES as SIMPLE_CATEGORY_NAMES,
   getCategoryConfig as getSimpleConfig,
 } from '@/lib/categories';
 import {
@@ -55,18 +56,22 @@ const DETAILED_TO_SIMPLE: Record<string, string> = {
 const DETAILED_MICRO_TO_SIMPLE: Record<string, Record<string, string>> = {
   Financeiro: { 'Empréstimos e financiamentos': 'Empréstimos', 'Dívidas e acordos': 'Dívidas' },
   'Família e presentes': { Presentes: 'Presentes' },
+  'Cuidados pessoais': { Roupas: 'Roupas', Calçados: 'Roupas', 'Bolsas e acessórios': 'Roupas' },
 };
 
 function toSimpleCategory(t: Transaction): string {
   if (t.recurrency === 'Fixo') return 'Fixos';
-  if (t.category in SIMPLE_CONFIG) return t.category;
+  // micro antes do nome da categoria: "Cuidados pessoais" existe nos dois modos,
+  // mas Cuidados pessoais › Roupas deve aparecer como Roupas
   const byMicro = t.subcategory ? DETAILED_MICRO_TO_SIMPLE[t.category]?.[t.subcategory] : undefined;
-  return byMicro ?? DETAILED_TO_SIMPLE[t.category] ?? 'Outros';
+  if (byMicro) return byMicro;
+  if (t.category in SIMPLE_CONFIG) return t.category;
+  return DETAILED_TO_SIMPLE[t.category] ?? 'Outros';
 }
 
 export const SIMPLE_TAXONOMY: CategoryTaxonomy = {
   mode: 'simple',
-  categories: Object.keys(SIMPLE_CONFIG),
+  categories: SIMPLE_CATEGORY_NAMES,
   normalize: (t) => ({ ...t, category: toSimpleCategory(t), subcategory: null }),
   getConfig: getSimpleConfig,
 };

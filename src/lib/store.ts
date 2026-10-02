@@ -33,6 +33,11 @@ interface FinanceStore {
   updateTransaction: (id: string, updates: Partial<Omit<Transaction, 'id'>>) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   addIncome: (income: Omit<Income, 'id'>) => Promise<Income>;
+  /** Vários lançamentos numa única gravação (parcelas, cópias para meses futuros) */
+  addEntriesBatch: (batch: {
+    transactions?: Omit<Transaction, 'id'>[];
+    incomes?: Omit<Income, 'id'>[];
+  }) => Promise<{ transactions: Transaction[]; incomes: Income[] }>;
   updateIncome: (id: string, updates: Partial<Omit<Income, 'id'>>) => Promise<void>;
   deleteIncome: (id: string) => Promise<void>;
   addPending: (pending: Omit<Pending, 'id'>) => Promise<Pending>;
@@ -195,6 +200,34 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
     }
     const created = await res.json() as Income;
     set((state) => ({ incomes: [...state.incomes, created] }));
+    return created;
+  },
+
+  // ─── Batch: um único POST em vez de vários em paralelo ───────────────────
+  // Gravações paralelas na mesma aba da planilha podiam se sobrescrever (uma
+  // parcela sumia); a rota de lote grava tudo de uma vez.
+  addEntriesBatch: async ({ transactions = [], incomes = [] }) => {
+    if (transactions.length === 0 && incomes.length === 0) return { transactions: [], incomes: [] };
+    const res = await fetch('/api/transacoes/batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transactions, incomes }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error ?? 'Erro ao salvar os lançamentos');
+    }
+    const created = await res.json() as { transactions: Transaction[]; incomes: Income[] };
+    set((state) => {
+      // meses novos (ex: parcelas futuras) já aparecem no seletor, sem recarregar
+      const months = new Set(state.availableMonths);
+      [...created.transactions, ...created.incomes].forEach((entry) => months.add(entry.monthKey));
+      return {
+        transactions: [...state.transactions, ...created.transactions],
+        incomes: [...state.incomes, ...created.incomes],
+        availableMonths: [...months].sort(),
+      };
+    });
     return created;
   },
 

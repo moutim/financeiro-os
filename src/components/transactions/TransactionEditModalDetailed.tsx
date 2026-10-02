@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { useFinanceStore } from '@/lib/store';
-import type { Transaction } from '@/lib/types';
+import type { Income, Transaction } from '@/lib/types';
 import { 
   EXPENSE_MACROS, 
   getMicrosForMacro, 
@@ -42,7 +42,7 @@ interface TransactionEditModalProps {
 }
 
 export default function TransactionEditModalDetailed({ transaction, onClose }: TransactionEditModalProps) {
-  const { updateTransaction, addTransaction, addIncome, cards, addAvailableMonth } = useFinanceStore();
+  const { updateTransaction, addEntriesBatch, cards, addAvailableMonth } = useFinanceStore();
   const [name, setName] = useState(transaction.name);
   const [rawAmount, setRawAmount] = useState(String(Math.round(Math.abs(transaction.amount) * 100)));
 
@@ -118,7 +118,9 @@ export default function TransactionEditModalDetailed({ transaction, onClose }: T
     setIsSubmitting(true);
     try {
       if (maxMonths > 1) {
-        const promises = [];
+        const newTransactions: Omit<Transaction, 'id'>[] = [];
+        const newIncomes: Omit<Income, 'id'>[] = [];
+        let firstInstallment: Partial<Omit<Transaction, 'id'>> | null = null;
         const state = useFinanceStore.getState();
         const baseIncomes = state.getMonthIncomes(transaction.monthKey);
         const baseFixos = state.getMonthTransactions(transaction.monthKey).filter(t => t.category === 'Fixos' || t.recurrency === 'Fixo');
@@ -154,7 +156,7 @@ export default function TransactionEditModalDetailed({ transaction, onClose }: T
           const finalPaymentMethod = cardId ? ('Crédito' as const) : null;
 
           if (i === 0) {
-            promises.push(updateTransaction(transaction.id, {
+            firstInstallment = {
               name: name.trim(),
               amount: currentParentAmount,
               category: macro,
@@ -167,9 +169,9 @@ export default function TransactionEditModalDetailed({ transaction, onClose }: T
               isPaid,
               cardId: cardId || null,
               installments: installmentLabel
-            }));
+            };
           } else {
-            promises.push(addTransaction({
+            newTransactions.push({
               name: name.trim(),
               amount: currentParentAmount,
               category: macro,
@@ -184,18 +186,18 @@ export default function TransactionEditModalDetailed({ transaction, onClose }: T
               cardId: cardId || null,
               subTransactions: currentSubs,
               isPaid: false,
-            }));
+            });
 
             const futureIncomes = state.getMonthIncomes(nextMonthKey);
             const futureFixos = state.getMonthTransactions(nextMonthKey).filter(t => t.category === 'Fixos' || t.recurrency === 'Fixo');
             if (futureIncomes.length === 0 && futureFixos.length === 0) {
               for (const inc of baseIncomes) {
-                promises.push(addIncome({ 
+                newIncomes.push({ 
                   name: inc.name, amount: inc.amount, monthKey: nextMonthKey, isRecurring: inc.isRecurring 
-                }));
+                });
               }
               for (const fixo of baseFixos) {
-                promises.push(addTransaction({ 
+                newTransactions.push({ 
                   name: fixo.name, 
                   amount: fixo.amount, 
                   category: fixo.category, 
@@ -204,12 +206,14 @@ export default function TransactionEditModalDetailed({ transaction, onClose }: T
                   nature: fixo.nature || 'Essencial',
                   recurrency: 'Fixo',
                   monthKey: nextMonthKey 
-                }));
+                });
               }
             }
           }
         }
-        await Promise.all(promises);
+        // em sequência: nunca duas gravações simultâneas na planilha
+        if (firstInstallment) await updateTransaction(transaction.id, firstInstallment);
+        await addEntriesBatch({ transactions: newTransactions, incomes: newIncomes });
       } else {
         const currentSubs = hasValidSubTxs ? parsedSubTxs.map(s => ({
           name: s.name,

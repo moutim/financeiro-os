@@ -19,7 +19,8 @@ import {
   Gift,
   Landmark,
   Receipt,
-  FileText
+  FileText,
+  Shirt
 } from 'lucide-react';
 
 export const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
@@ -28,6 +29,12 @@ export const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
     color: '#007AFF',
     bgColor: 'rgba(0,122,255,0.12)',
     icon: ShoppingBag,
+  },
+  Roupas: {
+    label: 'Roupas',
+    color: '#3D5A80',
+    bgColor: 'rgba(61,90,128,0.12)',
+    icon: Shirt,
   },
   Fixos: {
     label: 'Fixos',
@@ -146,6 +153,13 @@ export const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
     icon: Package,
   },
 };
+
+/** Categorias em ordem alfabética (seletores, filtros e resumo), com "Outros" sempre por último */
+export const CATEGORY_NAMES: readonly string[] = Object.keys(CATEGORY_CONFIG).sort((a, b) => {
+  if (a === 'Outros') return 1;
+  if (b === 'Outros') return -1;
+  return a.localeCompare(b, 'pt-BR');
+});
 
 export function getCategoryConfig(cat: string): CategoryConfig {
   return CATEGORY_CONFIG[cat] ?? CATEGORY_CONFIG['Outros'];

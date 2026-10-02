@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
+import { newRowId } from '@/lib/sheetRows';
 import { SHEET_TABS } from '@/lib/sheets';
 import { rowToCard, cardToRow } from '@/lib/parsers';
 import { readUserTab, appendUserRow } from '@/lib/user-sheets-helpers';
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json() as Omit<CreditCard, 'id'>;
-    const id = `card-${Date.now()}`;
+    const id = newRowId('card');
     const card: CreditCard = { ...body, id };
     await appendUserRow(session.accessToken, session.spreadsheetId, SHEET_TABS.CARTOES, cardToRow(card));
     return NextResponse.json(card, { status: 201 });

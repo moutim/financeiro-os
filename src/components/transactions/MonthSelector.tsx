@@ -4,8 +4,8 @@ import { useEffect, useRef, useState, type CSSProperties, type RefObject } from 
 import { CURRENT_MONTH_KEY, useFinanceStore } from '@/lib/store';
 import { monthKeyToShortLabel } from '@/lib/currency';
 
-/** Meses passados visíveis no seletor; os mais antigos ficam escondidos */
-const MAX_VISIBLE_PAST_MONTHS = 6;
+/** Meses passados soltos no seletor; os mais antigos ficam num baralho à esquerda */
+const MAX_VISIBLE_PAST_MONTHS = 3;
 /** Hover: atraso para abrir o baralho (só cruzar por cima não abre) e para fechar ao sair da barra */
 const DECK_OPEN_DELAY_MS = 120;
 const DECK_CLOSE_DELAY_MS = 150;
@@ -13,6 +13,9 @@ const DECK_CLOSE_DELAY_MS = 150;
 const DECK_VISIBLE_LAYERS = 2;
 const DECK_LAYER_OFFSET_PX = 6;
 const DECK_LAYER_SCALE_STEP = 0.08;
+
+/** Antigos à esquerda dos meses soltos, próximos à direita */
+type DeckSide = 'past' | 'future';
 
 function MonthChipLabel({ monthKey, active }: { monthKey: string; active: boolean }) {
   const [year, month] = monthKey.split('-').map(Number);
@@ -39,7 +42,8 @@ function MonthChipLabel({ monthKey, active }: { monthKey: string; active: boolea
 }
 
 interface MonthDeckProps {
-  /** Meses depois do atual, em ordem cronológica */
+  side: DeckSide;
+  /** Meses do baralho, em ordem cronológica */
   months: string[];
   selectedMonth: string;
   open: boolean;
@@ -49,16 +53,20 @@ interface MonthDeckProps {
 }
 
 /**
- * Próximos meses empilhados como um baralho, ao lado do mês atual: no topo fica o
- * mês selecionado (ou o seguinte ao atual) e os demais aparecem atrás. Abre em leque
- * no hover, ou no toque.
+ * Meses empilhados como um baralho: no topo fica o mês selecionado (ou o mais
+ * próximo dos meses soltos) e os demais aparecem atrás, para o lado de fora.
+ * Abre em leque, em ordem cronológica, no hover ou no toque.
  */
-function MonthDeck({ months, selectedMonth, open, onOpenChange, onSelect, activeRef }: MonthDeckProps) {
+function MonthDeck({ side, months, selectedMonth, open, onOpenChange, onSelect, activeRef }: MonthDeckProps) {
   const deckRef = useRef<HTMLDivElement>(null);
   const openTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const lastPointerType = useRef('mouse');
 
-  const topIndex = Math.max(months.indexOf(selectedMonth), 0);
+  // índices do mais próximo dos meses soltos para o mais distante
+  const byProximity = months.map((_, i) => (side === 'future' ? i : months.length - 1 - i));
+  const selectedIndex = months.indexOf(selectedMonth);
+  const topIndex = selectedIndex !== -1 ? selectedIndex : byProximity[0];
+  const behindTop = byProximity.filter((i) => i !== topIndex);
   const layers = Math.min(months.length - 1, DECK_VISIBLE_LAYERS);
 
   useEffect(() => () => clearTimeout(openTimer.current), []);
@@ -74,8 +82,8 @@ function MonthDeck({ months, selectedMonth, open, onOpenChange, onSelect, active
   }, [open, onOpenChange]);
 
   const cardStyle = (index: number): CSSProperties => {
-    // profundidade na pilha: a do topo na frente e as outras atrás, em ordem cronológica
-    const depth = index === topIndex ? 0 : index < topIndex ? index + 1 : index;
+    // profundidade na pilha: a do topo na frente e as outras atrás, da mais próxima para a mais distante
+    const depth = index === topIndex ? 0 : behindTop.indexOf(index) + 1;
     const layer = Math.min(depth, layers);
     // o empilhamento não muda ao abrir: as cartas saem de trás da do topo, sem pular na frente dela
     const zIndex = depth > layers ? 0 : layers + 1 - layer;
@@ -83,13 +91,14 @@ function MonthDeck({ months, selectedMonth, open, onOpenChange, onSelect, active
     if (open) {
       return {
         transform: `translateX(calc((var(--month-chip-w) + var(--month-chip-gap)) * ${index}))`,
-        transitionDelay: `${Math.min(index, 8) * 20}ms`,
+        transitionDelay: `${Math.min(depth, 8) * 20}ms`,
         zIndex,
       };
     }
-    // fechado: as de trás deslocadas para a direita
+    // fechado: as de trás deslocadas para fora (antigos para a esquerda, próximos para a direita)
+    const offset = side === 'future' ? layer : layers - layer;
     return {
-      transform: `translateX(${layer * DECK_LAYER_OFFSET_PX}px) scale(${1 - layer * DECK_LAYER_SCALE_STEP})`,
+      transform: `translateX(${offset * DECK_LAYER_OFFSET_PX}px) scale(${1 - layer * DECK_LAYER_SCALE_STEP})`,
       opacity: depth > layers ? 0 : 1,
       zIndex,
     };
@@ -103,7 +112,7 @@ function MonthDeck({ months, selectedMonth, open, onOpenChange, onSelect, active
     <div
       ref={deckRef}
       role="group"
-      aria-label="Próximos meses"
+      aria-label={side === 'past' ? 'Meses anteriores' : 'Próximos meses'}
       className={`month-deck ${open ? 'open' : ''}`}
       style={{ width }}
       onPointerDown={(e) => { lastPointerType.current = e.pointerType; }}
@@ -154,7 +163,8 @@ function MonthDeck({ months, selectedMonth, open, onOpenChange, onSelect, active
 export default function MonthSelector() {
   const { selectedMonth, setSelectedMonth, availableMonths, addAvailableMonth } = useFinanceStore();
   const activeRef = useRef<HTMLButtonElement>(null);
-  const [deckOpen, setDeckOpen] = useState(false);
+  // só um baralho aberto por vez
+  const [openDeck, setOpenDeck] = useState<DeckSide | null>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
@@ -171,12 +181,12 @@ export default function MonthSelector() {
     monthsToRender.sort();
   }
 
-  // passados: só os 6 mais recentes (e o selecionado, se for mais antigo); mês atual solto; seguintes: baralho
+  // passados: os 3 mais recentes soltos e os mais antigos num baralho; mês atual solto; seguintes: outro baralho
   const pastMonths = monthsToRender.filter(mk => mk < CURRENT_MONTH_KEY);
+  const olderMonths = pastMonths.slice(0, -MAX_VISIBLE_PAST_MONTHS);
   const recentPastMonths = pastMonths.slice(-MAX_VISIBLE_PAST_MONTHS);
-  const visiblePastMonths = pastMonths.filter(mk => recentPastMonths.includes(mk) || mk === selectedMonth);
   const currentMonths = monthsToRender.filter(mk => mk === CURRENT_MONTH_KEY);
-  const deckMonths = monthsToRender.filter(mk => mk > CURRENT_MONTH_KEY);
+  const futureMonths = monthsToRender.filter(mk => mk > CURRENT_MONTH_KEY);
 
   const handleAddNextMonth = () => {
     const lastMonth = monthsToRender[monthsToRender.length - 1];
@@ -222,6 +232,23 @@ export default function MonthSelector() {
     );
   };
 
+  // um mês sozinho não vira baralho
+  const renderDeck = (side: DeckSide, months: string[]) => (
+    months.length > 1 ? (
+      <MonthDeck
+        side={side}
+        months={months}
+        selectedMonth={selectedMonth}
+        open={openDeck === side}
+        onOpenChange={(open) => setOpenDeck((current) => (open ? side : current === side ? null : current))}
+        onSelect={setSelectedMonth}
+        activeRef={activeRef}
+      />
+    ) : (
+      months.map(renderMonthChip)
+    )
+  );
+
   return (
     <div
       className="month-selector"
@@ -229,7 +256,7 @@ export default function MonthSelector() {
       onPointerLeave={(e) => {
         // mouse: o baralho segue aberto enquanto o ponteiro estiver na barra, para o + ao lado não fugir
         if (e.pointerType !== 'mouse') return;
-        closeTimer.current = setTimeout(() => setDeckOpen(false), DECK_CLOSE_DELAY_MS);
+        closeTimer.current = setTimeout(() => setOpenDeck(null), DECK_CLOSE_DELAY_MS);
       }}
     >
       <button
@@ -249,22 +276,10 @@ export default function MonthSelector() {
         <span style={{ fontSize: 18, fontWeight: 600 }}>+</span>
       </button>
 
-      {visiblePastMonths.map(renderMonthChip)}
+      {renderDeck('past', olderMonths)}
+      {recentPastMonths.map(renderMonthChip)}
       {currentMonths.map(renderMonthChip)}
-
-      {/* um mês sozinho não vira baralho */}
-      {deckMonths.length > 1 ? (
-        <MonthDeck
-          months={deckMonths}
-          selectedMonth={selectedMonth}
-          open={deckOpen}
-          onOpenChange={setDeckOpen}
-          onSelect={setSelectedMonth}
-          activeRef={activeRef}
-        />
-      ) : (
-        deckMonths.map(renderMonthChip)
-      )}
+      {renderDeck('future', futureMonths)}
 
       <button
         className="month-chip"

@@ -221,6 +221,12 @@ body {
   transform: scale(0.97);
 }
 
+/* ação destrutiva (ex: Remover): o mesmo botão primário, em vermelho */
+.btn-primary.btn-destructive {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%),
+    var(--red);
+}
+
 .btn-secondary {
   display: inline-flex;
   align-items: center;
@@ -778,6 +784,8 @@ body {
 @media (min-width: 640px) {
   .modal-sheet {
     border-radius: var(--radius-2xl);
+    /* centralizado: usa a altura da janela com uma margem, em vez de perder 10% */
+    max-height: calc(100vh - 48px);
   }
 }
 

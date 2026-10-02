@@ -382,6 +382,12 @@ export const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
     bgColor: 'rgba(216,138,182,0.12)',
     icon: Gift,
   },
+  Roupas: {
+    label: 'Cuidados pessoais',
+    color: '#AF52DE',
+    bgColor: 'rgba(175,82,222,0.12)',
+    icon: Sparkles,
+  },
   Presentes: {
     label: 'Família e presentes',
     color: '#D88AB6',
@@ -537,7 +543,9 @@ export function migrateTransactionCategory(
     case 'Compras': {
       let micro = 'Outros - Compras';
       if (lowerName.includes('celular') || lowerName.includes('iphone') || lowerName.includes('samsung')) micro = 'Celular';
-      else if (lowerName.includes('chinelo') || lowerName.includes('roupa') || lowerName.includes('camisa') || lowerName.includes('tenis') || lowerName.includes('calçado')) {
+      else if (lowerName.includes('roupa') || lowerName.includes('camisa')) {
+        return { macro: 'Cuidados pessoais', micro: 'Roupas', transactionType: 'expense' };
+      } else if (lowerName.includes('chinelo') || lowerName.includes('tenis') || lowerName.includes('calçado')) {
         return { macro: 'Cuidados pessoais', micro: 'Calçados', transactionType: 'expense' };
       } else if (lowerName.includes('vivara') || lowerName.includes('joia') || lowerName.includes('relogio')) {
         return { macro: 'Cuidados pessoais', micro: 'Joias', transactionType: 'expense' };
@@ -616,6 +624,13 @@ export function migrateTransactionCategory(
 
     case 'Ajuda Financeira': {
       return { macro: 'Família e presentes', micro: 'Ajuda financeira', transactionType: 'expense' };
+    }
+
+    case 'Roupas': {
+      let micro = 'Roupas';
+      if (lowerName.includes('tenis') || lowerName.includes('tênis') || lowerName.includes('sapato') || lowerName.includes('chinelo') || lowerName.includes('calçado') || lowerName.includes('sandalia') || lowerName.includes('sandália')) micro = 'Calçados';
+      else if (lowerName.includes('bolsa') || lowerName.includes('mochila') || lowerName.includes('cinto') || lowerName.includes('oculos') || lowerName.includes('óculos')) micro = 'Bolsas e acessórios';
+      return { macro: 'Cuidados pessoais', micro, transactionType: 'expense' };
     }
 
     case 'Presentes': {

@@ -83,6 +83,7 @@ export async function POST(request: Request) {
         spreadsheetId,
         range: `${SHEET_TABS.CONFIG}!A:B`,
         valueInputOption: 'USER_ENTERED',
+        insertDataOption: 'INSERT_ROWS',
         requestBody: {
           values: [[key, String(value)]],
         },

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
+import { newRowId } from '@/lib/sheetRows';
 import { getUserSheetsClient } from '@/lib/user-sheets';
 import { SHEET_TABS } from '@/lib/sheets';
 import { transactionToRow } from '@/lib/parsers';
@@ -21,7 +22,7 @@ export async function POST(req: Request) {
     const sharedTx: Transaction = {
       ...transaction,
       parentId: 'SHARED',
-      id: `t-shared-${Date.now()}`
+      id: newRowId('t-shared')
     };
 
     const sheets = getUserSheetsClient(session.accessToken);
@@ -29,6 +30,7 @@ export async function POST(req: Request) {
       spreadsheetId: ownerSpreadsheetId,
       range: `${SHEET_TABS.TRANSACOES}!A1`,
       valueInputOption: 'USER_ENTERED',
+      insertDataOption: 'INSERT_ROWS',
       requestBody: { values: [transactionToRow(sharedTx)] },
     });
 

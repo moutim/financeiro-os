@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { SHEET_TABS } from '@/lib/sheets';
-import { rowToIncome, incomeToRow } from '@/lib/parsers';
-import { readUserTab, appendUserRow } from '@/lib/user-sheets-helpers';
+import { rowToIncome } from '@/lib/parsers';
+import { readUserTab, appendUserRows } from '@/lib/user-sheets-helpers';
+import { buildIncomeRows } from '@/lib/sheetRows';
 import type { Income } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -43,31 +44,8 @@ export async function POST(req: Request) {
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json() as Omit<Income, 'id'>;
-    const id = `r-${Date.now()}`;
-    const income: Income = { ...body, id, parentId: null };
-    
-    const rowsToAppend = [incomeToRow(income)];
-    
-    if (body.subTransactions && body.subTransactions.length > 0) {
-      body.subTransactions.forEach((sub, idx) => {
-        const subTx: Income = {
-          ...income,
-          id: `${id}-sub-${idx}`,
-          name: sub.name,
-          amount: sub.amount,
-          parentId: id,
-          installments: sub.installments ?? null,
-          subTransactions: null
-        };
-        rowsToAppend.push(incomeToRow(subTx));
-      });
-    }
-    
-    // Fallback to appendUserRow for a single, or create appendUserRows if missing in imports... wait, appendUserRows is in user-sheets-helpers! I'll just change the import.
-    // wait, I need to add appendUserRows to import
-    await import('@/lib/user-sheets-helpers').then(m => 
-      m.appendUserRows(session.accessToken, session.spreadsheetId, SHEET_TABS.RECEITAS, rowsToAppend)
-    );
+    const { income, rows } = buildIncomeRows(body);
+    await appendUserRows(session.accessToken, session.spreadsheetId, SHEET_TABS.RECEITAS, rows);
     
     return NextResponse.json(income, { status: 201 });
   } catch (err) {

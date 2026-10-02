@@ -5,7 +5,9 @@ import { Banknote, Sparkles, Trash2 } from 'lucide-react';
 import type { 
   ExpenseMacro, 
   TransactionType,
-  PaymentMethod 
+  PaymentMethod,
+  Transaction,
+  Income
 } from '@/lib/types';
 import { useFinanceStore } from '@/lib/store';
 import { 
@@ -48,7 +50,7 @@ interface TransactionFormProps {
 }
 
 export default function TransactionFormDetailed({ onClose }: TransactionFormProps) {
-  const { addTransaction, addIncome, selectedMonth, goals, cards } = useFinanceStore();
+  const { addTransaction, addIncome, addEntriesBatch, selectedMonth, goals, cards } = useFinanceStore();
   
   // Tipo de movimentação: Despesa, Receita, Investimento
   const [movementType, setMovementType] = useState<TransactionType>('expense');
@@ -140,7 +142,8 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
         // Caso de parcelas com cálculo retroativo/futuro (ex: "3/3", "2/5", "12x")
         if (!hasValidSubTxs && parsedInst && parsedInst.total > 1) {
           const { current, total } = parsedInst;
-          const promises = [];
+          const newTransactions: Omit<Transaction, 'id'>[] = [];
+          const newIncomes: Omit<Income, 'id'>[] = [];
           const baseIncomes = state.getMonthIncomes(monthKey);
           const baseFixos = state.getMonthTransactions(monthKey).filter(t => t.category === 'Fixos' || t.recurrency === 'Fixo');
           
@@ -161,7 +164,7 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
             const finalSubcategory = micro.trim() || null;
             const finalPaymentMethod: PaymentMethod | null = cardId ? 'Crédito' : null;
 
-            promises.push(addTransaction({
+            newTransactions.push({
               name: name.trim(),
               amount: currentInstallmentAmount,
               category: macro,
@@ -176,7 +179,7 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
               cardId: cardId || null,
               subTransactions: null,
               isPaid: isInstallmentPaid,
-            }));
+            });
 
             // Para meses futuros criados e vazios, copia custos fixos e salários para facilitar o planejamento
             if (offset > 0) {
@@ -186,16 +189,16 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
               if (futureIncomes.length === 0 && futureFixos.length === 0) {
                 for (const inc of baseIncomes) {
                   if (inc.isRecurring) {
-                    promises.push(addIncome({ 
+                    newIncomes.push({ 
                       name: inc.name, 
                       amount: inc.amount, 
                       monthKey: targetMonthKey, 
                       isRecurring: true 
-                    }));
+                    });
                   }
                 }
                 for (const fixo of baseFixos) {
-                  promises.push(addTransaction({ 
+                  newTransactions.push({ 
                     name: fixo.name, 
                     amount: fixo.amount, 
                     category: fixo.category, 
@@ -204,12 +207,12 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
                     nature: null,
                     recurrency: null,
                     monthKey: targetMonthKey 
-                  }));
+                  });
                 }
               }
             }
           }
-          await Promise.all(promises);
+          await addEntriesBatch({ transactions: newTransactions, incomes: newIncomes });
         } else if (!hasValidSubTxs) {
           // Transação avulsa sem divisão em múltiplos meses
           state.addAvailableMonth(monthKey);
@@ -243,7 +246,7 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
           const finalPaymentMethod: PaymentMethod | null = cardId ? 'Crédito' : null;
 
           if (maxMonths > 1) {
-            const promises = [];
+            const newTransactions: Omit<Transaction, 'id'>[] = [];
             for (let i = 0; i < maxMonths; i++) {
               const nextMonthKey = addMonths(monthKey, i);
               state.addAvailableMonth(nextMonthKey);
@@ -258,7 +261,7 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
               
               if (subsForMonth.length > 0) {
                 const currentParentAmount = subsForMonth.reduce((acc, curr) => acc + curr.amount, 0);
-                promises.push(addTransaction({
+                newTransactions.push({
                   name: name.trim(),
                   amount: currentParentAmount,
                   category: macro,
@@ -273,10 +276,10 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
                   cardId: cardId || null,
                   subTransactions: subsForMonth,
                   isPaid: i === 0 ? isPaid : false,
-                }));
+                });
               }
             }
-            await Promise.all(promises);
+            await addEntriesBatch({ transactions: newTransactions });
           } else {
             const currentSubs = parsedSubTxs.map(s => ({
               name: s.name,

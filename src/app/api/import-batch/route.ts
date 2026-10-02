@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
+import { newRowId } from '@/lib/sheetRows';
 import { getUserSheetsClient } from '@/lib/user-sheets';
 import { SHEET_TABS } from '@/lib/sheets';
 import { deleteUserRowsByIds } from '@/lib/user-sheets-helpers';
@@ -26,28 +27,30 @@ export async function POST(req: Request) {
     const results = { transactions: 0, incomes: 0 };
 
     if (body.transactions?.length) {
-      const rows = body.transactions.map((t, i) => {
-        const tx: Transaction = { ...t, id: `t-batch-${Date.now()}-${i}` };
+      const rows = body.transactions.map((t) => {
+        const tx: Transaction = { ...t, id: newRowId('t-batch') };
         return transactionToRow(tx);
       });
       await sheets.spreadsheets.values.append({
         spreadsheetId: session.spreadsheetId,
         range: `${SHEET_TABS.TRANSACOES}!A1`,
         valueInputOption: 'USER_ENTERED',
+        insertDataOption: 'INSERT_ROWS',
         requestBody: { values: rows },
       });
       results.transactions = rows.length;
     }
 
     if (body.incomes?.length) {
-      const rows = body.incomes.map((r, i) => {
-        const income: Income = { ...r, id: `r-batch-${Date.now()}-${i}` };
+      const rows = body.incomes.map((r) => {
+        const income: Income = { ...r, id: newRowId('r-batch') };
         return incomeToRow(income);
       });
       await sheets.spreadsheets.values.append({
         spreadsheetId: session.spreadsheetId,
         range: `${SHEET_TABS.RECEITAS}!A1`,
         valueInputOption: 'USER_ENTERED',
+        insertDataOption: 'INSERT_ROWS',
         requestBody: { values: rows },
       });
       results.incomes = rows.length;
