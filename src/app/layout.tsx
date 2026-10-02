@@ -3,6 +3,7 @@ import './globals.css';
 import DataProvider from '@/components/providers/DataProvider';
 import { SessionProvider } from 'next-auth/react';
 import ThemeProvider from '@/components/providers/ThemeProvider';
+import { THEME_COLOR_LIGHT, THEME_INIT_SCRIPT } from '@/lib/themeInit';
 import { Analytics } from '@vercel/analytics/next';
 
 export const metadata: Metadata = {
@@ -35,7 +36,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#F2F2F7',
+  themeColor: THEME_COLOR_LIGHT,
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -45,7 +46,11 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR">
+    // suppressHydrationWarning: o script do <head> pode pôr a classe "dark" antes da hidratação
+    <html lang="pt-BR" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body suppressHydrationWarning>
         <SessionProvider>
           <ThemeProvider>

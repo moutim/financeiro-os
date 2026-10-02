@@ -76,7 +76,7 @@ export function transactionToRow(t: Transaction): (string | number | null)[] {
 }
 
 // ─── Receitas ─────────────────────────────────────────────────────────────────
-// Columns: ID | Nome | Valor | MesKey | IsRecurring | ParentId | Parcelas
+// Columns: ID | Nome | Valor | MesKey | IsRecurring | ParentId | Parcelas | IsPaid
 export function rowToIncome(row: string[]): Income {
   return {
     id:          row[0] ?? '',

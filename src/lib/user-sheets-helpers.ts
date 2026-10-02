@@ -1,5 +1,5 @@
 import { getUserSheetsClient } from '@/lib/user-sheets';
-import { SHEET_TABS } from '@/lib/sheets';
+import { SHEET_TABS, SHEET_HEADERS } from '@/lib/sheets';
 
 /** Lê todas as linhas de uma aba (exceto o header) */
 export async function readUserTab(
@@ -181,6 +181,53 @@ export async function clearUserTab(
   });
 }
 
+// ─── Estrutura da planilha ────────────────────────────────────────────────────
+
+/**
+ * Deixa a planilha do usuário com todas as abas de SHEET_TABS e o cabeçalho de
+ * SHEET_HEADERS na linha 1. O cabeçalho só é gravado quando a planilha é criada, então
+ * nas planilhas antigas as colunas adicionadas depois ficavam sem título.
+ * Só grava as abas que estiverem diferentes, para não encher o histórico de versões.
+ * Retorna as abas cujo cabeçalho foi atualizado.
+ */
+export async function syncUserSheetStructure(
+  accessToken: string,
+  spreadsheetId: string
+): Promise<string[]> {
+  const sheets = getUserSheetsClient(accessToken);
+  const allTabs = Object.values(SHEET_TABS);
+
+  const metaRes = await sheets.spreadsheets.get({ spreadsheetId, fields: 'sheets.properties.title' });
+  const existingTabs = new Set(metaRes.data.sheets?.map(s => s.properties?.title));
+  const missingTabs = allTabs.filter(tab => !existingTabs.has(tab));
+  if (missingTabs.length > 0) {
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      requestBody: { requests: missingTabs.map(title => ({ addSheet: { properties: { title } } })) },
+    });
+  }
+
+  // valueRanges volta na mesma ordem de ranges
+  const headerRes = await sheets.spreadsheets.values.batchGet({
+    spreadsheetId,
+    ranges: allTabs.map(tab => `${tab}!1:1`),
+  });
+  const outdatedTabs = allTabs.filter((tab, i) => {
+    const current = (headerRes.data.valueRanges?.[i]?.values?.[0] ?? []) as string[];
+    return SHEET_HEADERS[tab].some((header, col) => current[col] !== header);
+  });
+  if (outdatedTabs.length === 0) return [];
+
+  await sheets.spreadsheets.values.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      valueInputOption: 'RAW',
+      data: outdatedTabs.map(tab => ({ range: `${tab}!A1`, values: [SHEET_HEADERS[tab]] })),
+    },
+  });
+  return outdatedTabs;
+}
+
 // ─── _Config (chave → valor) ──────────────────────────────────────────────────
 
 /** Nome do dono da planilha, exibido aos convidados nos aportes dele em metas compartilhadas */
@@ -196,10 +243,17 @@ export async function readUserConfig(
     const res = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: `${SHEET_TABS.CONFIG}!A2:B`,
+      // valor bruto: um booleano volta como true, e não como o texto formatado
+      // "TRUE"/"VERDADEIRO" (que muda com o idioma da planilha)
+      valueRenderOption: 'UNFORMATTED_VALUE',
     });
     const config: Record<string, string> = {};
-    for (const row of (res.data.values ?? []) as string[][]) {
-      if (row[0]) config[row[0]] = row[1] ?? '';
+    for (const row of (res.data.values ?? []) as unknown[][]) {
+      const key = row[0] == null ? '' : String(row[0]);
+      // chave repetida: vale a 1ª linha, a mesma que setUserConfigValue atualiza
+      if (key && !Object.prototype.hasOwnProperty.call(config, key)) {
+        config[key] = row[1] == null ? '' : String(row[1]);
+      }
     }
     return config;
   } catch (e) {
@@ -222,18 +276,19 @@ export async function setUserConfigValue(
   });
   const rowIndex = ((res.data.values ?? []) as string[][]).findIndex(row => row[0] === key);
 
+  // RAW grava o texto como veio: com USER_ENTERED o Sheets converte "true" em booleano
   if (rowIndex !== -1) {
     await sheets.spreadsheets.values.update({
       spreadsheetId,
       range: `${SHEET_TABS.CONFIG}!B${rowIndex + 1}`,
-      valueInputOption: 'USER_ENTERED',
+      valueInputOption: 'RAW',
       requestBody: { values: [[value]] },
     });
   } else {
     await sheets.spreadsheets.values.append({
       spreadsheetId,
       range: `${SHEET_TABS.CONFIG}!A:B`,
-      valueInputOption: 'USER_ENTERED',
+      valueInputOption: 'RAW',
       insertDataOption: 'INSERT_ROWS',
       requestBody: { values: [[key, value]] },
     });

@@ -21,9 +21,11 @@ export default function DataProvider({ children }: { children: React.ReactNode }
   }, [status, loadingState, loadAll]);
 
   // Modo simples/detalhado salvo na planilha (acompanha o usuário entre dispositivos)
+  // e cabeçalhos das abas completos (planilhas antigas não têm as colunas mais novas)
   useEffect(() => {
     if (status === 'authenticated') {
       useAppConfigStore.getState().fetchFromServer();
+      fetch('/api/settings/sync-headers', { method: 'POST' }).catch(console.error);
     }
   }, [status]);
 
