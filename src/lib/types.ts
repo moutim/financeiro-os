@@ -97,6 +97,8 @@ export interface SavingsGoal {
   icon?: string | null; // chave de ícone (ver src/lib/goalIcons.ts)
   // Meta de outra conta: aportes lidos da planilha do dono (só na resposta da API, não é gravado)
   sharedContributions?: Transaction[] | null;
+  // Meta de outra conta sem acesso à planilha do dono: a pessoa precisa escolhê-la no seletor do Google (só na resposta da API)
+  ownerAccessDenied?: boolean;
 }
 
 // ─── Cartões de Crédito ───────────────────────────────────────────────────────

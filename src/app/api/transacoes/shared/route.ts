@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { newRowId } from '@/lib/sheetRows';
-import { getUserSheetsClient } from '@/lib/user-sheets';
+import { getUserSheetsClient, isNoAccessError } from '@/lib/user-sheets';
 import { SHEET_TABS } from '@/lib/sheets';
 import { transactionToRow } from '@/lib/parsers';
 import type { Transaction } from '@/lib/types';
@@ -38,6 +38,10 @@ export async function POST(req: Request) {
     return NextResponse.json(sharedTx, { status: 201 });
   } catch (err) {
     console.error('[POST /api/transacoes/shared]', err);
+    // needsAccess: o app ainda não pode abrir a planilha do dono por esta conta (ver src/lib/googlePicker.ts)
+    if (isNoAccessError(err)) {
+      return NextResponse.json({ error: 'Sem acesso à planilha do dono da meta.', needsAccess: true }, { status: 403 });
+    }
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 }

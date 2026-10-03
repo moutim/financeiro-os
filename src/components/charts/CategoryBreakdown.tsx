@@ -7,7 +7,7 @@ import { formatCurrency } from '@/lib/currency';
 import type { CategoryConfig } from '@/lib/types';
 
 /**
- * Visões de gastos por categoria no padrão do app (anel fino + listas estilo iOS).
+ * Visões de gastos por categoria no padrão do app (anel arredondado + listas estilo iOS).
  * Usadas pela Análise Avançada de Gastos (Categorias) e pela Abertura Visual por
  * Categoria no Cartão (Cartões), para as duas telas ficarem idênticas.
  */
@@ -21,10 +21,13 @@ export interface BreakdownCategory {
   config: CategoryConfig;
 }
 
-// Anel da Distribuição (unidades do viewBox 100×100)
-const RING_RADIUS = 44;
-const RING_WIDTH = 7;
-const RING_GAP = 0.6;
+// Anel da Distribuição (unidades do viewBox 100×100): traço grosso com pontas arredondadas
+const RING_RADIUS = 44.5;
+const RING_WIDTH = 8;
+/** Respiro entre o fim de um segmento e o começo do próximo */
+const RING_GAP = 3;
+/** Quanto o segmento em foco engrossa */
+const RING_HOVER_GROWTH = 1.5;
 /** Categorias visíveis na lista antes do "Ver todas" */
 const COLLAPSED_CATEGORIES = 6;
 
@@ -40,7 +43,7 @@ function CategoryIcon({ config }: { config: CategoryConfig }) {
   );
 }
 
-// ─── Distribuição: anel fino + lista estilo iOS (ou legenda compacta) ───────
+// ─── Distribuição: anel arredondado + lista estilo iOS (ou legenda compacta) ───────
 
 const formatItemsDefault = (count: number) => `${count} ${count === 1 ? 'item' : 'itens'}`;
 
@@ -69,7 +72,11 @@ export function CategoryDistribution({
   const [hoveredCat, setHoveredCat] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
 
-  const ringSegments = buildRingSegments(items, (item) => item.pct, { radius: RING_RADIUS, gap: RING_GAP });
+  const ringSegments = buildRingSegments(items, (item) => item.pct, {
+    radius: RING_RADIUS,
+    strokeWidth: RING_WIDTH,
+    gap: RING_GAP,
+  });
   // Só recolhe a lista quando sobram pelo menos 2 categorias escondidas
   const canCollapse = items.length > COLLAPSED_CATEGORIES + 1;
   const listed = canCollapse && !showAll ? items.slice(0, COLLAPSED_CATEGORIES) : items;
@@ -84,22 +91,36 @@ export function CategoryDistribution({
         <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%', display: 'block' }}>
           {ringSegments.map((segment) => {
             const isHovered = hoveredCat === segment.cat;
+            const width = isHovered ? RING_WIDTH + RING_HOVER_GROWTH : RING_WIDTH;
+            const interaction = {
+              opacity: hoveredCat && !isHovered ? 0.3 : 1,
+              style: { cursor: 'pointer', transition: 'opacity 0.2s ease, stroke-width 0.2s ease, r 0.2s ease' },
+              onMouseEnter: () => setHoveredCat(segment.cat),
+              onMouseLeave: () => setHoveredCat(null),
+            };
+            const { shape } = segment;
+            if (shape.kind === 'arc') {
+              return (
+                <path
+                  key={segment.cat}
+                  d={shape.d}
+                  fill="none"
+                  stroke={segment.config.color}
+                  strokeWidth={width}
+                  strokeLinecap="round"
+                  {...interaction}
+                />
+              );
+            }
+            // fatias pequenas demais para um arco viram um ponto
             return (
               <circle
                 key={segment.cat}
-                cx="50"
-                cy="50"
-                r={RING_RADIUS}
-                fill="none"
-                stroke={segment.config.color}
-                strokeWidth={isHovered ? RING_WIDTH + 2 : RING_WIDTH}
-                strokeDasharray={segment.dashArray}
-                strokeDashoffset={segment.dashOffset}
-                transform="rotate(-90 50 50)"
-                opacity={hoveredCat && !isHovered ? 0.3 : 1}
-                style={{ cursor: 'pointer', transition: 'opacity 0.2s ease, stroke-width 0.2s ease' }}
-                onMouseEnter={() => setHoveredCat(segment.cat)}
-                onMouseLeave={() => setHoveredCat(null)}
+                cx={shape.cx}
+                cy={shape.cy}
+                r={width / 2}
+                fill={segment.config.color}
+                {...interaction}
               />
             );
           })}

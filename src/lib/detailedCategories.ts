@@ -238,6 +238,8 @@ export const INVESTMENT_TYPES = [
 ] as const;
 
 // ─── CONFIGURAÇÃO VISUAL DAS CATEGORIAS (Cores e Ícones) ─────────────────────
+// Cores bem distintas entre si (todas as macros podem aparecer lado a lado no
+// anel) e iguais às da categoria equivalente do modo simples (Moradia = Casa…).
 export const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
   // --- 14 Novas Macros de Despesas ---
   Moradia: {
@@ -254,56 +256,56 @@ export const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
   },
   Transporte: {
     label: 'Transporte',
-    color: '#FDD427', // Amarelo
-    bgColor: 'rgba(253,212,39,0.14)',
+    color: '#FFCC00', // Amarelo
+    bgColor: 'rgba(255,204,0,0.14)',
     icon: Car,
   },
   Saúde: {
     label: 'Saúde',
-    color: '#FF2D55', // Rosa avermelhado
-    bgColor: 'rgba(255,45,85,0.12)',
+    color: '#DB2777', // Rosa escuro
+    bgColor: 'rgba(219,39,119,0.12)',
     icon: HeartPulse,
   },
   Educação: {
     label: 'Educação',
-    color: '#2942C1', // Azul índigo
-    bgColor: 'rgba(41,66,193,0.12)',
+    color: '#8B5CF6', // Violeta
+    bgColor: 'rgba(139,92,246,0.12)',
     icon: GraduationCap,
   },
   'Cuidados pessoais': {
     label: 'Cuidados pessoais',
-    color: '#AF52DE', // Roxo
-    bgColor: 'rgba(175,82,222,0.12)',
+    color: '#F472B6', // Rosa
+    bgColor: 'rgba(244,114,182,0.12)',
     icon: Sparkles,
   },
   Lazer: {
     label: 'Lazer',
-    color: '#1D9F81', // Verde-água
-    bgColor: 'rgba(29,159,129,0.12)',
+    color: '#D946EF', // Fúcsia
+    bgColor: 'rgba(217,70,239,0.12)',
     icon: PartyPopper,
   },
   Viagens: {
     label: 'Viagens',
-    color: '#49A3E1', // Azul céu
-    bgColor: 'rgba(73,163,225,0.12)',
+    color: '#0EA5E9', // Azul céu
+    bgColor: 'rgba(14,165,233,0.12)',
     icon: Plane,
   },
   'Compras e bens': {
     label: 'Compras e bens',
-    color: '#AF038C', // Magenta
-    bgColor: 'rgba(175,3,140,0.12)',
+    color: '#A21CAF', // Magenta
+    bgColor: 'rgba(162,28,175,0.12)',
     icon: ShoppingBag,
   },
   'Serviços e assinaturas': {
     label: 'Serviços e assinaturas',
-    color: '#036286', // Azul petróleo
-    bgColor: 'rgba(3,98,134,0.12)',
+    color: '#0369A1', // Azul petróleo
+    bgColor: 'rgba(3,105,161,0.12)',
     icon: Tv,
   },
   'Família e presentes': {
     label: 'Família e presentes',
-    color: '#D88AB6', // Rosa claro
-    bgColor: 'rgba(216,138,182,0.12)',
+    color: '#00C7BE', // Verde-água
+    bgColor: 'rgba(0,199,190,0.12)',
     icon: Gift,
   },
   Pets: {
@@ -314,14 +316,14 @@ export const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
   },
   'Impostos e obrigações': {
     label: 'Impostos e obrigações',
-    color: '#883839', // Vinho
-    bgColor: 'rgba(136,56,57,0.14)',
+    color: '#B91C1C', // Vermelho escuro
+    bgColor: 'rgba(185,28,28,0.14)',
     icon: FileText,
   },
   Financeiro: {
     label: 'Financeiro',
-    color: '#536D0C', // Verde oliva
-    bgColor: 'rgba(83,109,12,0.12)',
+    color: '#4D7C0F', // Verde oliva
+    bgColor: 'rgba(77,124,15,0.12)',
     icon: Percent,
   },
 
@@ -348,8 +350,8 @@ export const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
   // --- Fallbacks para categorias legadas (compatibilidade retroativa completa) ---
   Compras: {
     label: 'Compras e bens',
-    color: '#AF038C',
-    bgColor: 'rgba(175,3,140,0.12)',
+    color: '#A21CAF',
+    bgColor: 'rgba(162,28,175,0.12)',
     icon: ShoppingBag,
   },
   Comida: {
@@ -366,50 +368,50 @@ export const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
   },
   Assinaturas: {
     label: 'Serviços e assinaturas',
-    color: '#036286',
-    bgColor: 'rgba(3,98,134,0.12)',
+    color: '#0369A1',
+    bgColor: 'rgba(3,105,161,0.12)',
     icon: Tv,
   },
   Estudos: {
     label: 'Educação',
-    color: '#2942C1',
-    bgColor: 'rgba(41,66,193,0.12)',
+    color: '#8B5CF6',
+    bgColor: 'rgba(139,92,246,0.12)',
     icon: GraduationCap,
   },
   'Ajuda Financeira': {
     label: 'Família e presentes',
-    color: '#D88AB6',
-    bgColor: 'rgba(216,138,182,0.12)',
+    color: '#00C7BE',
+    bgColor: 'rgba(0,199,190,0.12)',
     icon: Gift,
   },
   Roupas: {
     label: 'Cuidados pessoais',
-    color: '#AF52DE',
-    bgColor: 'rgba(175,82,222,0.12)',
+    color: '#F472B6',
+    bgColor: 'rgba(244,114,182,0.12)',
     icon: Sparkles,
   },
   Presentes: {
     label: 'Família e presentes',
-    color: '#D88AB6',
-    bgColor: 'rgba(216,138,182,0.12)',
+    color: '#00C7BE',
+    bgColor: 'rgba(0,199,190,0.12)',
     icon: Gift,
   },
   Empréstimos: {
     label: 'Financeiro',
-    color: '#536D0C',
-    bgColor: 'rgba(83,109,12,0.12)',
+    color: '#4D7C0F',
+    bgColor: 'rgba(77,124,15,0.12)',
     icon: Percent,
   },
   Dívidas: {
     label: 'Financeiro',
-    color: '#536D0C',
-    bgColor: 'rgba(83,109,12,0.12)',
+    color: '#4D7C0F',
+    bgColor: 'rgba(77,124,15,0.12)',
     icon: Percent,
   },
   Impostos: {
     label: 'Impostos e obrigações',
-    color: '#883839',
-    bgColor: 'rgba(136,56,57,0.14)',
+    color: '#B91C1C',
+    bgColor: 'rgba(185,28,28,0.14)',
     icon: FileText,
   },
   Dividendos: {
@@ -426,8 +428,8 @@ export const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
   },
   Outros: {
     label: 'Outros',
-    color: '#76757D',
-    bgColor: 'rgba(118,117,125,0.12)',
+    color: '#8E8E93',
+    bgColor: 'rgba(142,142,147,0.12)',
     icon: Package,
   },
 };

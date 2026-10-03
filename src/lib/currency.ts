@@ -160,6 +160,18 @@ export function parseInstallmentInput(input: string): { current: number; total: 
   return null;
 }
 
+/**
+ * Divide um valor total em parcelas: as parcelas são arredondadas para baixo no centavo
+ * e a primeira absorve a sobra, para a soma bater com o total.
+ * Ex: 599,90 em 6x → primeira 100,00 e as demais 99,98.
+ */
+export function splitInstallments(total: number, count: number): { first: number; rest: number } {
+  if (count <= 1) return { first: total, rest: total };
+  const rest = Math.floor((total / count) * 100) / 100;
+  const first = Math.round((total - rest * (count - 1)) * 100) / 100;
+  return { first, rest };
+}
+
 export function monthKeyToLabel(monthKey: string): string {
   const canonical = toCanonicalMonthKey(monthKey);
   const [year, month] = canonical.split('-').map(Number);

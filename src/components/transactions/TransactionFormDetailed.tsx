@@ -7,7 +7,6 @@ import type {
   TransactionType,
   PaymentMethod,
   Transaction,
-  Income
 } from '@/lib/types';
 import { useFinanceStore } from '@/lib/store';
 import { 
@@ -24,9 +23,11 @@ import {
   parseMonthKey,
   addMonths,
   parseInstallmentInput,
+  formatCurrency,
+  splitInstallments,
 } from '@/lib/currency';
 import { useSwipeToClose } from '@/hooks/useSwipeToClose';
-import { isFixedTransaction, copyFixedToMonth, hasRepeatingInstallments } from '@/lib/fixedTransactions';
+import { hasRepeatingInstallments } from '@/lib/fixedTransactions';
 import FixedToggle from './FixedToggle';
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -99,11 +100,17 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
   };
 
   const hasSubTxs = subTransactions.length > 0;
+  const getSubInstallments = (sub: { installments: string }) => parseInstallmentInput(sub.installments)?.total ?? 1;
   const totalSubAmount = subTransactions.reduce((acc, sub) => {
     const amt = parseInt(sub.rawAmount || '0', 10) / 100;
     return acc + amt;
   }, 0);
-  const displayAmount = hasSubTxs ? totalSubAmount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : formatMask(rawDigits);
+  // Valor deste mês: das sub-transações parceladas entra só a 1ª parcela, igual ao que é gravado no envio
+  const monthSubAmount = subTransactions.reduce((acc, sub) => {
+    const amt = parseInt(sub.rawAmount || '0', 10) / 100;
+    return acc + splitInstallments(amt, getSubInstallments(sub)).first;
+  }, 0);
+  const displayAmount = hasSubTxs ? formatCurrency(monthSubAmount) : formatMask(rawDigits);
 
   // investimentos não têm parcelas; nas despesas, parcelas já se repetem e não combinam com fixo
   const hasInstallments = movementType === 'expense' && hasRepeatingInstallments(hasSubTxs ? null : installments, subTransactions);
@@ -121,17 +128,9 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
       const state = useFinanceStore.getState();
 
       const parsedSubTxs = subTransactions.map(s => {
-        const pInst = parseInstallmentInput(s.installments);
-        const inst = pInst ? pInst.total : 1;
-        
+        const inst = getSubInstallments(s);
         const totalSubAmt = parseInt(s.rawAmount || '0', 10) / 100;
-        let subAmt = totalSubAmt;
-        let firstAmt = totalSubAmt;
-        if (inst > 1) {
-          subAmt = Math.floor((totalSubAmt / inst) * 100) / 100;
-          const remainder = totalSubAmt - (subAmt * inst);
-          firstAmt = Math.round((subAmt + remainder) * 100) / 100;
-        }
+        const { first: firstAmt, rest: subAmt } = splitInstallments(totalSubAmt, inst);
 
         return {
           name: s.name.trim(),
@@ -149,11 +148,9 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
         // Caso de parcelas com cálculo retroativo/futuro (ex: "3/3", "2/5", "12x")
         if (!hasValidSubTxs && parsedInst && parsedInst.total > 1) {
           const { current, total } = parsedInst;
+          // Só as parcelas vão para os outros meses: fixas e salário entram pelo "Iniciar mês"
           const newTransactions: Omit<Transaction, 'id'>[] = [];
-          const newIncomes: Omit<Income, 'id'>[] = [];
-          const baseIncomes = state.getMonthIncomes(monthKey);
-          const baseFixos = state.getMonthTransactions(monthKey).filter(isFixedTransaction);
-          
+
           const amountPerInstallment = Math.floor((numAmount / total) * 100) / 100;
           const remainder = numAmount - (amountPerInstallment * total);
           const firstInstallmentAmount = Math.round((amountPerInstallment + remainder) * 100) / 100;
@@ -187,30 +184,8 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
               subTransactions: null,
               isPaid: isInstallmentPaid,
             });
-
-            // Para meses futuros criados e vazios, copia custos fixos e salários para facilitar o planejamento
-            if (offset > 0) {
-              const futureIncomes = state.getMonthIncomes(targetMonthKey);
-              const futureFixos = state.getMonthTransactions(targetMonthKey).filter(isFixedTransaction);
-               
-              if (futureIncomes.length === 0 && futureFixos.length === 0) {
-                for (const inc of baseIncomes) {
-                  if (inc.isRecurring) {
-                    newIncomes.push({ 
-                      name: inc.name, 
-                      amount: inc.amount, 
-                      monthKey: targetMonthKey, 
-                      isRecurring: true 
-                    });
-                  }
-                }
-                for (const fixo of baseFixos) {
-                  newTransactions.push(copyFixedToMonth(fixo, targetMonthKey));
-                }
-              }
-            }
           }
-          await addEntriesBatch({ transactions: newTransactions, incomes: newIncomes });
+          await addEntriesBatch({ transactions: newTransactions });
         } else if (!hasValidSubTxs) {
           // Transação avulsa sem divisão em múltiplos meses
           state.addAvailableMonth(monthKey);
@@ -553,7 +528,7 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
                     </div>
                   ))}
                   <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textAlign: 'right', marginTop: 4 }}>
-                    Total: {displayAmount}
+                    {monthSubAmount !== totalSubAmount ? 'Total parcelado' : 'Total'}: {formatCurrency(totalSubAmount)}
                   </div>
                 </div>
               )}

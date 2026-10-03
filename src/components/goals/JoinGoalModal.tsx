@@ -1,8 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import { Info } from 'lucide-react';
 import { useFinanceStore } from '@/lib/store';
 import { useSwipeToClose } from '@/hooks/useSwipeToClose';
+import { requestSpreadsheetAccess } from '@/lib/googlePicker';
 
 interface JoinGoalModalProps {
   onClose: () => void;
@@ -23,15 +25,25 @@ export default function JoinGoalModal({ onClose }: JoinGoalModalProps) {
     setError('');
     
     try {
-      const res = await fetch('/api/metas/accept', {
+      const accept = () => fetch('/api/metas/accept', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ shareCode: shareCode.trim() })
       });
-      
+
+      let res = await accept();
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || 'Erro ao entrar na meta');
+        // O app só abre a planilha do dono depois que a pessoa a escolhe no seletor do Google
+        if (!data.needsAccess) throw new Error(data.error || 'Erro ao entrar na meta');
+        if (!await requestSpreadsheetAccess(data.ownerSpreadsheetId)) {
+          throw new Error('Para entrar na meta, selecione a planilha de quem te convidou na janela do Google.');
+        }
+        res = await accept();
+        if (!res.ok) {
+          const retryData = await res.json();
+          throw new Error(retryData.error || 'Erro ao entrar na meta');
+        }
       }
       
       // Reload all to fetch the newly joined goal from the owner's spreadsheet
@@ -77,6 +89,22 @@ export default function JoinGoalModal({ onClose }: JoinGoalModalProps) {
             />
           </div>
           
+          {/* Avisa antes da janela do Google (src/lib/googlePicker.ts), que abre na primeira vez */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 10,
+            padding: '10px 12px',
+            marginBottom: 16,
+            borderRadius: 12,
+            background: 'var(--blue-light)',
+          }}>
+            <Info size={16} color="var(--blue)" style={{ flexShrink: 0, marginTop: 1 }} />
+            <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+              Para entrar, o Google vai pedir sua confirmação: na janela que abrir, selecione a planilha de quem te convidou. Isso só acontece na primeira vez.
+            </span>
+          </div>
+
           {error && <p style={{ color: 'var(--red)', fontSize: 13, marginBottom: 16 }}>{error}</p>}
 
           <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>

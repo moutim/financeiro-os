@@ -112,7 +112,7 @@ export default function CategoryCharts({
       style={{ marginBottom: 24 }}
       actions={<SegmentedTabs tabs={TABS} value={activeTab} onChange={setActiveTab} />}
     >
-      {/* ── ABA 1: DISTRIBUIÇÃO MACRO (anel fino + lista estilo iOS) ── */}
+      {/* ── ABA 1: DISTRIBUIÇÃO MACRO (anel arredondado + lista estilo iOS) ── */}
       {activeTab === 'donut' && (
         <CategoryDistribution
           items={sortedMacros}

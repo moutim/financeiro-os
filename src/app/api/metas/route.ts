@@ -3,7 +3,7 @@ import { auth } from '@/lib/auth';
 import { SHEET_TABS } from '@/lib/sheets';
 import { rowToGoal, goalToRow, rowToTransaction } from '@/lib/parsers';
 import { readUserTab, appendUserRow, updateUserRowById, deleteUserRowById, readUserConfig, setUserConfigValue, USER_NAME_CONFIG_KEY } from '@/lib/user-sheets-helpers';
-import { getUserSheetsClient } from '@/lib/user-sheets';
+import { getUserSheetsClient, isNoAccessError } from '@/lib/user-sheets';
 import type { SavingsGoal, Transaction } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -118,7 +118,7 @@ export async function GET() {
         validGoals.push({ ...ownerGoal, isShared: true, ownerSpreadsheetId: g.ownerSpreadsheetId, sharedContributions });
       } catch (e) {
         console.error(`Failed to sync shared goal ${g.id} from owner ${g.ownerSpreadsheetId}`, e);
-        validGoals.push(g);
+        validGoals.push({ ...g, ownerAccessDenied: isNoAccessError(e) });
       }
     }
 

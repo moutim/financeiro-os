@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { useFinanceStore } from '@/lib/store';
-import type { Income, Transaction } from '@/lib/types';
+import type { Transaction } from '@/lib/types';
 import { 
   EXPENSE_MACROS, 
   getMicrosForMacro, 
@@ -12,7 +12,7 @@ import { DETAILED_TAXONOMY } from '@/lib/taxonomy';
 import { formatMask, parseMask, addMonths, parseInstallmentInput, parseMonthKey } from '@/lib/currency';
 import { useSwipeToClose } from '@/hooks/useSwipeToClose';
 import { triggerSuccessConfetti } from '@/lib/confetti';
-import { isFixedTransaction, copyFixedToMonth, hasRepeatingInstallments } from '@/lib/fixedTransactions';
+import { isFixedTransaction, hasRepeatingInstallments } from '@/lib/fixedTransactions';
 import FixedToggle from './FixedToggle';
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -123,12 +123,9 @@ export default function TransactionEditModalDetailed({ transaction, onClose }: T
     setIsSubmitting(true);
     try {
       if (maxMonths > 1) {
+        // Só as parcelas vão para os meses seguintes: fixas e salário entram pelo "Iniciar mês"
         const newTransactions: Omit<Transaction, 'id'>[] = [];
-        const newIncomes: Omit<Income, 'id'>[] = [];
         let firstInstallment: Partial<Omit<Transaction, 'id'>> | null = null;
-        const state = useFinanceStore.getState();
-        const baseIncomes = state.getMonthIncomes(transaction.monthKey);
-        const baseFixos = state.getMonthTransactions(transaction.monthKey).filter(isFixedTransaction);
         
         const amountPerInstallment = hasValidSubTxs ? 0 : numAmount;
 
@@ -192,24 +189,11 @@ export default function TransactionEditModalDetailed({ transaction, onClose }: T
               subTransactions: currentSubs,
               isPaid: false,
             });
-
-            const futureIncomes = state.getMonthIncomes(nextMonthKey);
-            const futureFixos = state.getMonthTransactions(nextMonthKey).filter(isFixedTransaction);
-            if (futureIncomes.length === 0 && futureFixos.length === 0) {
-              for (const inc of baseIncomes) {
-                newIncomes.push({ 
-                  name: inc.name, amount: inc.amount, monthKey: nextMonthKey, isRecurring: inc.isRecurring 
-                });
-              }
-              for (const fixo of baseFixos) {
-                newTransactions.push(copyFixedToMonth(fixo, nextMonthKey));
-              }
-            }
           }
         }
         // em sequência: nunca duas gravações simultâneas na planilha
         if (firstInstallment) await updateTransaction(transaction.id, firstInstallment);
-        await addEntriesBatch({ transactions: newTransactions, incomes: newIncomes });
+        await addEntriesBatch({ transactions: newTransactions });
       } else {
         const currentSubs = hasValidSubTxs ? parsedSubTxs.map(s => ({
           name: s.name,

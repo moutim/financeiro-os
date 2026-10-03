@@ -65,6 +65,25 @@ function BrandMark({ brand, isLight }: { brand: string; isLight: boolean }) {
   return null; // 'Outro': sem bandeira, como no Wallet
 }
 
+/** Favicon do banco usado como logo na face do cartão */
+export const bankLogoSrc = (domain: string) => `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
+
+/**
+ * Cores da face do cartão (fundo, texto e brilho em --wallet-bg / --wallet-ink / --wallet-glow),
+ * a partir do banco ou da cor escolhida. Usada também pelas miniaturas do seletor de cartão.
+ */
+export function walletFace(card: Pick<CreditCard, 'color' | 'bankId'>) {
+  const bank = getBankById(card.bankId);
+  const color = bank?.color || card.color || '#1E1E1E';
+  const isLight = isLightCardColor(color);
+  const style = {
+    '--wallet-bg': isLight ? '#F5F5F7' : color,
+    '--wallet-ink': isLight ? '#1D1D1F' : '#FFFFFF',
+    '--wallet-glow': isLight ? 'rgba(0, 0, 0, 0.12)' : withAlpha(color, 0.45),
+  } as CSSProperties;
+  return { bank, isLight, style };
+}
+
 interface WalletCardFaceProps {
   card: Pick<CreditCard, 'name' | 'brand' | 'color' | 'bankId' | 'lastDigits' | 'priority'>;
   onEdit: () => void;
@@ -75,16 +94,8 @@ interface WalletCardFaceProps {
  * topo, final do número e bandeira embaixo. Clicar abre a edição do cartão.
  */
 export default function WalletCardFace({ card, onEdit }: WalletCardFaceProps) {
-  const bank = getBankById(card.bankId);
-  const color = bank?.color || card.color || '#1E1E1E';
-  const isLight = isLightCardColor(color);
+  const { bank, isLight, style } = walletFace(card);
   const last4 = card.lastDigits ? card.lastDigits.split('-').pop() : null;
-
-  const style = {
-    '--wallet-bg': isLight ? '#F5F5F7' : color,
-    '--wallet-ink': isLight ? '#1D1D1F' : '#FFFFFF',
-    '--wallet-glow': isLight ? 'rgba(0, 0, 0, 0.12)' : withAlpha(color, 0.45),
-  } as CSSProperties;
 
   return (
     <button
@@ -100,7 +111,7 @@ export default function WalletCardFace({ card, onEdit }: WalletCardFaceProps) {
           // eslint-disable-next-line @next/next/no-img-element -- favicon externo, sem otimização
           <img
             className="wallet-card-logo"
-            src={`https://www.google.com/s2/favicons?domain=${bank.domain}&sz=128`}
+            src={bankLogoSrc(bank.domain)}
             alt={bank.name}
             width={36}
             height={36}

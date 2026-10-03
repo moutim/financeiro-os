@@ -14,12 +14,12 @@ import GoalFormModal, { GoalData } from '@/components/goals/GoalFormModal';
 import ShareGoalModal from '@/components/goals/ShareGoalModal';
 import JoinGoalModal from '@/components/goals/JoinGoalModal';
 import { useFinanceStore } from '@/lib/store';
-import { formatCurrency } from '@/lib/currency';
+import { formatCurrency, monthKeyToShortLabel, toCanonicalMonthKey } from '@/lib/currency';
 import { getGoalIconDef } from '@/lib/goalIcons';
 import type { Pending, SavingsGoal, Transaction } from '@/lib/types';
 
 export default function MetasPage() {
-  const { pending, transactions, goals, deletePending, addGoal, updateGoal, deleteGoal, loadingState } = useFinanceStore();
+  const { pending, transactions, sharedGoalCopies, goals, deletePending, addGoal, updateGoal, deleteGoal, reconnectSharedGoal, loadingState } = useFinanceStore();
   const { data: session } = useSession();
   const [showPendingModal, setShowPendingModal] = useState(false);
   const [pendingToEdit, setPendingToEdit] = useState<Pending | null>(null);
@@ -31,6 +31,7 @@ export default function MetasPage() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [goalToShare, setGoalToShare] = useState<SavingsGoal | null>(null);
   const [showJoinModal, setShowJoinModal] = useState(false);
+  const [reconnectingGoalId, setReconnectingGoalId] = useState<string | null>(null);
 
   // Filter state for Investment History
   const [startMonth, setStartMonth] = useState<string>('');
@@ -50,9 +51,11 @@ export default function MetasPage() {
   // Metas de outra conta: os aportes vêm da planilha do dono (que já recebe a cópia dos feitos aqui),
   // então os lançamentos locais vinculados a elas saem da lista para não contar duas vezes.
   // Sem sincronização (sem acesso à planilha do dono), ficam os lançamentos locais.
+  // Nas minhas metas, os aportes de convidados (sharedGoalCopies) somam junto com os meus.
   const syncedSharedGoalIds = new Set(goals.filter(g => g.isShared && g.sharedContributions).map(g => g.id));
   const investmentTxs = [
-    ...transactions.filter(t => t.category === 'Investimentos' && !(t.goalId && syncedSharedGoalIds.has(t.goalId))),
+    ...[...transactions, ...sharedGoalCopies]
+      .filter(t => t.category === 'Investimentos' && !(t.goalId && syncedSharedGoalIds.has(t.goalId))),
     ...goals.flatMap(g => (syncedSharedGoalIds.has(g.id) ? g.sharedContributions ?? [] : [])),
   ];
 
@@ -68,7 +71,9 @@ export default function MetasPage() {
   const getContributor = (tx: Transaction) => {
     if (!tx.goalId || !collaborativeGoalIds.has(tx.goalId)) return null;
     const author = tx.author || (tx.parentId === 'SHARED' ? 'Convidado' : myName);
-    return author === myName ? 'Você' : author;
+    if (author === myName) return 'Você';
+    // Só o primeiro nome, para caber no mobile; autor gravado como e-mail mostra a parte antes do @
+    return author?.trim().split(/\s+/)[0].split('@')[0] || author;
   };
 
   // Extrair todos os meses disponíveis nas transações para o dropdown
@@ -88,6 +93,20 @@ export default function MetasPage() {
       }
     }
   }
+
+  // Meta de outra conta sem acesso à planilha do dono: a pessoa a escolhe no seletor do Google
+  const handleReconnectGoal = async (goalId: string) => {
+    setReconnectingGoalId(goalId);
+    try {
+      if (!await reconnectSharedGoal(goalId)) {
+        alert('Selecione a planilha de quem criou a meta para voltar a sincronizar.');
+      }
+    } catch (err) {
+      alert(`Não foi possível liberar o acesso. ${err instanceof Error ? err.message : err}`);
+    } finally {
+      setReconnectingGoalId(null);
+    }
+  };
 
   const handleSaveGoal = async (goal: GoalData) => {
     try {
@@ -223,6 +242,32 @@ export default function MetasPage() {
                   </div>
                 </div>
 
+                {/* Sem acesso à planilha do dono: valores podem estar desatualizados até liberar */}
+                {goal.ownerAccessDenied && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '10px 12px',
+                    marginBottom: 16,
+                    borderRadius: 12,
+                    background: 'var(--orange-light)',
+                  }}>
+                    <AlertTriangle size={18} color="var(--orange)" style={{ flexShrink: 0 }} />
+                    <span style={{ flex: 1, fontSize: 13, color: 'var(--text-secondary)', minWidth: 0 }}>
+                      Sem acesso à planilha de quem criou a meta. Os valores podem estar desatualizados.
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleReconnectGoal(goal.id)}
+                      disabled={reconnectingGoalId === goal.id}
+                      style={{ background: 'none', border: 'none', color: 'var(--orange)', cursor: 'pointer', padding: 4, fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}
+                    >
+                      {reconnectingGoalId === goal.id ? 'Abrindo…' : 'Liberar acesso'}
+                    </button>
+                  </div>
+                )}
+
                 {/* Big Numbers */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 16 }}>
                   <div>
@@ -280,7 +325,8 @@ export default function MetasPage() {
         <div className="metas-grid stagger">
           {/* Pending "A Resolver" */}
           {/* height 100%: o card preenche a linha da grade, mesma altura do Histórico ao lado */}
-          <SectionCard icon={AlertTriangle} iconColor="var(--red)" title="A Resolver" className="animate-fade-in-up" style={{ height: '100%' }}>
+          {/* metas-pending: no mobile (1 coluna) fica por último, abaixo do Histórico */}
+          <SectionCard icon={AlertTriangle} iconColor="var(--red)" title="A Resolver" className="animate-fade-in-up metas-pending" style={{ height: '100%' }}>
             <div
               style={{ 
                 marginBottom: 16,
@@ -305,15 +351,17 @@ export default function MetasPage() {
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
+                      gap: 12,
                       padding: '12px 0',
                       borderBottom: '1px solid var(--separator)',
                     }}
                   >
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: 15 }}>{p.name}</div>
+                    {/* Linha única no mobile: o nome encurta com reticências, valor e ações não quebram */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div title={p.name} style={{ fontWeight: 600, fontSize: 15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <div style={{ fontWeight: 700, color: amountColor, fontSize: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+                      <div style={{ fontWeight: 700, color: amountColor, fontSize: 16, whiteSpace: 'nowrap' }}>
                         {isPositive ? '+' : ''}{formatCurrency(p.amount)}
                       </div>
                       <div style={{ display: 'flex', gap: 4 }}>
@@ -406,8 +454,8 @@ export default function MetasPage() {
                   className="custom-scroll"
                 >
                 {dynamicMonths.map((mk) => {
-                const [year, month] = mk.split('-').map(Number);
-                const monthLabel = new Date(year, month - 1, 1).toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
+                // "nov/26" (o cabeçalho capitaliza: "Nov/26"), para não confundir o mesmo mês de anos diferentes
+                const monthLabel = `${monthKeyToShortLabel(mk)}/${toCanonicalMonthKey(mk).slice(2, 4)}`;
                 const monthTxs = investmentTxs.filter(t => t.monthKey === mk);
                 const monthTotal = byMonth[mk];
 

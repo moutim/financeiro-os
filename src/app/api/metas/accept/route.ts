@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { SHEET_TABS } from '@/lib/sheets';
 import { goalToRow, rowToGoal } from '@/lib/parsers';
 import { appendUserRow, readUserTab } from '@/lib/user-sheets-helpers';
+import { isNoAccessError } from '@/lib/user-sheets';
 import type { SavingsGoal } from '@/lib/types';
 
 export async function POST(req: Request) {
@@ -44,8 +45,11 @@ export async function POST(req: Request) {
       ownerGoal = ownerRows.filter(r => r[0]).map(rowToGoal).find(g => g.id === String(goalId));
     } catch (e) {
       console.error('[POST /api/metas/accept] sem acesso à planilha do dono', e);
+      // needsAccess: a pessoa ainda precisa escolher a planilha do dono no seletor do Google (src/lib/googlePicker.ts)
       return NextResponse.json({
         error: 'Sem acesso à planilha do dono da meta. Confira se o convite foi gerado para o e-mail desta conta Google.',
+        needsAccess: isNoAccessError(e),
+        ownerSpreadsheetId,
       }, { status: 403 });
     }
     if (!ownerGoal) {

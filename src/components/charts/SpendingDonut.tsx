@@ -9,7 +9,7 @@ interface SpendingDonutProps {
 }
 
 /**
- * "Por Categoria" do dashboard: mesmo anel fino da Análise Avançada de Gastos
+ * "Por Categoria" do dashboard: mesmo anel arredondado da Análise Avançada de Gastos
  * (Categorias e Cartões), com a legenda compacta (bolinha + nome) abaixo.
  */
 export default function SpendingDonut({ transactions }: SpendingDonutProps) {

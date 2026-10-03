@@ -3,6 +3,7 @@
 import { create } from 'zustand';
 import type { Transaction, Income, Pending, SavingsGoal, Category, CreditCard } from '@/lib/types';
 import { isFixedTransaction } from '@/lib/fixedTransactions';
+import { requestSpreadsheetAccess } from '@/lib/googlePicker';
 
 const now = new Date();
 export const CURRENT_MONTH_KEY =`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -12,7 +13,14 @@ type LoadingState = 'idle' | 'loading' | 'success' | 'error';
 
 interface FinanceStore {
   // Data
+  /** Só as transações do usuário: dashboard, categorias, cartões e lista */
   transactions: Transaction[];
+  /**
+   * Aportes de convidados nas metas compartilhadas do usuário: cópias gravadas na
+   * planilha dele (parentId SHARED) que só contam no progresso das metas, nunca
+   * como gasto do usuário.
+   */
+  sharedGoalCopies: Transaction[];
   incomes: Income[];
   pending: Pending[];
   goals: SavingsGoal[];
@@ -53,6 +61,8 @@ interface FinanceStore {
   refreshGoals: () => Promise<void>;
   /** Aporte vinculado a meta de outra conta: grava a cópia na planilha do dono. Não faz nada se a meta não for compartilhada */
   contributeToSharedGoal: (goalId: string, transaction: Omit<Transaction, 'id'>) => Promise<void>;
+  /** Meta de outra conta sem acesso à planilha do dono: escolhe a planilha no seletor do Google e sincroniza de novo */
+  reconnectSharedGoal: (goalId: string) => Promise<boolean>;
   deleteMonth: (monthKey: string) => Promise<void>;
   
   addCard: (card: Omit<CreditCard, 'id'>) => Promise<CreditCard>;
@@ -75,6 +85,7 @@ interface FinanceStore {
 
 export const useFinanceStore = create<FinanceStore>()((set, get) => ({
   transactions: [],
+  sharedGoalCopies: [],
   incomes: [],
   pending: [],
   goals: [],
@@ -102,13 +113,18 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
         throw new Error(errBody.error ?? 'Erro ao carregar dados');
       }
 
-      const [transactions, incomes, pending, goals, cards] = await Promise.all([
+      const [sheetTransactions, incomes, pending, goals, cards] = await Promise.all([
         txRes.json() as Promise<Transaction[]>,
         incRes.json() as Promise<Income[]>,
         pendRes.json() as Promise<Pending[]>,
         goalsRes.json() as Promise<SavingsGoal[]>,
         cardsRes.json() as Promise<CreditCard[]>,
       ]);
+
+      // A planilha também guarda os aportes de convidados nas minhas metas: ficam separados
+      // para não aparecerem como lançamentos meus (nem em meses que só eles ocupam)
+      const transactions = sheetTransactions.filter(t => t.parentId !== 'SHARED');
+      const sharedGoalCopies = sheetTransactions.filter(t => t.parentId === 'SHARED');
 
       const uniqueMonths = new Set<string>();
       transactions.forEach(t => uniqueMonths.add(t.monthKey));
@@ -123,6 +139,7 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
 
       set({ 
         transactions, 
+        sharedGoalCopies,
         incomes, 
         pending, 
         goals, 
@@ -393,19 +410,37 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
     const goal = get().goals.find((g) => g.id === goalId);
     if (!goal?.isShared || !goal.ownerSpreadsheetId) return;
 
-    const res = await fetch('/api/transacoes/shared', {
+    const { ownerSpreadsheetId } = goal;
+    const send = () => fetch('/api/transacoes/shared', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        ownerSpreadsheetId: goal.ownerSpreadsheetId,
+        ownerSpreadsheetId,
         transaction: { ...transaction, name: `${transaction.name} (Compartilhado)` },
       }),
     });
+
+    let res = await send();
     if (!res.ok) {
       const err = await res.json();
-      throw new Error(err.error ?? 'Erro ao registrar o aporte na meta compartilhada');
+      // Sem acesso à planilha do dono: a pessoa a escolhe no seletor do Google e o aporte é reenviado
+      const granted = err.needsAccess && await requestSpreadsheetAccess(ownerSpreadsheetId);
+      if (!granted) throw new Error(err.error ?? 'Erro ao registrar o aporte na meta compartilhada');
+      res = await send();
+      if (!res.ok) {
+        const retryErr = await res.json();
+        throw new Error(retryErr.error ?? 'Erro ao registrar o aporte na meta compartilhada');
+      }
     }
     await get().refreshGoals();
+  },
+
+  reconnectSharedGoal: async (goalId) => {
+    const goal = get().goals.find((g) => g.id === goalId);
+    if (!goal?.isShared || !goal.ownerSpreadsheetId) return false;
+    if (!await requestSpreadsheetAccess(goal.ownerSpreadsheetId)) return false;
+    await get().refreshGoals();
+    return true;
   },
 
   // ─── Cards Actions ──────────────────────────────────────────────────────────
@@ -501,7 +536,7 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
   },
 
   getMonthSummary: (monthKey) => {
-    const transactions = get().getMonthTransactions(monthKey).filter(t => t.parentId !== 'SHARED');
+    const transactions = get().getMonthTransactions(monthKey);
     const incomes = get().getMonthIncomes(monthKey);
 
     const income = incomes.reduce((s, i) => s + i.amount, 0);

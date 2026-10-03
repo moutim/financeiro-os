@@ -11,8 +11,8 @@ export const dynamic = 'force-dynamic';
  * POST /api/transacoes/batch
  * Body: { transactions?: Omit<Transaction, 'id'>[], incomes?: Omit<Income, 'id'>[] }
  *
- * Grava vários lançamentos de uma vez (ex: parcelas + cópias de fixos e receitas
- * para os meses seguintes) com um único append por aba. Appends paralelos na
+ * Grava vários lançamentos de uma vez (ex: as parcelas dos meses seguintes)
+ * com um único append por aba. Appends paralelos na
  * mesma aba podiam cair na mesma linha, e um sobrescrevia o outro.
  */
 export async function POST(req: Request) {

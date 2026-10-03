@@ -17,9 +17,14 @@ interface TransactionListProps {
   showDelete?: boolean;
   /** Limita a altura da lista; o excedente rola dentro dela */
   maxHeight?: number;
+  /**
+   * `category` (padrão): fixos primeiro, depois por categoria.
+   * `added`: na ordem em que foram lançadas (a das linhas da planilha).
+   */
+  order?: 'category' | 'added';
 }
 
-export default function TransactionList({ transactions, showDelete = true, maxHeight }: TransactionListProps) {
+export default function TransactionList({ transactions, showDelete = true, maxHeight, order = 'category' }: TransactionListProps) {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [deletingTransaction, setDeletingTransaction] = useState<Transaction | null>(null);
   const taxonomy = useCategoryTaxonomy();
@@ -41,9 +46,11 @@ export default function TransactionList({ transactions, showDelete = true, maxHe
   }
 
   // `view` traz a categoria no formato do modo atual (só exibição); `tx` segue
-  // original para edição e exclusão. Fixos primeiro, depois por categoria.
-  const sortedRows = transactions
-    .map((tx) => ({ tx, view: taxonomy.normalize(tx), isFixed: isFixedTransaction(tx) }))
+  // original para edição e exclusão. Fixos primeiro, depois por categoria
+  // (ou a ordem recebida, que segue a planilha, com order="added").
+  const rowsInput = transactions
+    .map((tx) => ({ tx, view: taxonomy.normalize(tx), isFixed: isFixedTransaction(tx) }));
+  const sortedRows = order === 'added' ? rowsInput : rowsInput
     .sort((a, b) => {
       if (a.isFixed !== b.isFixed) return a.isFixed ? -1 : 1;
       if (a.view.category < b.view.category) return -1;

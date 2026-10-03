@@ -8,6 +8,7 @@ import PayInvoiceModal from '@/components/cards/PayInvoiceModal';
 import CreditProjectionSection from '@/components/cards/CreditProjectionSection';
 import WalletCardFace from '@/components/cards/WalletCardFace';
 import CreditLimitComposition from '@/components/cards/CreditLimitComposition';
+import CardTransactionsSection from '@/components/cards/CardTransactionsSection';
 import SectionCard from '@/components/ui/SectionCard';
 import ToolbarSelect from '@/components/ui/ToolbarSelect';
 import { DetailedOnly } from '@/components/mode/ModeSwitch';
@@ -157,6 +158,8 @@ export default function CartoesPage() {
           <MonthSelector />
         </div>
 
+        {/* Ordem das visões conta uma história: quanto crédito tenho → em quais cartões → quanto a fatura
+            pesa na renda → no que gastei → quais compras → o que vem pela frente */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           {/* Composição do limite somado (substitui o antigo card "Limite Total") */}
           <CreditLimitComposition totalLimit={totalLimit} totalUsed={totalUsed} />
@@ -333,7 +336,12 @@ export default function CartoesPage() {
             />
           </DetailedOnly>
 
-          {/* Projeção de liberação de crédito (ambos os modos) */}
+          {/* Compras de cada cartão e o que já foi pago: o detalhe das categorias acima (Detalhado) */}
+          <DetailedOnly>
+            <CardTransactionsSection cards={visibleCards} selectedMonth={selectedMonth} />
+          </DetailedOnly>
+
+          {/* Projeção de liberação de crédito: fecha olhando para os próximos meses (ambos os modos) */}
           <CreditProjectionSection cards={visibleCards} onAddCard={openNewCard} />
         </div>
       </main>

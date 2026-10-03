@@ -41,11 +41,12 @@ export default function StatCard({
         style={{ color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}
       >
         {formatCurrency(value)}
+        {/* Seta em em: acompanha a fonte do valor e cabe na altura da linha (1.1em), sem empurrar o valor para baixo no mobile */}
         {isNegative !== undefined && (
           isNegative ? (
-            <ArrowDown size={22} strokeWidth={3} color="var(--red)" style={{ marginTop: 2 }} />
+            <ArrowDown size="0.9em" strokeWidth={3} color="var(--red)" style={{ flexShrink: 0 }} />
           ) : (
-            <ArrowUp size={22} strokeWidth={3} color="var(--green)" style={{ marginTop: 2 }} />
+            <ArrowUp size="0.9em" strokeWidth={3} color="var(--green)" style={{ flexShrink: 0 }} />
           )
         )}
       </div>
