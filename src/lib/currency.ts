@@ -132,14 +132,14 @@ export function addMonths(monthKey: string, add: number): string {
 
 /**
  * Faz o parse flexível de parcelas digitadas pelo usuário:
- * "3/3", "2/5", "1/12", "12x", "12", "3 de 10", etc.
+ * "3/3", "2/5", "6-6", "1/12", "12x", "12", "3 de 10", etc.
  */
 export function parseInstallmentInput(input: string): { current: number; total: number } | null {
   if (!input || !input.trim()) return null;
   const cleaned = input.trim().toLowerCase();
   
-  // Padrão: "X/Y" ou "X / Y" ou "X de Y"
-  const matchFraction = cleaned.match(/^(\d+)\s*(?:\/|\s+de\s+)\s*(\d+)$/);
+  // Padrão: "X/Y", "X / Y", "X-Y" ou "X de Y"
+  const matchFraction = cleaned.match(/^(\d+)\s*(?:\/|-|\s+de\s+)\s*(\d+)$/);
   if (matchFraction) {
     const current = parseInt(matchFraction[1], 10);
     const total = parseInt(matchFraction[2], 10);

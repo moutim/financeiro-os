@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Inbox, Trash2, Pencil, Check, Repeat } from 'lucide-react';
+import { Inbox, Trash2, Pencil, Check, Repeat, Circle, CheckCircle2 } from 'lucide-react';
 
 import type { Transaction } from '@/lib/types';
 import { useCategoryTaxonomy } from '@/lib/taxonomy';
@@ -17,12 +17,38 @@ interface TransactionListProps {
   showDelete?: boolean;
   /** Limita a altura da lista; o excedente rola dentro dela */
   maxHeight?: number;
+  /** Botão em cada linha para marcar/desmarcar como paga sem abrir a edição */
+  showPaidToggle?: boolean;
+  /**
+   * `category` (padrão): fixos primeiro, depois por categoria.
+   * `added`: na ordem em que foram lançadas (a das linhas da planilha).
+   */
+  order?: 'category' | 'added';
 }
 
-export default function TransactionList({ transactions, showDelete = true, maxHeight }: TransactionListProps) {
+export default function TransactionList({ transactions, showDelete = true, maxHeight, showPaidToggle = false, order = 'category' }: TransactionListProps) {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [deletingTransaction, setDeletingTransaction] = useState<Transaction | null>(null);
+  const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set());
+  const markTransactionsPaid = useFinanceStore((state) => state.markTransactionsPaid);
   const taxonomy = useCategoryTaxonomy();
+
+  // Só a célula IsPaid é gravada (mesma rota do "Marcar todas"), então vários toques seguidos são seguros
+  const togglePaid = async (tx: Transaction) => {
+    setTogglingIds((prev) => new Set(prev).add(tx.id));
+    try {
+      await markTransactionsPaid([tx.id], !tx.isPaid);
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao atualizar o pagamento da transação.');
+    } finally {
+      setTogglingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(tx.id);
+        return next;
+      });
+    }
+  };
 
   if (transactions.length === 0) {
     return (
@@ -41,9 +67,11 @@ export default function TransactionList({ transactions, showDelete = true, maxHe
   }
 
   // `view` traz a categoria no formato do modo atual (só exibição); `tx` segue
-  // original para edição e exclusão. Fixos primeiro, depois por categoria.
-  const sortedRows = transactions
-    .map((tx) => ({ tx, view: taxonomy.normalize(tx), isFixed: isFixedTransaction(tx) }))
+  // original para edição e exclusão. Fixos primeiro, depois por categoria
+  // (ou a ordem recebida, que segue a planilha, com order="added").
+  const rowsInput = transactions
+    .map((tx) => ({ tx, view: taxonomy.normalize(tx), isFixed: isFixedTransaction(tx) }));
+  const sortedRows = order === 'added' ? rowsInput : rowsInput
     .sort((a, b) => {
       if (a.isFixed !== b.isFixed) return a.isFixed ? -1 : 1;
       if (a.view.category < b.view.category) return -1;
@@ -175,45 +203,73 @@ export default function TransactionList({ transactions, showDelete = true, maxHe
           >
             {tx.amount < 0 ? '+' : ''}{formatCurrency(Math.abs(tx.amount))}
           </div>
-          {showDelete && (
+          {(showDelete || showPaidToggle) && (
             <div style={{ display: 'flex', gap: 4 }}>
-              <button
-                onClick={() => setEditingTransaction(tx)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--text-quaternary)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '2px',
-                  transition: 'color 0.15s ease',
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.color = 'var(--blue)'}
-                onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-quaternary)'}
-                title="Editar transação"
-              >
-                <Pencil size={14} />
-              </button>
-              <button
-                onClick={() => setDeletingTransaction(tx)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--red)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '2px',
-                  opacity: 0.7,
-                  transition: 'opacity 0.15s ease',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
-                onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.7')}
-                title="Excluir transação"
-              >
-                <Trash2 size={14} />
-              </button>
+              {showPaidToggle && (
+                <button
+                  onClick={() => togglePaid(tx)}
+                  disabled={togglingIds.has(tx.id)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: tx.isPaid ? 'var(--green)' : 'var(--text-quaternary)',
+                    cursor: togglingIds.has(tx.id) ? 'default' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '2px',
+                    opacity: togglingIds.has(tx.id) ? 0.5 : 1,
+                    transition: 'color 0.15s ease, opacity 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => { if (!tx.isPaid) e.currentTarget.style.color = 'var(--green)'; }}
+                  onMouseLeave={(e) => { if (!tx.isPaid) e.currentTarget.style.color = 'var(--text-quaternary)'; }}
+                  title={tx.isPaid ? 'Desmarcar pagamento' : 'Marcar como paga'}
+                  aria-label={tx.isPaid ? `Desmarcar pagamento de ${tx.name}` : `Marcar ${tx.name} como paga`}
+                  aria-pressed={!!tx.isPaid}
+                >
+                  {tx.isPaid ? <CheckCircle2 size={16} /> : <Circle size={16} />}
+                </button>
+              )}
+              {showDelete && (
+                <>
+                  <button
+                    onClick={() => setEditingTransaction(tx)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-quaternary)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '2px',
+                      transition: 'color 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.color = 'var(--blue)'}
+                    onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-quaternary)'}
+                    title="Editar transação"
+                  >
+                    <Pencil size={14} />
+                  </button>
+                  <button
+                    onClick={() => setDeletingTransaction(tx)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--red)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '2px',
+                      opacity: 0.7,
+                      transition: 'opacity 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+                    onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.7')}
+                    title="Excluir transação"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>

@@ -16,10 +16,11 @@ import JoinGoalModal from '@/components/goals/JoinGoalModal';
 import { useFinanceStore } from '@/lib/store';
 import { formatCurrency } from '@/lib/currency';
 import { getGoalIconDef } from '@/lib/goalIcons';
+import { isGuestContribution } from '@/lib/sharedContributions';
 import type { Pending, SavingsGoal, Transaction } from '@/lib/types';
 
 export default function MetasPage() {
-  const { pending, transactions, goals, deletePending, addGoal, updateGoal, deleteGoal, loadingState } = useFinanceStore();
+  const { pending, transactions, guestContributions, goals, deletePending, addGoal, updateGoal, deleteGoal, loadingState } = useFinanceStore();
   const { data: session } = useSession();
   const [showPendingModal, setShowPendingModal] = useState(false);
   const [pendingToEdit, setPendingToEdit] = useState<Pending | null>(null);
@@ -50,25 +51,29 @@ export default function MetasPage() {
   // Metas de outra conta: os aportes vêm da planilha do dono (que já recebe a cópia dos feitos aqui),
   // então os lançamentos locais vinculados a elas saem da lista para não contar duas vezes.
   // Sem sincronização (sem acesso à planilha do dono), ficam os lançamentos locais.
+  // Nas minhas metas, os aportes dos convidados entram no saldo e no histórico, mas não nos meus gastos.
   const syncedSharedGoalIds = new Set(goals.filter(g => g.isShared && g.sharedContributions).map(g => g.id));
   const investmentTxs = [
     ...transactions.filter(t => t.category === 'Investimentos' && !(t.goalId && syncedSharedGoalIds.has(t.goalId))),
+    ...guestContributions.filter(t => t.category === 'Investimentos'),
     ...goals.flatMap(g => (syncedSharedGoalIds.has(g.id) ? g.sharedContributions ?? [] : [])),
   ];
 
   // Metas com mais de uma pessoa: as compartilhadas comigo e as minhas que já receberam aporte de convidado
   const collaborativeGoalIds = new Set([
     ...syncedSharedGoalIds,
-    ...investmentTxs.flatMap(t => (t.parentId === 'SHARED' && t.goalId ? [t.goalId] : [])),
+    ...investmentTxs.flatMap(t => (isGuestContribution(t) && t.goalId ? [t.goalId] : [])),
   ]);
 
   // Quem fez o aporte (só nas metas com mais de uma pessoa). Sem autor gravado, o lançamento da minha planilha
-  // é meu; cópia de convidado anterior à coluna Autor fica como "Convidado"
+  // é meu; cópia de convidado anterior à coluna Autor fica como "Convidado".
+  // Só o primeiro nome (ou o usuário do e-mail): o nome completo apertava a linha no celular
   const myName = session?.user?.name || session?.user?.email;
   const getContributor = (tx: Transaction) => {
     if (!tx.goalId || !collaborativeGoalIds.has(tx.goalId)) return null;
-    const author = tx.author || (tx.parentId === 'SHARED' ? 'Convidado' : myName);
-    return author === myName ? 'Você' : author;
+    const author = tx.author || (isGuestContribution(tx) ? 'Convidado' : myName);
+    if (!author) return null;
+    return author === myName ? 'Você' : author.trim().split(/\s+/)[0].split('@')[0];
   };
 
   // Extrair todos os meses disponíveis nas transações para o dropdown

@@ -15,16 +15,16 @@ interface PayInvoiceModalProps {
 }
 
 export default function PayInvoiceModal({ card, invoiceAmount, transactionsToPay, onClose }: PayInvoiceModalProps) {
-  const { updateTransaction } = useFinanceStore();
+  const markTransactionsPaid = useFinanceStore((state) => state.markTransactionsPaid);
   const [isPaying, setIsPaying] = useState(false);
   const swipeToClose = useSwipeToClose(onClose);
 
   const handlePay = async () => {
     setIsPaying(true);
     try {
-      const promises = transactionsToPay.map(t => updateTransaction(t.id, { isPaid: true }));
-      await Promise.all(promises);
-      
+      // Uma gravação só (célula IsPaid): um PUT por transação, em paralelo, podia gravar na linha errada
+      await markTransactionsPaid(transactionsToPay.map(t => t.id));
+
       triggerSuccessConfetti();
       onClose();
     } catch (err) {

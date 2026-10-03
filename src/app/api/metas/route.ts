@@ -4,6 +4,7 @@ import { SHEET_TABS } from '@/lib/sheets';
 import { rowToGoal, goalToRow, rowToTransaction } from '@/lib/parsers';
 import { readUserTab, appendUserRow, updateUserRowById, deleteUserRowById, readUserConfig, setUserConfigValue, USER_NAME_CONFIG_KEY } from '@/lib/user-sheets-helpers';
 import { getUserSheetsClient } from '@/lib/user-sheets';
+import { isGuestContribution } from '@/lib/sharedContributions';
 import type { SavingsGoal, Transaction } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -97,9 +98,9 @@ export async function GET() {
         const ownerTxRows = await readUserTab(session.accessToken, g.ownerSpreadsheetId, SHEET_TABS.TRANSACOES);
         const contributions: SheetTransaction[] = ownerTxRows
           .map((row, i) => ({ tx: rowToTransaction(row), sheetRow: i + 2 })) // readUserTab começa na linha 2
-          .filter(({ tx }) => tx.id && tx.goalId === g.id && tx.category === 'Investimentos' && (!tx.parentId || tx.parentId === 'SHARED'));
+          .filter(({ tx }) => tx.id && tx.goalId === g.id && tx.category === 'Investimentos' && (!tx.parentId || isGuestContribution(tx)));
 
-        const legacyCopies = contributions.filter(({ tx }) => tx.parentId === 'SHARED' && !tx.author);
+        const legacyCopies = contributions.filter(({ tx }) => isGuestContribution(tx) && !tx.author);
         if (myName && legacyCopies.length > 0) {
           try {
             myTxs ??= (await readUserTab(session.accessToken, session.spreadsheetId, SHEET_TABS.TRANSACOES)).map(rowToTransaction);
@@ -113,7 +114,7 @@ export async function GET() {
         const ownerConfig = await readUserConfig(session.accessToken, g.ownerSpreadsheetId).catch(() => ({} as Record<string, string>));
         const ownerName = ownerConfig[USER_NAME_CONFIG_KEY] || 'Dono da meta';
         const sharedContributions = contributions
-          .map(({ tx }) => ({ ...tx, author: tx.author || (tx.parentId === 'SHARED' ? null : ownerName) }));
+          .map(({ tx }) => ({ ...tx, author: tx.author || (isGuestContribution(tx) ? null : ownerName) }));
 
         validGoals.push({ ...ownerGoal, isShared: true, ownerSpreadsheetId: g.ownerSpreadsheetId, sharedContributions });
       } catch (e) {

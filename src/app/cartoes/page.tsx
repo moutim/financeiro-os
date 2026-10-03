@@ -8,6 +8,9 @@ import PayInvoiceModal from '@/components/cards/PayInvoiceModal';
 import CreditProjectionSection from '@/components/cards/CreditProjectionSection';
 import WalletCardFace from '@/components/cards/WalletCardFace';
 import CreditLimitComposition from '@/components/cards/CreditLimitComposition';
+import CardTransactionsSection from '@/components/cards/CardTransactionsSection';
+import FutureCommitmentSection from '@/components/cards/FutureCommitmentSection';
+import FinancialEvolutionSection from '@/components/cards/FinancialEvolutionSection';
 import SectionCard from '@/components/ui/SectionCard';
 import ToolbarSelect from '@/components/ui/ToolbarSelect';
 import { DetailedOnly } from '@/components/mode/ModeSwitch';
@@ -19,6 +22,7 @@ import { getBankById } from '@/lib/banks';
 import { useIsDetailedMode } from '@/lib/appConfigStore';
 import { useCarousel } from '@/hooks/useCarousel';
 import {
+  availableCredit,
   buildCardsWithRealData,
   sortCards,
   CARD_SORT_OPTIONS,
@@ -63,6 +67,8 @@ export default function CartoesPage() {
   const {
     cards,
     transactions,
+    incomes,
+    availableMonths,
     addCard,
     updateCard,
     deleteCard,
@@ -207,7 +213,7 @@ export default function CartoesPage() {
               <div ref={carouselRef} className="cards-carousel">
                 {visibleCards.map((card, index) => {
                   const usagePct = card.limit > 0 ? (card.realUsed / card.limit) * 100 : 0;
-                  const available = Math.max(0, card.limit - card.realUsed);
+                  const available = availableCredit(card);
                   const bank = getBankById(card.bankId);
             
                   return (
@@ -335,6 +341,20 @@ export default function CartoesPage() {
 
           {/* Projeção de liberação de crédito (ambos os modos) */}
           <CreditProjectionSection cards={visibleCards} onAddCard={openNewCard} />
+
+          {/* Parcelas e contas já lançadas contra a renda dos próximos meses (ambos os modos) */}
+          <FutureCommitmentSection transactions={transactions} incomes={incomes} cards={cards} selectedMonth={selectedMonth} />
+
+          {/* Renda, gastos e saldo dos últimos meses (ambos os modos) */}
+          <FinancialEvolutionSection
+            transactions={transactions}
+            incomes={incomes}
+            availableMonths={availableMonths}
+            selectedMonth={selectedMonth}
+          />
+
+          {/* Compras de cada cartão e o que já foi pago (ambos os modos) */}
+          <CardTransactionsSection cards={visibleCards} selectedMonth={selectedMonth} />
         </div>
       </main>
 

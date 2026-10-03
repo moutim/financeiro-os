@@ -11,7 +11,7 @@ const IS_PAID_COLUMN = 'K';
 
 /**
  * POST /api/transacoes/mark-paid
- * Body: { ids: string[] }
+ * Body: { ids: string[], isPaid?: boolean } (isPaid padrão: true; false desmarca)
  *
  * Marca várias transações (e as sub-transações delas) como pagas numa única
  * gravação: só a célula IsPaid de cada linha, sem reescrever nem mover linhas.
@@ -22,8 +22,9 @@ export async function POST(req: Request) {
     const session = await auth();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { ids } = await req.json() as { ids?: string[] };
+    const { ids, isPaid = true } = await req.json() as { ids?: string[]; isPaid?: boolean };
     if (!ids?.length) return NextResponse.json({ updated: 0 });
+    const value = isPaid ? 'true' : 'false';
 
     const targets = new Set(ids);
     const tab = SHEET_TABS.TRANSACOES;
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
     // linha da planilha = índice + 2 (a leitura começa na linha 2, abaixo do cabeçalho)
     const data = rows.flatMap((row, i) => (
       targets.has(row[0]) || targets.has(row[9])
-        ? [{ range: `${tab}!${IS_PAID_COLUMN}${i + 2}`, values: [['true']] }]
+        ? [{ range: `${tab}!${IS_PAID_COLUMN}${i + 2}`, values: [[value]] }]
         : []
     ));
 

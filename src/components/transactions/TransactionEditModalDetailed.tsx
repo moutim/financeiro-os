@@ -13,6 +13,7 @@ import { formatMask, parseMask, addMonths, parseInstallmentInput, parseMonthKey 
 import { useSwipeToClose } from '@/hooks/useSwipeToClose';
 import { triggerSuccessConfetti } from '@/lib/confetti';
 import { isFixedTransaction, copyFixedToMonth, hasRepeatingInstallments } from '@/lib/fixedTransactions';
+import { planInstallments, sameInstallments } from '@/lib/installments';
 import FixedToggle from './FixedToggle';
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -103,7 +104,8 @@ export default function TransactionEditModalDetailed({ transaction, onClose }: T
       return {
         name: s.name.trim(),
         amount: parseInt(s.rawAmount || '0', 10) / 100,
-        installments: inst
+        installments: inst,
+        rawInstallments: s.installments.trim(),
       };
     }).filter(s => s.name && s.amount > 0);
     const hasValidSubTxs = parsedSubTxs.length > 0;
@@ -112,17 +114,88 @@ export default function TransactionEditModalDetailed({ transaction, onClose }: T
     if (hasValidSubTxs) {
       parsedSubTxs.forEach(s => { if (s.installments > maxMonths) maxMonths = s.installments; });
     }
-    
-    const parsedInst = parseInstallmentInput(installments);
-    if (!hasValidSubTxs && parsedInst && parsedInst.total > 1) {
-      maxMonths = parsedInst.total;
-    }
+
+    // Só redistribui as parcelas quando elas mudaram: salvar uma parcela sem mexer
+    // nelas (ex: marcar a 3/6 como paga) não cria outras nem renumera esta
+    const parsedInst = hasValidSubTxs ? null : parseInstallmentInput(installments);
+    const spreadInstallments = !!parsedInst && parsedInst.total > 1 && !sameInstallments(installments, transaction.installments);
+    const subsSignature = (subs: { installments?: string | null }[] | null | undefined) =>
+      (subs ?? []).map((sub) => (sub.installments ?? '').trim()).join('|');
+    const spreadSubs = hasValidSubTxs && maxMonths > 1 && subsSignature(subTransactions) !== subsSignature(transaction.subTransactions);
 
     const txType = macro === 'Investimentos' ? 'investment' : 'expense';
 
     setIsSubmitting(true);
     try {
-      if (maxMonths > 1) {
+      if (spreadInstallments && parsedInst) {
+        // Esta continua sendo a parcela informada (no mês escolhido); as outras vão para
+        // frente e para trás, sem repetir as que já foram lançadas
+        const state = useFinanceStore.getState();
+        const baseIncomes = state.getMonthIncomes(monthKey);
+        const baseFixos = state.getMonthTransactions(monthKey).filter(isFixedTransaction);
+        const purchaseName = name.trim();
+        const finalSubcategory = micro.trim() || null;
+        const finalPaymentMethod = cardId ? ('Crédito' as const) : null;
+        const plan = planInstallments(
+          parsedInst,
+          monthKey,
+          { name: purchaseName, cardId: cardId || null },
+          state.transactions.filter((t) => t.id !== transaction.id),
+        );
+        const newTransactions: Omit<Transaction, 'id'>[] = [];
+        const newIncomes: Omit<Income, 'id'>[] = [];
+
+        for (const slot of plan.missing) {
+          newTransactions.push({
+            name: purchaseName,
+            amount: numAmount,
+            category: macro,
+            subcategory: finalSubcategory,
+            transactionType: txType,
+            nature: null,
+            recurrency: null,
+            paymentMethod: finalPaymentMethod,
+            monthKey: slot.monthKey,
+            installments: `${slot.number}/${slot.total}`,
+            goalId: transaction.goalId || null,
+            cardId: cardId || null,
+            subTransactions: null,
+            isPaid: slot.number < parsedInst.current,
+          });
+
+          if (slot.number > parsedInst.current) {
+            const futureIncomes = state.getMonthIncomes(slot.monthKey);
+            const futureFixos = state.getMonthTransactions(slot.monthKey).filter(isFixedTransaction);
+            if (futureIncomes.length === 0 && futureFixos.length === 0) {
+              for (const inc of baseIncomes) {
+                newIncomes.push({ name: inc.name, amount: inc.amount, monthKey: slot.monthKey, isRecurring: inc.isRecurring });
+              }
+              for (const fixo of baseFixos) {
+                newTransactions.push(copyFixedToMonth(fixo, slot.monthKey));
+              }
+            }
+          }
+        }
+
+        addAvailableMonth(monthKey);
+        // em sequência: nunca duas gravações simultâneas na planilha
+        await updateTransaction(transaction.id, {
+          name: purchaseName,
+          amount: numAmount,
+          category: macro,
+          subcategory: finalSubcategory,
+          transactionType: txType,
+          nature: null,
+          recurrency: fixedRecurrency,
+          paymentMethod: finalPaymentMethod,
+          monthKey,
+          subTransactions: null,
+          isPaid,
+          cardId: cardId || null,
+          installments: `${parsedInst.current}/${parsedInst.total}`,
+        });
+        await addEntriesBatch({ transactions: newTransactions, incomes: newIncomes });
+      } else if (spreadSubs) {
         const newTransactions: Omit<Transaction, 'id'>[] = [];
         const newIncomes: Omit<Income, 'id'>[] = [];
         let firstInstallment: Partial<Omit<Transaction, 'id'>> | null = null;
@@ -211,10 +284,11 @@ export default function TransactionEditModalDetailed({ transaction, onClose }: T
         if (firstInstallment) await updateTransaction(transaction.id, firstInstallment);
         await addEntriesBatch({ transactions: newTransactions, incomes: newIncomes });
       } else {
+        // parcelas das sub-transações ficam como estavam (ex: "2/3" não vira "1/2")
         const currentSubs = hasValidSubTxs ? parsedSubTxs.map(s => ({
           name: s.name,
           amount: s.amount,
-          installments: s.installments > 1 ? `1/${s.installments}` : undefined
+          installments: s.rawInstallments || undefined
         })) : null;
 
         addAvailableMonth(monthKey);

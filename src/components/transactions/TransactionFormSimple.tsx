@@ -5,9 +5,10 @@ import { Banknote, Sparkles, Trash2 } from 'lucide-react';
 import type { Category, Income, Transaction } from '@/lib/types';
 import { useFinanceStore } from '@/lib/store';
 import { CATEGORY_NAMES } from '@/lib/categories';
-import { monthKeyToLabel, formatMask, parseMask } from '@/lib/currency';
+import { monthKeyToLabel, formatMask, parseMask, parseInstallmentInput } from '@/lib/currency';
 import { useSwipeToClose } from '@/hooks/useSwipeToClose';
 import { isFixedTransaction, copyFixedToMonth, hasRepeatingInstallments } from '@/lib/fixedTransactions';
+import { installmentAmount, planInstallments } from '@/lib/installments';
 import FixedToggle from './FixedToggle';
 
 const CATEGORIES = CATEGORY_NAMES as Category[];
@@ -92,12 +93,51 @@ export default function TransactionFormSimple({ onClose }: TransactionFormProps)
         parsedSubTxs.forEach(s => { if (s.installments > maxMonths) maxMonths = s.installments; });
       }
 
-      if (type === 'expense') {
-        const parsedInstallments = parseInt(installments, 10);
-        if (!hasValidSubTxs && installments && !isNaN(parsedInstallments) && parsedInstallments > 1 && !installments.includes('/')) {
-          maxMonths = parsedInstallments;
-        }
+      // Parcelas da compra (ex: "12", "3/6", "6-6"); sub-transações têm as próprias parcelas
+      const parsedInst = hasValidSubTxs ? null : parseInstallmentInput(installments);
 
+      if (type === 'expense' && parsedInst && parsedInst.total > 1) {
+        // A parcela informada fica neste mês, as seguintes vão para frente e as anteriores
+        // para trás (na última, todas para trás), sem repetir as que já foram lançadas
+        const state = useFinanceStore.getState();
+        const baseIncomes = state.getMonthIncomes(monthKey);
+        const baseFixos = state.getMonthTransactions(monthKey).filter(isFixedTransaction);
+        const newTransactions: Omit<Transaction, 'id'>[] = [];
+        const newIncomes: Omit<Income, 'id'>[] = [];
+
+        const plan = planInstallments(parsedInst, monthKey, { name: name.trim(), cardId: cardId || null }, state.transactions);
+        const slots = [plan.current, ...plan.missing].sort((a, b) => a.number - b.number);
+
+        for (const slot of slots) {
+          newTransactions.push({
+            name: name.trim(),
+            amount: installmentAmount(numAmount, slot.total, slot.number),
+            category,
+            monthKey: slot.monthKey,
+            installments: `${slot.number}/${slot.total}`,
+            goalId: goalId || null,
+            cardId: cardId || null,
+            subTransactions: null,
+            // anteriores à informada já foram pagas; as seguintes ainda não
+            isPaid: slot.number < parsedInst.current ? true : slot.number === parsedInst.current ? isPaid : false,
+          });
+
+          // Meses à frente ainda vazios recebem as receitas e os fixos deste mês
+          if (slot.number > parsedInst.current) {
+            const futureIncomes = state.getMonthIncomes(slot.monthKey);
+            const futureFixos = state.getMonthTransactions(slot.monthKey).filter(isFixedTransaction);
+            if (futureIncomes.length === 0 && futureFixos.length === 0) {
+              for (const inc of baseIncomes) {
+                newIncomes.push({ name: inc.name, amount: inc.amount, monthKey: slot.monthKey, isRecurring: inc.isRecurring });
+              }
+              for (const fixo of baseFixos) {
+                newTransactions.push(copyFixedToMonth(fixo, slot.monthKey));
+              }
+            }
+          }
+        }
+        await addEntriesBatch({ transactions: newTransactions, incomes: newIncomes });
+      } else if (type === 'expense') {
         if (maxMonths > 1) {
           const newTransactions: Omit<Transaction, 'id'>[] = [];
           const newIncomes: Omit<Income, 'id'>[] = [];
@@ -539,7 +579,7 @@ export default function TransactionFormSimple({ onClose }: TransactionFormProps)
                 <input
                   className="form-input"
                   type="text"
-                  placeholder="Ex: 12"
+                  placeholder="Ex: 12 ou 3/12"
                   value={installments}
                   onChange={(e) => setInstallments(e.target.value)}
                   disabled={isSubmitting}

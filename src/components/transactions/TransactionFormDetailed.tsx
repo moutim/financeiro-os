@@ -27,6 +27,7 @@ import {
 } from '@/lib/currency';
 import { useSwipeToClose } from '@/hooks/useSwipeToClose';
 import { isFixedTransaction, copyFixedToMonth, hasRepeatingInstallments } from '@/lib/fixedTransactions';
+import { installmentAmount, planInstallments } from '@/lib/installments';
 import FixedToggle from './FixedToggle';
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -146,26 +147,27 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
       const parsedInst = parseInstallmentInput(installments);
 
       if (movementType === 'expense') {
-        // Caso de parcelas com cálculo retroativo/futuro (ex: "3/3", "2/5", "12x")
+        // Parcelas (ex: "3/6", "6-6", "12"): a informada fica neste mês, as seguintes vão
+        // para frente e as anteriores para trás, sem repetir as que já foram lançadas
         if (!hasValidSubTxs && parsedInst && parsedInst.total > 1) {
           const { current, total } = parsedInst;
           const newTransactions: Omit<Transaction, 'id'>[] = [];
           const newIncomes: Omit<Income, 'id'>[] = [];
           const baseIncomes = state.getMonthIncomes(monthKey);
           const baseFixos = state.getMonthTransactions(monthKey).filter(isFixedTransaction);
-          
-          const amountPerInstallment = Math.floor((numAmount / total) * 100) / 100;
-          const remainder = numAmount - (amountPerInstallment * total);
-          const firstInstallmentAmount = Math.round((amountPerInstallment + remainder) * 100) / 100;
 
-          for (let k = 1; k <= total; k++) {
-            const offset = k - current; // Ex: se digitou 3/3, k=1 é -2 meses, k=2 é -1 mês, k=3 é 0 meses
-            const targetMonthKey = addMonths(monthKey, offset);
-            
+          const plan = planInstallments(parsedInst, monthKey, { name: name.trim(), cardId: cardId || null }, state.transactions);
+          const slots = [plan.current, ...plan.missing].sort((a, b) => a.number - b.number);
+
+          for (const slot of slots) {
+            const k = slot.number;
+            const targetMonthKey = slot.monthKey;
+            const offset = k - current; // > 0: mês à frente do lançamento
+
             // Garante que o mês existe no store
             state.addAvailableMonth(targetMonthKey);
 
-            const currentInstallmentAmount = (k === 1) ? firstInstallmentAmount : amountPerInstallment;
+            const currentInstallmentAmount = installmentAmount(numAmount, total, k);
             const isInstallmentPaid = k < current ? true : (k === current ? isPaid : false);
 
             const finalSubcategory = micro.trim() || null;
@@ -477,12 +479,20 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
                 </p>
               );
             }
+            // Mesma conta do salvar: a informada fica neste mês, seguintes à frente, anteriores para trás
+            const plan = planInstallments(p, monthKey, { name: name.trim(), cardId: cardId || null }, useFinanceStore.getState().transactions);
             const startMonth = addMonths(monthKey, 1 - p.current);
             const endMonth = addMonths(monthKey, p.total - p.current);
             const backCount = p.current - 1;
+            const forwardCount = p.total - p.current;
+            const alreadyLaunched = p.total - 1 - plan.missing.length;
             return (
               <p style={{ fontSize: 12, color: 'var(--blue)', margin: '-4px 0 12px', fontWeight: 500 }}>
-                ✨ Parcela {p.current} de {p.total}. {backCount} parcela(s) retroativa(s) a partir de <strong>{monthKeyToShortLabel(startMonth)}</strong> até <strong>{monthKeyToShortLabel(endMonth)}</strong>. Meses faltantes serão criados automaticamente!
+                ✨ Parcela {p.current} de {p.total}.{' '}
+                {forwardCount > 0
+                  ? <>{forwardCount === 1 ? 'A seguinte vai' : `As ${forwardCount} seguintes vão`} até <strong>{monthKeyToShortLabel(endMonth)}</strong> e {backCount === 1 ? 'a anterior fica' : `as ${backCount} anteriores ficam`} desde <strong>{monthKeyToShortLabel(startMonth)}</strong>.</>
+                  : <>{backCount === 1 ? 'A anterior fica' : `As ${backCount} anteriores ficam`} desde <strong>{monthKeyToShortLabel(startMonth)}</strong>.</>}
+                {alreadyLaunched > 0 && <> {alreadyLaunched === 1 ? '1 já lançada não será repetida.' : `${alreadyLaunched} já lançadas não serão repetidas.`}</>}
               </p>
             );
           })()}

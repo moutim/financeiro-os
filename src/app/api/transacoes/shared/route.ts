@@ -4,6 +4,7 @@ import { newRowId } from '@/lib/sheetRows';
 import { getUserSheetsClient } from '@/lib/user-sheets';
 import { SHEET_TABS } from '@/lib/sheets';
 import { transactionToRow } from '@/lib/parsers';
+import { GUEST_CONTRIBUTION_ID_PREFIX } from '@/lib/sharedContributions';
 import type { Transaction } from '@/lib/types';
 
 export async function POST(req: Request) {
@@ -18,11 +19,11 @@ export async function POST(req: Request) {
        return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Force parentId to SHARED so it doesn't mess up the owner's balance
+    // ParentId SHARED + prefixo do ID: o app do dono separa a cópia dos gastos pessoais dele (isGuestContribution)
     const sharedTx: Transaction = {
       ...transaction,
       parentId: 'SHARED',
-      id: newRowId('t-shared'),
+      id: newRowId(GUEST_CONTRIBUTION_ID_PREFIX),
       author: session.user?.name || session.user?.email || null,
     };
 

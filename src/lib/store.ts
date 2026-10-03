@@ -3,6 +3,7 @@
 import { create } from 'zustand';
 import type { Transaction, Income, Pending, SavingsGoal, Category, CreditCard } from '@/lib/types';
 import { isFixedTransaction } from '@/lib/fixedTransactions';
+import { isGuestContribution } from '@/lib/sharedContributions';
 
 const now = new Date();
 export const CURRENT_MONTH_KEY =`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -12,7 +13,10 @@ type LoadingState = 'idle' | 'loading' | 'success' | 'error';
 
 interface FinanceStore {
   // Data
+  /** Lançamentos do próprio usuário (os que entram nos gastos e no saldo) */
   transactions: Transaction[];
+  /** Aportes de convidados nas metas compartilhadas deste usuário: só contam na meta e no histórico */
+  guestContributions: Transaction[];
   incomes: Income[];
   pending: Pending[];
   goals: SavingsGoal[];
@@ -32,8 +36,8 @@ interface FinanceStore {
   setFilterCategory: (cat: Category | 'Todas' | null) => void;
   addTransaction: (t: Omit<Transaction, 'id'>) => Promise<Transaction>;
   updateTransaction: (id: string, updates: Partial<Omit<Transaction, 'id'>>) => Promise<void>;
-  /** Marca várias transações como pagas numa única gravação */
-  markTransactionsPaid: (ids: string[]) => Promise<void>;
+  /** Marca várias transações como pagas numa única gravação (isPaid = false desmarca) */
+  markTransactionsPaid: (ids: string[], isPaid?: boolean) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   addIncome: (income: Omit<Income, 'id'>) => Promise<Income>;
   /** Vários lançamentos numa única gravação (parcelas, cópias para meses futuros) */
@@ -75,6 +79,7 @@ interface FinanceStore {
 
 export const useFinanceStore = create<FinanceStore>()((set, get) => ({
   transactions: [],
+  guestContributions: [],
   incomes: [],
   pending: [],
   goals: [],
@@ -102,13 +107,18 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
         throw new Error(errBody.error ?? 'Erro ao carregar dados');
       }
 
-      const [transactions, incomes, pending, goals, cards] = await Promise.all([
+      const [sheetTransactions, incomes, pending, goals, cards] = await Promise.all([
         txRes.json() as Promise<Transaction[]>,
         incRes.json() as Promise<Income[]>,
         pendRes.json() as Promise<Pending[]>,
         goalsRes.json() as Promise<SavingsGoal[]>,
         cardsRes.json() as Promise<CreditCard[]>,
       ]);
+
+      // A aba de transações do dono da meta também guarda as cópias dos aportes dos convidados:
+      // ficam separadas para não aparecerem como gasto dele nem abrirem meses no seletor
+      const transactions = sheetTransactions.filter((t) => !isGuestContribution(t));
+      const guestContributions = sheetTransactions.filter(isGuestContribution);
 
       const uniqueMonths = new Set<string>();
       transactions.forEach(t => uniqueMonths.add(t.monthKey));
@@ -123,6 +133,7 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
 
       set({ 
         transactions, 
+        guestContributions,
         incomes, 
         pending, 
         goals, 
@@ -176,17 +187,17 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
   },
 
   // ─── Mark many as paid ────────────────────────────────────────────────────
-  markTransactionsPaid: async (ids) => {
+  markTransactionsPaid: async (ids, isPaid = true) => {
     if (ids.length === 0) return;
     const targets = new Set(ids);
     // Optimistic update
     set((state) => ({
-      transactions: state.transactions.map((t) => (targets.has(t.id) ? { ...t, isPaid: true } : t)),
+      transactions: state.transactions.map((t) => (targets.has(t.id) ? { ...t, isPaid } : t)),
     }));
     const res = await fetch('/api/transacoes/mark-paid', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids }),
+      body: JSON.stringify({ ids, isPaid }),
     });
     if (!res.ok) {
       // Rollback on failure — reload from server
@@ -501,7 +512,7 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
   },
 
   getMonthSummary: (monthKey) => {
-    const transactions = get().getMonthTransactions(monthKey).filter(t => t.parentId !== 'SHARED');
+    const transactions = get().getMonthTransactions(monthKey);
     const incomes = get().getMonthIncomes(monthKey);
 
     const income = incomes.reduce((s, i) => s + i.amount, 0);

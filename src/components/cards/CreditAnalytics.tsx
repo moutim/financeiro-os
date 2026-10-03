@@ -8,6 +8,7 @@ import { isLightCardColor } from '@/components/cards/WalletCardFace';
 import { formatCurrency } from '@/lib/currency';
 import { getBankById } from '@/lib/banks';
 import { useCategoryTaxonomy } from '@/lib/taxonomy';
+import { availableCredit } from '@/lib/creditCards';
 import {
   Wallet,
   CreditCard,
@@ -287,7 +288,7 @@ export default function CreditAnalytics({
                 {/* Limite do cartão: na mesma linha quando cabe, quebra em duas no celular sem cortar valores */}
                 <div style={{ display: 'flex', flexWrap: 'wrap', columnGap: 12, rowGap: 2, marginTop: 4, fontSize: 12, color: 'var(--text-tertiary)', fontVariantNumeric: 'tabular-nums' }}>
                   <span>Usado {formatCurrency(card.realUsed)} ({cardLimitUsedPct.toFixed(0)}%)</span>
-                  <span>Livre {formatCurrency(Math.max(0, card.limit - card.realUsed))}</span>
+                  <span>Livre {formatCurrency(availableCredit(card))}</span>
                 </div>
               </div>
             </div>
