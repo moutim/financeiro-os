@@ -1085,6 +1085,15 @@ body {
   border-radius: var(--radius-xl);
 }
 
+/* celular: só um cartão aparece por vez, então o contorno que separa um item do outro sobra;
+   sem ele, o respiro interno também sai e o cartão alinha com o título da seção */
+@media (max-width: 480px) {
+  .cards-carousel-card {
+    padding: 0;
+    border: none;
+  }
+}
+
 /* ─── Face do cartão (estilo Apple Wallet) ────────────────────────────────── */
 /* Cor, texto e brilho vêm de --wallet-bg / --wallet-ink / --wallet-glow (WalletCardFace.tsx) */
 .wallet-card {
