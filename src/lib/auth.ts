@@ -127,7 +127,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             'email',
             'profile',
             'https://www.googleapis.com/auth/drive.file',
-            'https://www.googleapis.com/auth/spreadsheets',
           ].join(' '),
           access_type: 'offline',
           prompt: 'consent',
