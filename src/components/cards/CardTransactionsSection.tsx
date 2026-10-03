@@ -6,7 +6,7 @@ import SectionCard from '@/components/ui/SectionCard';
 import SegmentedTabs from '@/components/ui/SegmentedTabs';
 import ScrollArea from '@/components/ui/ScrollArea';
 import TransactionList from '@/components/transactions/TransactionList';
-import { walletFace, bankLogoSrc } from '@/components/cards/WalletCardFace';
+import { getBankById } from '@/lib/banks';
 import { formatCurrency, monthKeyToLabel } from '@/lib/currency';
 import type { CardWithRealData } from '@/lib/creditCards';
 import type { Transaction } from '@/lib/types';
@@ -99,40 +99,27 @@ export default function CardTransactionsSection({ cards, selectedMonth }: CardTr
         : 'Todas as compras lançadas em cada cartão, mês a mês'}
       actions={<SegmentedTabs tabs={VIEW_TABS} value={view} onChange={setView} />}
     >
-      {/* Seletor de cartão em miniaturas da face (como a Carteira do iPhone): o selecionado
-          fica em destaque e, embaixo do nome, quantas compras ainda faltam pagar */}
-      <div className="card-picker" role="group" aria-label="Escolher cartão">
+      {/* Seletor de cartão: o número indica quantas compras ainda não foram pagas */}
+      <div className="card-chips">
         {cards.map((c) => {
           const isActive = c.id === card.id;
-          const { bank, isLight, style } = walletFace(c);
-          const inView = transactionsInView(c, view, selectedMonth);
-          const openCount = inView.filter((t) => !t.isPaid).length;
-          const status = inView.length === 0 ? 'Sem compras' : openCount > 0 ? `${openCount} a pagar` : 'Em dia';
+          const color = getBankById(c.bankId)?.color || c.color;
+          const openCount = transactionsInView(c, view, selectedMonth).filter((t) => !t.isPaid).length;
           return (
             <button
               key={c.id}
               type="button"
               onClick={() => setSelectedCardId(c.id)}
               aria-pressed={isActive}
-              className={`card-picker-item${isActive ? ' active' : ''}`}
+              className={`card-chip ${isActive ? 'active' : ''}`}
             >
-              <span className={`card-picker-face${isLight ? ' is-light' : ''}`} style={style}>
-                {bank && (
-                  // eslint-disable-next-line @next/next/no-img-element -- favicon externo, sem otimização
-                  <img
-                    className="card-picker-logo"
-                    src={bankLogoSrc(bank.domain)}
-                    alt=""
-                    width={13}
-                    height={13}
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
-                )}
-              </span>
-              <span className="card-picker-name">{c.name}</span>
-              <span className="card-picker-status">{status}</span>
+              <span className="card-chip-dot" style={{ background: color }} />
+              {c.name}
+              {openCount > 0 && (
+                <span className="card-chip-count" title={`${openCount} ${openCount === 1 ? 'compra a pagar' : 'compras a pagar'}`}>
+                  {openCount}
+                </span>
+              )}
             </button>
           );
         })}

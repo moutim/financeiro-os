@@ -1455,108 +1455,78 @@ body {
   }
 }
 
-/* ─── Cartões › Transações por Cartão: seletor em mini cartões ───────────── */
-/* Miniaturas da face do cartão, com as mesmas cores do carrossel (--wallet-* do WalletCardFace).
-   Os não selecionados ficam esmaecidos; o selecionado sobe um pouco e ganha o brilho da cor. */
-.card-picker {
+/* ─── Cartões › Transações por Cartão: seletor de cartão ──────────────────── */
+/* chips discretos: o selecionado ganha o tom claro da cor do usuário, um nível abaixo das abas
+   cheias do card; o ponto na cor do banco identifica o cartão */
+.card-chips {
   display: flex;
-  gap: 12px;
-  overflow-x: auto;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-  /* respiro para o brilho e a subida do selecionado (o overflow cortaria), compensado na margem */
-  padding: 6px 6px 2px;
-  margin: -6px -6px 14px;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
 }
 
-.card-picker::-webkit-scrollbar {
-  display: none;
-}
-
-.card-picker-item {
-  flex: 0 0 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  width: 64px;
-  padding: 0;
+.card-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
   border: none;
-  background: none;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.card-picker-face {
-  display: block;
-  width: 100%;
-  aspect-ratio: 1.586 / 1; /* proporção real de cartão, como a face grande */
-  margin-bottom: 6px;
-  padding: 4px;
-  border-radius: 5px;
-  background: var(--wallet-bg);
-  opacity: 0.45;
-  transition: opacity 0.2s ease, transform 0.25s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.2s ease;
-}
-
-/* contorno sutil: cartão claro no tema claro e cartão escuro no tema escuro não somem no fundo */
-.card-picker-face.is-light {
-  outline: 1px solid rgba(0, 0, 0, 0.08);
-  outline-offset: -1px;
-}
-
-.dark .card-picker-face:not(.is-light) {
-  outline: 1px solid rgba(255, 255, 255, 0.1);
-  outline-offset: -1px;
-}
-
-.card-picker-item:hover .card-picker-face {
-  opacity: 0.75;
-}
-
-.card-picker-item.active .card-picker-face {
-  opacity: 1;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 14px -6px var(--wallet-glow), 0 1px 2px rgba(0, 0, 0, 0.08);
-}
-
-.card-picker-item:focus-visible {
-  outline: none;
-}
-
-.card-picker-item:focus-visible .card-picker-face {
-  outline: 2px solid var(--blue);
-  outline-offset: 2px;
-}
-
-.card-picker-logo {
-  display: block;
-  width: 13px;
-  height: 13px;
-  object-fit: contain;
-  border-radius: 3px;
-}
-
-.card-picker-name {
-  max-width: 100%;
-  font-size: 11px;
-  font-weight: 500;
+  border-radius: var(--radius-full);
+  background: var(--bg-2);
   color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-.card-picker-item.active .card-picker-name {
+.card-chip:hover {
   color: var(--text-primary);
+}
+
+.card-chip.active {
+  background: var(--blue-light);
+  color: var(--blue);
   font-weight: 600;
 }
 
-.card-picker-status {
-  font-size: 10px;
+.card-chip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* compras a pagar: só o número, sem selo colorido */
+.card-chip-count {
+  font-size: 12px;
+  font-weight: 600;
   color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+}
+
+.card-chip.active .card-chip-count {
+  color: inherit;
+  opacity: 0.7;
+}
+
+/* celular: uma linha só que desliza para o lado, em vez de quebrar em várias */
+@media (max-width: 768px) {
+  .card-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .card-chips::-webkit-scrollbar {
+    display: none;
+  }
+
+  .card-chip {
+    flex-shrink: 0;
+  }
 }
 
 /* mesmo trilho das abas da Análise Avançada de Gastos; os botões usam .segmented-tab */
