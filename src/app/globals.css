@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* `dark:` do Tailwind segue a classe .dark do tema do app (themeStore), não a preferência do sistema */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @keyframes tooltipFadeIn {
   from {
     opacity: 0;
@@ -1077,62 +1080,89 @@ body {
   scroll-snap-align: start;
 }
 
-/* Sem fundo: só um contorno fino agrupa cartão e valores e separa um item do outro */
+/* Fundo agrupado do iOS (cinza sobre a seção branca) junta cartão e valores e separa um item do outro;
+   raio = raio da face (16px) + respiro (12px), para os cantos ficarem concêntricos */
 .cards-carousel-card {
   height: 100%;
   padding: 12px;
-  border: 1px solid var(--separator-subtle);
-  border-radius: var(--radius-xl);
+  border-radius: 28px;
+  background: var(--bg);
 }
 
-/* celular: só um cartão aparece por vez, então o contorno que separa um item do outro sobra;
+/* No escuro o --bg é preto puro e viraria um buraco na seção (#1C1C1E); o cinza elevado acompanha o iOS */
+.dark .cards-carousel-card {
+  background: var(--bg-2);
+}
+
+/* celular: só um cartão aparece por vez, então o fundo que separa um item do outro sobra;
    sem ele, o respiro interno também sai e o cartão alinha com o título da seção */
 @media (max-width: 480px) {
-  .cards-carousel-card {
+  .cards-carousel-card,
+  .dark .cards-carousel-card {
     padding: 0;
-    border: none;
+    background: none;
   }
 }
 
-/* ─── Face do cartão (estilo Apple Wallet) ────────────────────────────────── */
-/* Cor, texto e brilho vêm de --wallet-bg / --wallet-ink / --wallet-glow (WalletCardFace.tsx) */
+/* ─── Face do cartão (modelo Tilt Card da Spell UI) ───────────────────────── */
+/* Cor e texto vêm de --wallet-bg / --wallet-ink (WalletCardFace.tsx); a inclinação e o
+   brilho que segue o cursor vêm do TiltCard, que controla o transform inline */
 .wallet-card {
-  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  margin-bottom: 20px;
+  border-radius: 16px;
+  /* degradê diagonal na cor do banco: mais claro no canto superior, mais escuro no inferior */
+  background: linear-gradient(
+    to bottom right,
+    color-mix(in srgb, var(--wallet-bg) 82%, #FFFFFF),
+    var(--wallet-bg) 50%,
+    color-mix(in srgb, var(--wallet-bg) 78%, #000000)
+  );
+  color: var(--wallet-ink);
+  /* sem sombra: só um contorno fino, para cartões claros/escuros não se misturarem ao fundo do item */
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+
+/* Cartões claros seguem o cinza neutro da demo (o escurecimento acima ficaria pesado) */
+.wallet-card.is-light {
+  background: linear-gradient(to bottom right, #F5F5F5, #E5E5E5 50%, #D4D4D4);
+}
+
+/* No tema escuro o contorno é claro, para separar cartões escuros (ex: C6) do fundo */
+.dark .wallet-card {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.wallet-card:has(.wallet-card-body:focus-visible) {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wallet-card {
+    transform: none !important; /* vence o transform inline do TiltCard */
+  }
+}
+
+/* Botão de edição ocupa a face inteira; o brilho do TiltCard fica por cima sem bloquear o clique */
+.wallet-card-body {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  width: 100%;
-  aspect-ratio: 1.586 / 1; /* proporção real de cartão (85,6 × 54 mm) */
-  margin-bottom: 20px;
-  padding: clamp(14px, 6cqw, 20px);
+  padding: clamp(16px, 7cqw, 22px);
   border: none;
-  border-radius: 12px;
-  background: var(--wallet-bg);
-  color: var(--wallet-ink);
-  box-shadow: 0 10px 26px -8px var(--wallet-glow), 0 1px 3px rgba(0, 0, 0, 0.08);
+  background: none;
+  color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
-  overflow: clip;
-  transition: transform 0.25s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-.wallet-card:hover {
-  transform: translateY(-3px);
-}
-
-.wallet-card.is-light {
-  box-shadow: 0 10px 26px -10px var(--wallet-glow), inset 0 0 0 1px rgba(0, 0, 0, 0.08);
-}
-
-/* No tema escuro, um contorno sutil separa cartões escuros (ex: C6) do fundo */
-.dark .wallet-card:not(.is-light) {
-  box-shadow: 0 10px 26px -8px var(--wallet-glow), inset 0 0 0 1px rgba(255, 255, 255, 0.1);
-}
-
-.wallet-card:focus-visible {
-  outline: 2px solid var(--blue);
-  outline-offset: 3px;
+.wallet-card-body:focus-visible {
+  outline: none;
 }
 
 .wallet-card-row {
@@ -1142,30 +1172,19 @@ body {
   gap: 12px;
 }
 
-.wallet-card-logo {
-  width: 36px;
-  height: 36px;
-  flex-shrink: 0;
-  object-fit: contain;
-  border-radius: 8px;
-}
-
-.wallet-card-meta {
+.wallet-card-issuer {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
+  align-items: center;
+  gap: 8px;
   min-width: 0;
 }
 
-.wallet-card-name {
-  max-width: 100%;
-  font-size: clamp(12px, 5cqw, 15px);
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.wallet-card-logo {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  object-fit: contain;
+  border-radius: 8px;
 }
 
 .wallet-card-priority {
@@ -1177,41 +1196,81 @@ body {
   white-space: nowrap;
 }
 
-.wallet-card-number {
+.wallet-card-field {
   display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: clamp(11px, 4.2cqw, 13px);
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.wallet-card-label {
+  font-size: clamp(11px, 4cqw, 12px);
+  color: color-mix(in srgb, var(--wallet-ink) 65%, transparent);
+}
+
+.wallet-card-name {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wallet-card-value {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: clamp(12px, 4.4cqw, 14px);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.03em;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
 }
 
-/* Pontos pequenos e espaçados, como no Wallet */
 .wallet-card-dots {
-  font-size: 0.75em;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.06em;
+  opacity: 0.85;
 }
 
-/* Lápis discreto no meio da lateral direita: aparece no hover/foco (sempre no touch) */
-.wallet-card-edit {
+/* Ações na lateral direita, empilhadas no espaço livre entre a bandeira e o vencimento
+   (9px acima do meio, que é onde fica o centro desse espaço): lápis em cima, pagar fatura embaixo */
+.wallet-card-actions {
   position: absolute;
-  top: 50%;
+  top: calc(50% - 9px);
   right: 14px;
   transform: translateY(-50%);
   display: flex;
+  flex-direction: column;
+  gap: 4px;
+  pointer-events: none; /* o lápis é só indicação: o clique passa para a face, que abre a edição */
+}
+
+.wallet-card-action {
+  display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: clamp(22px, 8cqw, 26px);
+  height: clamp(22px, 8cqw, 26px);
+  padding: 0;
+  border: none;
   border-radius: 50%;
   background: color-mix(in srgb, var(--wallet-ink) 18%, transparent);
+  color: var(--wallet-ink);
+}
+
+/* celulares bem estreitos (~320px): não há altura para empilhar sem encostar na bandeira e no
+   vencimento, então lápis e pagar ficam lado a lado */
+@container (max-width: 270px) {
+  .wallet-card-actions {
+    flex-direction: row;
+  }
+}
+
+/* Lápis discreto: aparece no hover/foco (sempre no touch) */
+.wallet-card-edit {
   opacity: 0;
   transition: opacity 0.15s ease;
 }
 
 .wallet-card:hover .wallet-card-edit,
-.wallet-card:focus-visible .wallet-card-edit {
+.wallet-card:has(.wallet-card-body:focus-visible) .wallet-card-edit {
   opacity: 1;
 }
 
@@ -1219,6 +1278,22 @@ body {
   .wallet-card-edit {
     opacity: 0.85;
   }
+}
+
+/* Pagar fatura: sempre visível enquanto há fatura em aberto */
+.wallet-card-pay {
+  pointer-events: auto;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.wallet-card-pay:hover {
+  background: color-mix(in srgb, var(--wallet-ink) 32%, transparent);
+}
+
+.wallet-card-pay:focus-visible {
+  outline: 2px solid var(--wallet-ink);
+  outline-offset: 2px;
 }
 
 /* ─── Categorias: abertura Macro › Micro (modo detalhado) ──────────────────── */

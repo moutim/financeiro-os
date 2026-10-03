@@ -93,6 +93,9 @@ export default function CartoesPage() {
   const cardsWithRealData = buildCardsWithRealData(cards, transactions, selectedMonth);
   // Detalhado: ordenação escolhida pelo usuário. Simples: fixa, do maior para o menor limite.
   const visibleCards = sortCards(cardsWithRealData, isDetailed ? sortOption : 'limit-desc');
+  // Aviso de limite (≥ 80%, modo detalhado) fica acima da barra; se algum cartão tiver, a linha é
+  // reservada em todos para as barras e faturas continuarem alinhadas entre os cartões
+  const anyLimitWarning = visibleCards.some((card) => card.limit > 0 && card.realUsed / card.limit >= 0.8);
 
   const totalLimit = cardsWithRealData.reduce((acc, card) => acc + card.limit, 0);
   const totalUsed = cardsWithRealData.reduce((acc, card) => acc + card.realUsed, 0);
@@ -220,12 +223,18 @@ export default function CartoesPage() {
                         // container query: nome, número e valores encolhem junto com o cartão (unidades cqw)
                         style={{ animationDelay: `${index * 60}ms`, containerType: 'inline-size' }}
                       >
-                        <WalletCardFace card={card} onEdit={() => openEditCard(card)} />
+                        <WalletCardFace
+                          card={card}
+                          onEdit={() => openEditCard(card)}
+                          onPay={card.unpaidCurrentMonth.length > 0
+                            ? () => setPayingCard({ card, amount: card.currentInvoiceAmount, transactions: card.unpaidCurrentMonth })
+                            : undefined}
+                        />
 
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 8 }}>
                           <div>
                             <div style={{ fontSize: 'clamp(10px, 5cqw, 12px)', color: 'var(--text-tertiary)', marginBottom: 2 }}>Crédito Utilizado</div>
-                            <div style={{ fontSize: 'clamp(14px, 7.4cqw, 18px)', fontWeight: 700 }}>{formatCurrency(card.realUsed)}</div>
+                            <div style={{ fontSize: 'clamp(12px, 5.8cqw, 14px)', fontWeight: 600 }}>{formatCurrency(card.realUsed)}</div>
                           </div>
                           <div style={{ textAlign: 'right' }}>
                             <div style={{ fontSize: 'clamp(10px, 5cqw, 12px)', color: 'var(--text-tertiary)', marginBottom: 2 }}>Limite Disponível</div>
@@ -234,10 +243,16 @@ export default function CartoesPage() {
                         </div>
 
                         <DetailedOnly>
-                          {usagePct >= 80 && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--red)', fontSize: 11, fontWeight: 700, marginBottom: 4 }}>
-                              <AlertTriangle size={12} />
-                              <span>Atenção: {usagePct.toFixed(0)}% do limite comprometido</span>
+                          {anyLimitWarning && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, height: 15, color: 'var(--red)', fontSize: 11, fontWeight: 700, marginBottom: 4 }}>
+                              {usagePct >= 80 && (
+                                <>
+                                  <AlertTriangle size={12} style={{ flexShrink: 0 }} />
+                                  <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    Atenção: {usagePct.toFixed(0)}% do limite comprometido
+                                  </span>
+                                </>
+                              )}
                             </div>
                           )}
                         </DetailedOnly>
@@ -257,10 +272,21 @@ export default function CartoesPage() {
                           marginTop: 12, 
                           paddingTop: 12,
                           borderTop: '1px solid var(--separator)',
-                          alignItems: 'center'
+                          // topo, não centro: os selos "Paga" / "% do salário" não deslocam o Limite Total
+                          alignItems: 'flex-start'
                         }}>
-                          <div>
-                            <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 2 }}>Fatura do Mês</div>
+                          <div style={{ minWidth: 0 }}>
+                            {/* selo "Paga" ao lado do rótulo, com a mesma altura de linha: não quebra a linha do valor
+                                (pagar a fatura fica no ícone de moedas da face do cartão) */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, lineHeight: '15px', color: 'var(--text-tertiary)', marginBottom: 2 }}>
+                              Fatura do Mês
+                              {card.currentInvoiceAmount > 0 && card.unpaidCurrentMonth.length === 0 && (
+                                <span style={{ display: 'flex', alignItems: 'center', gap: 3, color: 'var(--green)', fontSize: 10, fontWeight: 600, lineHeight: '15px', background: 'var(--green-light)', padding: '0 6px', borderRadius: 10 }}>
+                                  <CheckCircle2 size={10} strokeWidth={2.5} />
+                                  Paga
+                                </span>
+                              )}
+                            </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                               <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{formatCurrency(card.currentInvoiceAmount)}</div>
                               <DetailedOnly>
@@ -277,47 +303,13 @@ export default function CartoesPage() {
                                   </span>
                                 )}
                               </DetailedOnly>
-                              {card.currentInvoiceAmount > 0 && card.unpaidCurrentMonth.length === 0 && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--green)', fontSize: 11, fontWeight: 600, background: 'var(--green-light)', padding: '2px 6px', borderRadius: 10 }}>
-                                  <CheckCircle2 size={12} strokeWidth={2.5} />
-                                  Paga
-                                </div>
-                              )}
                             </div>
                           </div>
-                          <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 2 }}>Limite Total</div>
+                          <div style={{ textAlign: 'right', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                            <div style={{ fontSize: 11, lineHeight: '15px', color: 'var(--text-tertiary)', marginBottom: 2 }}>Limite Total</div>
                             <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)' }}>{formatCurrency(card.limit)}</div>
                           </div>
                         </div>
-
-                        {card.unpaidCurrentMonth.length > 0 && (
-                          <button 
-                            onClick={() => setPayingCard({ card, amount: card.currentInvoiceAmount, transactions: card.unpaidCurrentMonth })}
-                            style={{
-                              width: '100%',
-                              marginTop: 12,
-                              padding: '10px',
-                              background: 'var(--green-light)',
-                              color: 'var(--green)',
-                              border: 'none',
-                              borderRadius: 10,
-                              fontSize: 13,
-                              fontWeight: 600,
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: 6,
-                              transition: 'opacity 0.2s ease'
-                            }}
-                            onMouseOver={(e) => e.currentTarget.style.opacity = '0.8'}
-                            onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
-                          >
-                            <CheckCircle2 size={16} strokeWidth={2.5} />
-                            Pagar Fatura
-                          </button>
-                        )}
                       </div>
                     </div>
                   );
