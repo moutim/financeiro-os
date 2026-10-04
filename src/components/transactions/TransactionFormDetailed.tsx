@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Banknote, Sparkles, Trash2 } from 'lucide-react';
+import { Banknote, CheckCircle2, Sparkles } from 'lucide-react';
 import type { 
   ExpenseMacro, 
   TransactionType,
@@ -29,24 +29,11 @@ import {
 import { useSwipeToClose } from '@/hooks/useSwipeToClose';
 import { hasRepeatingInstallments } from '@/lib/fixedTransactions';
 import FixedToggle from './FixedToggle';
+import MonthKeySelect from './MonthKeySelect';
+import SubTransactionsPanel, { SubTransactionsSummary, useSubTransactionsView, type SubTransactionDraft } from './SubTransactionsPanel';
+import SwitchField from '@/components/ui/SwitchField';
 
 const CURRENT_YEAR = new Date().getFullYear();
-const YEARS = Array.from({ length: 16 }, (_, i) => 2020 + i);
-
-const MONTHS_LIST = [
-  { num: 1, short: 'Jan', label: 'Janeiro' },
-  { num: 2, short: 'Fev', label: 'Fevereiro' },
-  { num: 3, short: 'Mar', label: 'Março' },
-  { num: 4, short: 'Abr', label: 'Abril' },
-  { num: 5, short: 'Mai', label: 'Maio' },
-  { num: 6, short: 'Jun', label: 'Junho' },
-  { num: 7, short: 'Jul', label: 'Julho' },
-  { num: 8, short: 'Ago', label: 'Agosto' },
-  { num: 9, short: 'Set', label: 'Setembro' },
-  { num: 10, short: 'Out', label: 'Outubro' },
-  { num: 11, short: 'Nov', label: 'Novembro' },
-  { num: 12, short: 'Dez', label: 'Dezembro' },
-];
 
 interface TransactionFormProps {
   onClose: () => void;
@@ -74,16 +61,17 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
   const [incomeCategory, setIncomeCategory] = useState<string>(INCOME_CATEGORIES[0]);
   const [incomeType, setIncomeType] = useState<'salary' | 'extra'>('salary');
 
-  // Ano e Mês (dois campos normais de formulário)
-  const initialDate = parseMonthKey(selectedMonth) || { year: CURRENT_YEAR, month: new Date().getMonth() + 1 };
-  const [selectedYear, setSelectedYear] = useState<number>(initialDate.year);
-  const [selectedMonthNum, setSelectedMonthNum] = useState<number>(initialDate.month);
-  const monthKey = `${selectedYear}-${String(selectedMonthNum).padStart(2, '0')}`;
+  // Mês e ano num único seletor ("Out 2026")
+  const [monthKey, setMonthKey] = useState(() => {
+    const initialDate = parseMonthKey(selectedMonth) || { year: CURRENT_YEAR, month: new Date().getMonth() + 1 };
+    return `${initialDate.year}-${String(initialDate.month).padStart(2, '0')}`;
+  });
 
   const [installments, setInstallments] = useState('');
   const [goalId, setGoalId] = useState('');
   const [cardId, setCardId] = useState('');
-  const [subTransactions, setSubTransactions] = useState<{name: string, rawAmount: string, installments: string}[]>([]);
+  const [subTransactions, setSubTransactions] = useState<SubTransactionDraft[]>([]);
+  const subsView = useSubTransactionsView(subTransactions, setSubTransactions);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPaid, setIsPaid] = useState(false);
   const [isFixed, setIsFixed] = useState(false);
@@ -333,492 +321,398 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
   const availableMicros = getMicrosForMacro(macro);
   // parcelas dividem a linha com o valor; com sub-transações, cada item tem as suas
   const showInstallments = movementType === 'expense' && !hasSubTxs;
-  const addSubTransaction = () => setSubTransactions([...subTransactions, { name: '', rawAmount: '', installments: '' }]);
+  const paidLabel = movementType === 'expense' ? 'Pago' : movementType === 'income' ? 'Recebido' : 'Executado';
+  const showCard = movementType === 'expense' && cards.length > 0;
+  const showGoal = movementType === 'investment' && goals.length > 0;
+
+  // Investimento: com meta, Tipo de Ativo + Operação ficam à esquerda e Meta e Mês empilham
+  // à direita (desktop); sem meta, ficam à direita. Nos dois casos as colunas têm alturas
+  // parecidas, e no celular a ordem dos campos é a mesma
+  const investmentFields = movementType === 'investment' && (
+    <div className="tx-form-row">
+      <div className="form-group">
+        <label className="form-label">Tipo de Ativo</label>
+        <select
+          className="form-select"
+          value={investmentAsset}
+          onChange={(e) => setInvestmentAsset(e.target.value)}
+          disabled={isSubmitting}
+        >
+          {INVESTMENT_CATEGORIES.map(cat => (
+            <option key={cat} value={cat}>{cat}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="form-group">
+        <label className="form-label">Operação</label>
+        <select
+          className="form-select"
+          value={investmentOp}
+          onChange={(e) => setInvestmentOp(e.target.value)}
+          disabled={isSubmitting}
+        >
+          {INVESTMENT_TYPES.map(op => (
+            <option key={op} value={op}>{op}</option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+
+  // Uma linha só: o aviso não pode empurrar o formulário para fora da tela
+  const installmentsHint = (() => {
+    const p = showInstallments ? parseInstallmentInput(installments) : null;
+    if (!p || p.total <= 1) return null;
+    const startMonth = addMonths(monthKey, 1 - p.current);
+    const endMonth = addMonths(monthKey, p.total - p.current);
+    return p.current === 1
+      ? `✨ ${p.total} parcelas, de ${monthKeyToShortLabel(startMonth)} a ${monthKeyToShortLabel(endMonth)}`
+      : `✨ Parcela ${p.current} de ${p.total}: cria de ${monthKeyToShortLabel(startMonth)} a ${monthKeyToShortLabel(endMonth)}`;
+  })();
 
   return (
     <div className="modal-overlay animate-fade-in" onClick={!isSubmitting ? onClose : undefined}>
       <div
-        className="modal-sheet animate-slide-in-sheet"
+        className={`modal-sheet tx-modal animate-slide-in-sheet ${subsView.isOpen ? '' : 'tx-modal-columns'}`}
         onClick={(e) => e.stopPropagation()}
         style={swipeToClose.style}
       >
-        <div {...swipeToClose.handlers} style={{ paddingBottom: 12, touchAction: 'none' }}>
+        <div {...swipeToClose.handlers} className="tx-modal-header">
           <div className="modal-handle" />
-          <h2 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.015em' }}>
-            {movementType === 'expense' && 'Nova Despesa'}
-            {movementType === 'income' && 'Nova Receita'}
-            {movementType === 'investment' && 'Novo Investimento'}
-          </h2>
+          {!subsView.isOpen && (
+            <h2 className="tx-modal-title">
+              {movementType === 'expense' && 'Nova Despesa'}
+              {movementType === 'income' && 'Nova Receita'}
+              {movementType === 'investment' && 'Novo Investimento'}
+            </h2>
+          )}
         </div>
 
-        {/* ── Seletor de Tipo de Movimentação ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', background: 'var(--bg-2)', padding: 4, borderRadius: 8, marginBottom: 16, gap: 4 }}>
-          {([
-            { id: 'expense', label: 'Despesa' },
-            { id: 'income', label: 'Receita' },
-            { id: 'investment', label: 'Investimento' },
-          ] as const).map(tab => {
-            const isActive = movementType === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setMovementType(tab.id)}
-                disabled={isSubmitting}
-                style={{
-                  padding: '7px 0',
-                  border: 'none',
-                  background: isActive ? 'var(--blue)' : 'transparent',
-                  borderRadius: 6,
-                  fontWeight: isActive ? 600 : 500,
-                  fontSize: 12,
-                  color: isActive ? '#FFF' : 'var(--text-tertiary)',
-                  boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  opacity: isSubmitting ? 0.5 : 1,
-                  textAlign: 'center',
-                }}
-              >
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* campos em pares (Valor + Parcelas, Macro + Micro, Mês + Ano) para a gaveta caber sem rolagem */}
-        <form onSubmit={handleSubmit}>
-          <div className="form-group" style={{ marginBottom: 12 }}>
-            <label className="form-label">Descrição / Nome</label>
-            <input
-              className="form-input"
-              type="text"
-              placeholder={
-                movementType === 'expense' ? 'Ex: Mercado Pão de Açúcar, Uber, Cinema...' :
-                movementType === 'income' ? 'Ex: Salário, Dividendos Petrobras, Freelance...' :
-                'Ex: CDB 120% CDI, Ações BBAS3, Reserva...'
-              }
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              disabled={isSubmitting}
-              required
-            />
-          </div>
-
-          {/* ── Valor + Parcelas ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: showInstallments ? '1fr 1fr' : '1fr', gap: '0 12px', alignItems: 'end' }}>
-            <div className="form-group" style={{ marginBottom: 12 }}>
-              <label className="form-label">Valor</label>
-              <input
-                className="form-input"
-                type="text"
-                inputMode="numeric"
-                placeholder="R$ 0,00"
-                value={displayAmount}
-                onChange={(e) => {
-                  if (hasSubTxs) return;
-                  const digits = parseMask(e.target.value);
-                  setRawDigits(digits);
-                }}
-                disabled={isSubmitting || hasSubTxs}
-                required={!hasSubTxs}
-              />
+        {subsView.isOpen ? (
+          <SubTransactionsPanel
+            subs={subTransactions}
+            onChange={setSubTransactions}
+            onDone={subsView.close}
+            monthAmount={monthSubAmount}
+            totalAmount={totalSubAmount}
+            installmentsDigitsOnly
+            disabled={isSubmitting}
+          />
+        ) : (
+          <div className={subsView.formClassName}>
+            {/* ── Seletor de Tipo de Movimentação ── */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', background: 'var(--bg-2)', padding: 4, borderRadius: 8, marginBottom: 12, gap: 4 }}>
+              {([
+                { id: 'expense', label: 'Despesa' },
+                { id: 'income', label: 'Receita' },
+                { id: 'investment', label: 'Investimento' },
+              ] as const).map(tab => {
+                const isActive = movementType === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setMovementType(tab.id)}
+                    disabled={isSubmitting}
+                    style={{
+                      padding: '7px 0',
+                      border: 'none',
+                      background: isActive ? 'var(--blue)' : 'transparent',
+                      borderRadius: 6,
+                      fontWeight: isActive ? 600 : 500,
+                      fontSize: 12,
+                      color: isActive ? '#FFF' : 'var(--text-tertiary)',
+                      boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      opacity: isSubmitting ? 0.5 : 1,
+                      textAlign: 'center',
+                    }}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
             </div>
 
-            {/* Parcelas com preenchimento livre e suporte retroativo */}
-            {showInstallments && (
-              <div className="form-group" style={{ marginBottom: 12 }}>
-                <label className="form-label">Parcelas</label>
-                <input
-                  className="form-input"
-                  type="text"
-                  placeholder="Ex: 3/3 ou 12"
-                  value={installments}
-                  onChange={(e) => setInstallments(e.target.value)}
-                  disabled={isSubmitting}
-                />
-              </div>
-            )}
-          </div>
+            {/* Sem rolagem: campos em pares e sub-transações numa tela própria. No desktop, duas colunas */}
+            <form onSubmit={handleSubmit}>
+              <div className="tx-form-columns">
+                {/* ── O que é e quanto custa ── */}
+                <div>
+                  <div className="form-group">
+                    <label className="form-label">Descrição / Nome</label>
+                    <input
+                      className="form-input"
+                      type="text"
+                      placeholder={
+                        movementType === 'expense' ? 'Ex: Mercado Pão de Açúcar, Uber, Cinema...' :
+                        movementType === 'income' ? 'Ex: Salário, Dividendos Petrobras, Freelance...' :
+                        'Ex: CDB 120% CDI, Ações BBAS3, Reserva...'
+                      }
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      disabled={isSubmitting}
+                      required
+                    />
+                  </div>
 
-          {showInstallments && installments && (() => {
-            const p = parseInstallmentInput(installments);
-            if (!p || p.total <= 1) return null;
-            if (p.current === 1) {
-              const endMonth = addMonths(monthKey, p.total - 1);
-              return (
-                <p style={{ fontSize: 12, color: 'var(--blue)', margin: '-4px 0 12px', fontWeight: 500 }}>
-                  ✨ Serão criadas {p.total} parcelas consecutivas de {monthKeyToShortLabel(monthKey)} até {monthKeyToShortLabel(endMonth)}.
-                </p>
-              );
-            }
-            const startMonth = addMonths(monthKey, 1 - p.current);
-            const endMonth = addMonths(monthKey, p.total - p.current);
-            const backCount = p.current - 1;
-            return (
-              <p style={{ fontSize: 12, color: 'var(--blue)', margin: '-4px 0 12px', fontWeight: 500 }}>
-                ✨ Parcela {p.current} de {p.total}. {backCount} parcela(s) retroativa(s) a partir de <strong>{monthKeyToShortLabel(startMonth)}</strong> até <strong>{monthKeyToShortLabel(endMonth)}</strong>. Meses faltantes serão criados automaticamente!
-              </p>
-            );
-          })()}
-
-          {/* Sub-transações (opcional) */}
-          {movementType === 'expense' && (
-            <div className="form-group" style={{ marginBottom: 12 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: hasSubTxs ? 8 : 0 }}>
-                <label className="form-label" style={{ marginBottom: 0 }}>Sub-transações (opcional)</label>
-                <button
-                  type="button"
-                  onClick={addSubTransaction}
-                  disabled={isSubmitting}
-                  style={{ background: 'none', border: 'none', color: 'var(--blue)', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
-                >
-                  + Adicionar
-                </button>
-              </div>
-
-              {hasSubTxs && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px', background: 'var(--bg-2)', borderRadius: 8 }}>
-                  {subTransactions.map((sub, idx) => (
-                    <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  {/* ── Valor + Parcelas ── */}
+                  <div className={showInstallments ? 'tx-form-row' : undefined}>
+                    <div className="form-group">
+                      <label className="form-label">Valor</label>
                       <input
                         className="form-input"
-                        style={{ flex: 2, padding: '8px 12px', fontSize: 13 }}
-                        placeholder="Nome"
-                        value={sub.name}
-                        onChange={(e) => {
-                          const newSubs = [...subTransactions];
-                          newSubs[idx].name = e.target.value;
-                          setSubTransactions(newSubs);
-                        }}
-                      />
-                      <input
-                        className="form-input"
-                        style={{ flex: 1, padding: '8px 12px', fontSize: 13, maxWidth: '60px' }}
-                        placeholder="1x"
+                        type="text"
                         inputMode="numeric"
-                        value={sub.installments}
+                        placeholder="R$ 0,00"
+                        value={displayAmount}
                         onChange={(e) => {
-                          const val = e.target.value.replace(/\D/g, '');
-                          const newSubs = [...subTransactions];
-                          newSubs[idx].installments = val;
-                          setSubTransactions(newSubs);
-                        }}
-                      />
-                      <input
-                        className="form-input"
-                        style={{ flex: 1, padding: '8px 12px', fontSize: 13 }}
-                        placeholder="Valor"
-                        inputMode="numeric"
-                        value={formatMask(sub.rawAmount)}
-                        onChange={(e) => {
+                          if (hasSubTxs) return;
                           const digits = parseMask(e.target.value);
-                          const newSubs = [...subTransactions];
-                          newSubs[idx].rawAmount = digits;
-                          setSubTransactions(newSubs);
+                          setRawDigits(digits);
                         }}
+                        disabled={isSubmitting || hasSubTxs}
+                        required={!hasSubTxs}
                       />
-                      <button
-                        type="button"
-                        onClick={() => setSubTransactions(subTransactions.filter((_, i) => i !== idx))}
-                        style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', padding: 4 }}
-                      >
-                        <Trash2 size={16} />
-                      </button>
                     </div>
-                  ))}
-                  <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textAlign: 'right', marginTop: 4 }}>
-                    {monthSubAmount !== totalSubAmount ? 'Total parcelado' : 'Total'}: {formatCurrency(totalSubAmount)}
+
+                    {/* Parcelas com preenchimento livre e suporte retroativo */}
+                    {showInstallments && (
+                      <div className="form-group">
+                        <label className="form-label">Parcelas</label>
+                        <input
+                          className="form-input"
+                          type="text"
+                          placeholder="Ex: 3/3 ou 12"
+                          value={installments}
+                          onChange={(e) => setInstallments(e.target.value)}
+                          disabled={isSubmitting}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  {installmentsHint && <p className="tx-form-hint" title={installmentsHint}>{installmentsHint}</p>}
+
+                  {movementType === 'expense' && (
+                    <div className="form-group">
+                      <SubTransactionsSummary
+                        count={subTransactions.length}
+                        total={totalSubAmount}
+                        onOpen={subsView.open}
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                  )}
+
+                  {/* ── CAMPOS DE RECEITA ── */}
+                  {movementType === 'income' && (
+                    <div className="form-group">
+                      <label className="form-label">Origem da Receita</label>
+                      <select
+                        className="form-select"
+                        value={incomeCategory}
+                        onChange={(e) => {
+                          const cat = e.target.value;
+                          setIncomeCategory(cat);
+                          if (cat === 'Salário' || cat === '13º salário' || cat === 'Férias') {
+                            setIncomeType('salary');
+                          } else {
+                            setIncomeType('extra');
+                          }
+                        }}
+                        disabled={isSubmitting}
+                      >
+                        {INCOME_CATEGORIES.map((cat) => (
+                          <option key={cat} value={cat}>
+                            {cat}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  {showGoal && investmentFields}
+                </div>
+
+                {/* ── Categoria, onde, quando e situação: a categoria abre esta coluna para os dois lados terem
+                    alturas parecidas no desktop (no celular as colunas empilham e a ordem não muda) ── */}
+                <div>
+                  {/* ── CAMPOS DE DESPESA: MACRO → MICRO DINÂMICO ── */}
+                  {movementType === 'expense' && (
+                    <div className="tx-form-row">
+                      <div className="form-group">
+                        <label className="form-label">Categoria Macro</label>
+                        <select
+                          className="form-select"
+                          value={macro}
+                          onChange={(e) => handleMacroChange(e.target.value as ExpenseMacro)}
+                          disabled={isSubmitting}
+                        >
+                          {EXPENSE_MACROS.map((m) => (
+                            <option key={m} value={m}>
+                              {m}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* opcional: o padrão "Nenhuma / Geral" já indica isso, sem quebrar o rótulo */}
+                      <div className="form-group">
+                        <label className="form-label">Categoria Micro</label>
+                        <select
+                          className="form-select"
+                          value={micro}
+                          onChange={(e) => setMicro(e.target.value)}
+                          disabled={isSubmitting}
+                        >
+                          <option value="">Nenhuma / Geral</option>
+                          {availableMicros.map((mic) => (
+                            <option key={mic} value={mic}>
+                              {mic}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  )}
+
+                  {!showGoal && investmentFields}
+
+                  {movementType === 'income' && (
+                    <div className="form-group">
+                      <label className="form-label">Comportamento</label>
+                      <div style={{ display: 'flex', background: 'var(--bg-2)', padding: 4, borderRadius: 8, gap: 4 }}>
+                        {(['salary', 'extra'] as const).map((opt) => {
+                          const isActive = incomeType === opt;
+                          return (
+                            <button
+                              key={opt}
+                              type="button"
+                              onClick={() => setIncomeType(opt)}
+                              disabled={isSubmitting}
+                              style={{
+                                flex: 1,
+                                padding: '8px 0',
+                                border: 'none',
+                                borderRadius: 6,
+                                fontWeight: isActive ? 600 : 500,
+                                fontSize: 13,
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                                background: isActive ? 'var(--blue)' : 'transparent',
+                                color: isActive ? '#FFF' : 'var(--text-tertiary)',
+                                boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                                opacity: isSubmitting ? 0.5 : 1,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 6,
+                              }}
+                            >
+                              {opt === 'salary'
+                                ? <><Banknote size={15} strokeWidth={1.8} /> Renda Mensal Fixa</>
+                                : <><Sparkles size={15} strokeWidth={1.8} /> Recebimento Extra</>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Cartão (despesa) ou Meta (investimento) dividem a linha com o mês */}
+                  {(() => {
+                    const rowClass = showCard ? 'tx-form-row' : showGoal ? 'tx-form-row tx-form-row-stack' : undefined;
+                    return (
+                      <div className={rowClass}>
+                        {showCard && (
+                          <div className="form-group">
+                            <label className="form-label">Cartão (opcional)</label>
+                            <select
+                              className="form-select"
+                              value={cardId}
+                              onChange={(e) => setCardId(e.target.value)}
+                              disabled={isSubmitting}
+                            >
+                              <option value="">Nenhum</option>
+                              {cards.map((c) => (
+                                <option key={c.id} value={c.id}>
+                                  {c.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                        {showGoal && (
+                          <div className="form-group">
+                            <label className="form-label">Meta (opcional)</label>
+                            <select
+                              className="form-select"
+                              value={goalId}
+                              onChange={(e) => setGoalId(e.target.value)}
+                              disabled={isSubmitting}
+                            >
+                              <option value="">Nenhuma</option>
+                              {goals.map((g) => (
+                                <option key={g.id} value={g.id}>
+                                  {g.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                        <div className="form-group">
+                          <label className="form-label">Mês</label>
+                          <MonthKeySelect value={monthKey} onChange={setMonthKey} disabled={isSubmitting} />
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  <div className={movementType !== 'income' ? 'tx-form-row tx-switch-row form-group' : 'form-group'}>
+                    {movementType !== 'income' && (
+                      <FixedToggle
+                        checked={isFixed}
+                        onChange={setIsFixed}
+                        disabled={isSubmitting}
+                        hasInstallments={hasInstallments}
+                        label={movementType === 'investment' ? 'Fixo mensal' : 'Despesa fixa'}
+                      />
+                    )}
+                    <SwitchField
+                      label={paidLabel}
+                      icon={CheckCircle2}
+                      checked={isPaid}
+                      onChange={setIsPaid}
+                      disabled={isSubmitting}
+                    />
                   </div>
                 </div>
-              )}
-            </div>
-          )}
-
-          {/* ── CAMPOS DE DESPESA: MACRO → MICRO DINÂMICO ── */}
-          {movementType === 'expense' && (
-            <>
-              {/* alignItems end: se um rótulo quebrar linha (mobile), os selects seguem alinhados */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px', alignItems: 'end' }}>
-                <div className="form-group" style={{ marginBottom: 12 }}>
-                  <label className="form-label">Categoria Macro</label>
-                  <select
-                    className="form-select"
-                    value={macro}
-                    onChange={(e) => handleMacroChange(e.target.value as ExpenseMacro)}
-                    disabled={isSubmitting}
-                  >
-                    {EXPENSE_MACROS.map((m) => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* opcional: o padrão "Nenhuma / Geral" já indica isso, sem quebrar o rótulo */}
-                <div className="form-group" style={{ marginBottom: 12 }}>
-                  <label className="form-label">Categoria Micro</label>
-                  <select
-                    className="form-select"
-                    value={micro}
-                    onChange={(e) => setMicro(e.target.value)}
-                    disabled={isSubmitting}
-                  >
-                    <option value="">Nenhuma / Geral</option>
-                    {availableMicros.map((mic) => (
-                      <option key={mic} value={mic}>
-                        {mic}
-                      </option>
-                    ))}
-                  </select>
-                </div>
               </div>
 
-              {/* Cartão de Crédito (opcional) */}
-              {cards.length > 0 && (
-                <div className="form-group" style={{ marginBottom: 12 }}>
-                  <label className="form-label">Cartão de Crédito (opcional)</label>
-                  <select
-                    className="form-select"
-                    value={cardId}
-                    onChange={(e) => setCardId(e.target.value)}
-                    disabled={isSubmitting}
-                  >
-                    <option value="">Nenhum</option>
-                    {cards.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </>
-          )}
-
-          {/* ── CAMPOS DE RECEITA ── */}
-          {movementType === 'income' && (
-            <>
-              <div className="form-group" style={{ marginBottom: 12 }}>
-                <label className="form-label">Origem da Receita</label>
-                <select
-                  className="form-select"
-                  value={incomeCategory}
-                  onChange={(e) => {
-                    const cat = e.target.value;
-                    setIncomeCategory(cat);
-                    if (cat === 'Salário' || cat === '13º salário' || cat === 'Férias') {
-                      setIncomeType('salary');
-                    } else {
-                      setIncomeType('extra');
-                    }
-                  }}
+              <div className="tx-form-actions">
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  onClick={onClose}
                   disabled={isSubmitting}
+                  style={{ flex: 1, opacity: isSubmitting ? 0.5 : 1 }}
                 >
-                  {INCOME_CATEGORIES.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={isSubmitting}
+                  style={{ flex: 2, opacity: isSubmitting ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: 8 }}
+                >
+                  {isSubmitting && <div className="btn-spinner" />}
+                  {isSubmitting ? 'Salvando...' : 'Adicionar'}
+                </button>
               </div>
-
-              <div className="form-group" style={{ marginBottom: 12 }}>
-                <label className="form-label">Comportamento</label>
-                <div style={{ display: 'flex', background: 'var(--bg-2)', padding: 4, borderRadius: 8, gap: 4 }}>
-                  {(['salary', 'extra'] as const).map((opt) => {
-                    const isActive = incomeType === opt;
-                    return (
-                      <button
-                        key={opt}
-                        type="button"
-                        onClick={() => setIncomeType(opt)}
-                        disabled={isSubmitting}
-                        style={{
-                          flex: 1,
-                          padding: '8px 0',
-                          border: 'none',
-                          borderRadius: 6,
-                          fontWeight: isActive ? 600 : 500,
-                          fontSize: 13,
-                          cursor: 'pointer',
-                          transition: 'all 0.2s',
-                          background: isActive ? 'var(--blue)' : 'transparent',
-                          color: isActive ? '#FFF' : 'var(--text-tertiary)',
-                          boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                          opacity: isSubmitting ? 0.5 : 1,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: 6,
-                        }}
-                      >
-                        {opt === 'salary'
-                          ? <><Banknote size={15} strokeWidth={1.8} /> Renda Mensal Fixa</>
-                          : <><Sparkles size={15} strokeWidth={1.8} /> Recebimento Extra</>}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* ── CAMPOS DE INVESTIMENTO ── */}
-          {movementType === 'investment' && (
-            <>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px', alignItems: 'end' }}>
-                <div className="form-group" style={{ marginBottom: 12 }}>
-                  <label className="form-label">Tipo de Ativo</label>
-                  <select
-                    className="form-select"
-                    value={investmentAsset}
-                    onChange={(e) => setInvestmentAsset(e.target.value)}
-                    disabled={isSubmitting}
-                  >
-                    {INVESTMENT_CATEGORIES.map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="form-group" style={{ marginBottom: 12 }}>
-                  <label className="form-label">Operação</label>
-                  <select
-                    className="form-select"
-                    value={investmentOp}
-                    onChange={(e) => setInvestmentOp(e.target.value)}
-                    disabled={isSubmitting}
-                  >
-                    {INVESTMENT_TYPES.map(op => (
-                      <option key={op} value={op}>{op}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {goals.length > 0 && (
-                <div className="form-group" style={{ marginBottom: 12 }}>
-                  <label className="form-label">Meta Vinculada (opcional)</label>
-                  <select
-                    className="form-select"
-                    value={goalId}
-                    onChange={(e) => setGoalId(e.target.value)}
-                    disabled={isSubmitting}
-                  >
-                    <option value="">Nenhuma</option>
-                    {goals.map((g) => (
-                      <option key={g.id} value={g.id}>
-                        {g.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </>
-          )}
-
-          {/* ── Data da Transação: Mês + Ano ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
-            <div className="form-group" style={{ marginBottom: 12 }}>
-              <label className="form-label">Mês</label>
-              <select
-                className="form-select"
-                value={selectedMonthNum}
-                onChange={(e) => setSelectedMonthNum(Number(e.target.value))}
-                disabled={isSubmitting}
-              >
-                {MONTHS_LIST.map(m => (
-                  <option key={m.num} value={m.num}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="form-group" style={{ marginBottom: 12 }}>
-              <label className="form-label">Ano</label>
-              <select
-                className="form-select"
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(Number(e.target.value))}
-                disabled={isSubmitting}
-              >
-                {YEARS.map(y => (
-                  <option key={y} value={y}>{y}</option>
-                ))}
-              </select>
-            </div>
+            </form>
           </div>
-
-          {movementType !== 'income' && (
-            <FixedToggle
-              checked={isFixed}
-              onChange={setIsFixed}
-              disabled={isSubmitting}
-              hasInstallments={hasInstallments}
-              label={movementType === 'investment' ? 'Investimento fixo' : 'Despesa fixa'}
-            />
-          )}
-
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0', marginBottom: 16 }}>
-            <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>
-              {movementType === 'expense' ? 'Marcar como pago' : 
-               movementType === 'income' ? 'Marcar como recebido' :
-               movementType === 'investment' ? 'Marcar como executado' : 'Marcar como concluído'}
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsPaid(!isPaid)}
-              style={{
-                width: 44,
-                height: 24,
-                borderRadius: 12,
-                background: isPaid ? 'var(--green)' : 'var(--text-quaternary)',
-                border: 'none',
-                position: 'relative',
-                cursor: 'pointer',
-                transition: 'background 0.2s ease',
-                opacity: isSubmitting ? 0.5 : 1
-              }}
-              disabled={isSubmitting}
-            >
-              <div style={{
-                width: 20,
-                height: 20,
-                borderRadius: '50%',
-                background: '#fff',
-                position: 'absolute',
-                top: 2,
-                left: isPaid ? 22 : 2,
-                transition: 'left 0.2s ease',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-              }} />
-            </button>
-          </div>
-
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button
-              type="button"
-              className="btn-ghost"
-              onClick={onClose}
-              disabled={isSubmitting}
-              style={{ flex: 1, justifyContent: 'center', padding: '14px', opacity: isSubmitting ? 0.5 : 1 }}
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className="btn-primary"
-              disabled={isSubmitting}
-              style={{ flex: 2, justifyContent: 'center', padding: '14px', opacity: isSubmitting ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: 8 }}
-            >
-              {isSubmitting && <div className="btn-spinner" />}
-              {isSubmitting ? 'Salvando...' : 'Adicionar'}
-            </button>
-          </div>
-        </form>
+        )}
       </div>
     </div>
   );

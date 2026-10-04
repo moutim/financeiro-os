@@ -42,6 +42,8 @@ interface FinanceStore {
   updateTransaction: (id: string, updates: Partial<Omit<Transaction, 'id'>>) => Promise<void>;
   /** Marca várias transações como pagas numa única gravação */
   markTransactionsPaid: (ids: string[]) => Promise<void>;
+  /** Vincula várias transações a um cartão (ou desvincula, com null) numa única gravação */
+  setTransactionsCard: (ids: string[], cardId: string | null) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   addIncome: (income: Omit<Income, 'id'>) => Promise<Income>;
   /** Vários lançamentos numa única gravação (parcelas, cópias para meses futuros) */
@@ -210,6 +212,27 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
       await get().loadAll();
       const err = await res.json();
       throw new Error(err.error ?? 'Erro ao marcar as transações como pagas');
+    }
+  },
+
+  // ─── Link many to a card ──────────────────────────────────────────────────
+  setTransactionsCard: async (ids, cardId) => {
+    if (ids.length === 0) return;
+    const targets = new Set(ids);
+    // Optimistic update
+    set((state) => ({
+      transactions: state.transactions.map((t) => (targets.has(t.id) ? { ...t, cardId } : t)),
+    }));
+    const res = await fetch('/api/transacoes/set-card', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids, cardId }),
+    });
+    if (!res.ok) {
+      // Rollback on failure — reload from server
+      await get().loadAll();
+      const err = await res.json();
+      throw new Error(err.error ?? 'Erro ao vincular as transações ao cartão');
     }
   },
 

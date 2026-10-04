@@ -5,6 +5,7 @@ import { useFinanceStore } from '@/lib/store';
 import type { Transaction } from '@/lib/types';
 import { formatCurrency } from '@/lib/currency';
 import { useSwipeToClose } from '@/hooks/useSwipeToClose';
+import { isInstallmentTransaction } from '@/lib/installments';
 
 interface TransactionDeleteModalProps {
   transaction: Transaction;
@@ -16,21 +17,15 @@ export default function TransactionDeleteModal({ transaction, onClose }: Transac
   const [isDeleting, setIsDeleting] = useState(false);
   const swipeToClose = useSwipeToClose(onClose);
 
-  const isParcelada = (t: Transaction) => {
-    if (t.installments && t.installments.includes('/')) return true;
-    if (t.subTransactions && t.subTransactions.some(st => st.installments && st.installments.includes('/'))) return true;
-    return false;
-  };
-
   const handleDelete = async () => {
     setIsDeleting(true);
     try {
-      if (isParcelada(transaction)) {
+      if (isInstallmentTransaction(transaction)) {
         const state = useFinanceStore.getState();
         const futureTxs = state.transactions.filter(t => 
           t.name === transaction.name &&
           t.monthKey >= transaction.monthKey &&
-          isParcelada(t)
+          isInstallmentTransaction(t)
         );
         
         const promises = futureTxs.map(t => deleteTransaction(t.id));

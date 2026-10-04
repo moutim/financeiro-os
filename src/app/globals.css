@@ -843,6 +843,8 @@ body {
   width: 100%;
   max-width: 520px;
   max-height: 90vh;
+  /* dvh: altura visível de fato (no Safari, sem a parte coberta pelas barras) */
+  max-height: calc(100dvh - 32px);
   overflow-y: auto;
   box-shadow: var(--shadow-xl);
   scrollbar-width: none;
@@ -858,7 +860,461 @@ body {
     border-radius: var(--radius-2xl);
     /* centralizado: usa a altura da janela com uma margem, em vez de perder 10% */
     max-height: calc(100vh - 48px);
+    max-height: calc(100dvh - 48px);
   }
+}
+
+/* ─── Modais de transação (cadastro e edição) ────────────────────────────── */
+/* Ritmo mais enxuto que o dos outros formulários: o modal inteiro cabe sem rolagem
+   num iPhone com as barras do Safari abertas (~630px úteis). As sub-transações
+   ficam numa tela própria (.sub-panel), então a altura não depende de quantas são. */
+.tx-modal {
+  padding-top: 12px;
+  padding-bottom: 16px;
+}
+
+.tx-modal .modal-handle {
+  margin-bottom: 12px;
+}
+
+.tx-modal-header {
+  padding-bottom: 10px;
+  touch-action: none;
+}
+
+.tx-modal-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.tx-modal .form-group {
+  margin-bottom: 10px;
+}
+
+.tx-modal .form-label {
+  margin-bottom: 4px;
+}
+
+.tx-modal .form-input,
+.tx-modal .form-select {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+/* pares de campos (Valor + Parcelas, Cartão + Mês…); alignItems end: se um rótulo
+   quebrar linha no celular, os campos seguem alinhados */
+.tx-form-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0 12px;
+  align-items: end;
+}
+
+/* interruptores lado a lado com a mesma altura, mesmo quando um tem legenda */
+.tx-switch-row {
+  align-items: stretch;
+}
+
+.tx-form-hint {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--blue);
+  margin: -4px 0 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tx-form-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.tx-form-actions button {
+  justify-content: center;
+  padding: 12px;
+}
+
+/* Desktop: o que é e quanto custa à esquerda; categoria, onde, quando e situação à
+   direita, com os campos distribuídos para as duas colunas terem alturas parecidas */
+@media (min-width: 860px) {
+  .tx-modal.tx-modal-columns {
+    max-width: 800px;
+  }
+
+  .tx-modal-columns .tx-form-columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 24px;
+  }
+
+  /* par de campos que vira dois campos inteiros só no desktop */
+  .tx-modal-columns .tx-form-row-stack {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Interruptor compacto: dois lado a lado (ex: Despesa fixa + Pago) */
+.switch-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  padding: 6px 8px 6px 10px;
+  background: var(--bg);
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.switch-field:disabled {
+  cursor: not-allowed;
+}
+
+.switch-field:disabled .switch-field-track,
+.switch-field:disabled .switch-field-label {
+  opacity: 0.5;
+}
+
+.switch-field-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.switch-field-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.switch-field-caption {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.switch-field-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.switch-field-track {
+  position: relative;
+  flex-shrink: 0;
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+  background: var(--text-quaternary);
+  transition: background 0.2s ease;
+}
+
+.switch-field-thumb {
+  position: absolute;
+  top: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: left 0.2s ease;
+}
+
+/* Linha do formulário que abre a tela das sub-transações */
+.sub-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px 8px 14px;
+  background: var(--bg);
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sub-summary-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.sub-summary-value {
+  flex: 1;
+  min-width: 0;
+  text-align: right;
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tela das sub-transações (substitui o formulário dentro do modal) */
+.sub-panel-header {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.sub-panel-back {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  margin-left: -6px;
+  padding: 4px 0;
+  background: none;
+  border: none;
+  color: var(--blue);
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 400;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sub-panel-back:active {
+  opacity: 0.5;
+}
+
+.sub-panel-title {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.sub-panel-done {
+  width: 100%;
+  padding: 12px;
+  margin-top: 16px;
+}
+
+/* ─── Lista agrupada (padrão iOS) ────────────────────────────────────────── */
+/* Seção com cantos arredondados, linhas de 44px separadas por um fio que começa no
+   texto (--row-inset), título da seção acima e nota de rodapé abaixo */
+.grouped-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 28px;
+  padding: 0 16px 4px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.grouped-pager {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.grouped-pager button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--blue);
+  cursor: pointer;
+}
+
+.grouped-pager button:disabled {
+  color: var(--text-quaternary);
+  cursor: default;
+}
+
+.grouped-list {
+  background: var(--bg);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.grouped-row {
+  --row-inset: 16px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 16px;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+/* separador fino (meio pixel) entre linhas, alinhado ao texto */
+.grouped-row + .grouped-row::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: var(--row-inset);
+  right: 0;
+  height: 1px;
+  background: var(--separator);
+  transform: scaleY(0.5);
+  transform-origin: top;
+}
+
+.grouped-row-value span:last-child {
+  margin-left: auto;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.grouped-footer {
+  padding: 6px 16px 0;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--text-tertiary);
+  margin-bottom: 20px;
+}
+
+/* Ícones de edição de lista do iOS: círculo vermelho com "−" e verde com "+" */
+.list-icon {
+  position: relative;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+}
+
+.list-icon::before,
+.list-icon::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 10px;
+  height: 2px;
+  margin: -1px 0 0 -5px;
+  border-radius: 1px;
+  background: #fff;
+}
+
+.list-icon-remove {
+  background: var(--red);
+}
+
+.list-icon-remove::after {
+  display: none;
+}
+
+.list-icon-add {
+  background: var(--green);
+}
+
+.list-icon-add::after {
+  transform: rotate(90deg);
+}
+
+/* Linha de um item: remover · nome · parcelas · valor */
+.sub-row {
+  --row-inset: 46px;
+  padding-left: 12px;
+}
+
+.sub-row:focus-within {
+  background: color-mix(in srgb, var(--blue) 6%, transparent);
+}
+
+.sub-row-remove {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  height: 44px;
+  padding: 0 4px 0 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sub-row-remove:active .list-icon {
+  transform: scale(0.88);
+}
+
+.sub-row input {
+  min-width: 0;
+  height: 44px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+.sub-row input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.sub-row-name {
+  flex: 1;
+}
+
+.sub-row-installments {
+  width: 40px;
+  flex-shrink: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.sub-row input.sub-row-installments {
+  color: var(--text-secondary);
+}
+
+.sub-row-amount {
+  width: 92px;
+  flex-shrink: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.sub-row-add {
+  --row-inset: 46px;
+  gap: 12px;
+  padding-left: 12px;
+  background: none;
+  border: none;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sub-row-add:active:not(:disabled) {
+  background: var(--separator);
 }
 
 .modal-handle {
@@ -982,6 +1438,47 @@ body {
 
 .animate-slide-in-sheet {
   animation: slideInSheet 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes modalViewIn {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes modalViewBack {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* troca de tela dentro de um modal: a nova tela entra pela direita (formulário →
+   sub-transações) e, ao voltar, a anterior entra pela esquerda, o caminho inverso */
+.modal-view-in {
+  animation: modalViewIn 0.22s ease both;
+}
+
+.modal-view-back {
+  animation: modalViewBack 0.22s ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-view-in,
+  .modal-view-back {
+    animation-name: fadeIn;
+  }
 }
 
 .animate-scale-in {
