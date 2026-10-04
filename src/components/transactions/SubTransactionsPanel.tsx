@@ -31,8 +31,8 @@ function nextInstallments(typed: string, current: string, digitsOnly: boolean): 
 }
 
 /**
- * Alterna o modal entre o formulário e a tela das subs. Abre já com uma linha para
- * digitar quando ainda não há nenhuma; ao voltar, linhas totalmente vazias saem
+ * Alterna o modal entre o formulário e a tela das subs. Abre já com uma linha vazia
+ * quando ainda não há nenhuma; ao voltar, linhas totalmente vazias saem
  * (senão o campo Valor ficaria travado em R$ 0,00).
  */
 export function useSubTransactionsView(
@@ -108,7 +108,9 @@ export default function SubTransactionsPanel({
   disabled = false,
 }: SubTransactionsPanelProps) {
   const [page, setPage] = useState(0);
-  const [focusIndex, setFocusIndex] = useState<number | null>(subs.length === 1 && isBlank(subs[0]) ? 0 : null);
+  // abrir a tela não foca nada (no celular, abriria o teclado sem a pessoa pedir);
+  // só "Adicionar item" leva o foco para a linha nova
+  const [focusIndex, setFocusIndex] = useState<number | null>(null);
 
   const pageCount = Math.max(1, Math.ceil(subs.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount - 1);

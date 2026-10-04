@@ -17,7 +17,7 @@ import { Plus, CheckCircle2, AlertTriangle, ChevronLeft, ChevronRight, WalletCar
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import MonthSelector from '@/components/transactions/MonthSelector';
 import { getBankById } from '@/lib/banks';
-import { useIsDetailedMode } from '@/lib/appConfigStore';
+import { useIsDetailedMode, useAppConfigStore } from '@/lib/appConfigStore';
 import { useCarousel } from '@/hooks/useCarousel';
 import {
   buildCardsWithRealData,
@@ -31,18 +31,6 @@ import type { CreditCard, CardBrand, Transaction } from '@/lib/types';
 
 // Carregada só no modo detalhado (análises e gráficos pesados)
 const CreditDetailedSection = dynamic(() => import('@/components/cards/CreditDetailedSection'));
-
-const SORT_STORAGE_KEY = 'financeiro_cards_sort';
-
-function readSavedSort(): CardSortOption {
-  try {
-    const saved = localStorage.getItem(SORT_STORAGE_KEY);
-    if (CARD_SORT_OPTIONS.some((o) => o.id === saved)) return saved as CardSortOption;
-  } catch {
-    // localStorage indisponível (SSR ou modo privado)
-  }
-  return 'priority';
-}
 
 function CarouselArrow({ direction, enabled, onClick }: { direction: 'left' | 'right'; enabled: boolean; onClick: () => void }) {
   const Icon = direction === 'left' ? ChevronLeft : ChevronRight;
@@ -75,19 +63,10 @@ export default function CartoesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCard, setEditingCard] = useState<CardData | null>(null);
   const [payingCard, setPayingCard] = useState<{card: CreditCard, amount: number, transactions: Transaction[]} | null>(null);
-  // Ordenação só existe no modo detalhado; a página só renderiza cartões após
-  // carregar os dados no cliente, então ler o localStorage aqui não afeta a hidratação.
-  const [sortOption, setSortOption] = useState<CardSortOption>(readSavedSort);
+  // Ordenação só existe no modo detalhado; salva na planilha, acompanha o usuário entre dispositivos
+  const sortOption = useAppConfigStore((s) => s.cardsSort);
+  const handleSortChange = useAppConfigStore((s) => s.setCardsSort);
   const { ref: carouselRef, canScrollLeft, canScrollRight, scroll: scrollCarousel } = useCarousel();
-
-  const handleSortChange = (option: CardSortOption) => {
-    setSortOption(option);
-    try {
-      localStorage.setItem(SORT_STORAGE_KEY, option);
-    } catch {
-      // ignora: a ordenação continua valendo nesta sessão
-    }
-  };
 
   const salary = getMonthSummary(selectedMonth).income;
   const cardsWithRealData = buildCardsWithRealData(cards, transactions, selectedMonth);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { Target, AlertTriangle, Plus, Pencil, Trash2, CalendarClock, Users, TrendingUp } from 'lucide-react';
 
@@ -15,6 +15,7 @@ import GoalFormModal, { GoalData } from '@/components/goals/GoalFormModal';
 import ShareGoalModal from '@/components/goals/ShareGoalModal';
 import JoinGoalModal from '@/components/goals/JoinGoalModal';
 import { useFinanceStore } from '@/lib/store';
+import { useAppConfigStore } from '@/lib/appConfigStore';
 import { formatCurrency, monthKeyToShortLabel, toCanonicalMonthKey } from '@/lib/currency';
 import { getGoalIconDef } from '@/lib/goalIcons';
 import type { Pending, SavingsGoal, Transaction } from '@/lib/types';
@@ -34,19 +35,12 @@ export default function MetasPage() {
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [reconnectingGoalId, setReconnectingGoalId] = useState<string | null>(null);
 
-  // Filter state for Investment History
-  const [startMonth, setStartMonth] = useState<string>('');
-  
-  // Load saved preference on mount
-  useEffect(() => {
-    const saved = localStorage.getItem('finance-os-goals-start-month');
-    if (saved) setStartMonth(saved);
-  }, []);
+  // Mês inicial do Histórico de Investimentos: salvo na planilha, acompanha o usuário entre dispositivos
+  const startMonth = useAppConfigStore((s) => s.goalsHistoryStartMonth);
+  const setStartMonth = useAppConfigStore((s) => s.setGoalsHistoryStartMonth);
 
   const handleMonthChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const val = e.target.value;
-    setStartMonth(val);
-    localStorage.setItem('finance-os-goals-start-month', val);
+    setStartMonth(e.target.value);
   };
   
   // Metas de outra conta: os aportes vêm da planilha do dono (que já recebe a cópia dos feitos aqui),
