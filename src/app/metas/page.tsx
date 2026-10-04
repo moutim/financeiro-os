@@ -7,6 +7,7 @@ import { Target, AlertTriangle, Plus, Pencil, Trash2, CalendarClock, Users, Tren
 import Sidebar from '@/components/layout/Sidebar';
 import GlassCard from '@/components/ui/GlassCard';
 import SectionCard from '@/components/ui/SectionCard';
+import ScrollArea from '@/components/ui/ScrollArea';
 import ToolbarSelect from '@/components/ui/ToolbarSelect';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import PendingEditModal from '@/components/transactions/PendingEditModal';
@@ -327,16 +328,7 @@ export default function MetasPage() {
           {/* height 100%: o card preenche a linha da grade, mesma altura do Histórico ao lado */}
           {/* metas-pending: no mobile (1 coluna) fica por último, abaixo do Histórico */}
           <SectionCard icon={AlertTriangle} iconColor="var(--red)" title="A Resolver" className="animate-fade-in-up metas-pending" style={{ height: '100%' }}>
-            <div
-              style={{ 
-                marginBottom: 16,
-                maxHeight: 320, 
-                overflowY: 'auto', 
-                paddingRight: 8,
-                paddingBottom: 8,
-              }} 
-              className="custom-scroll"
-            >
+            <ScrollArea maxHeight={320}>
               {pending.length === 0 && (
                 <p style={{ fontSize: 14, color: 'var(--text-tertiary)' }}>Nenhuma pendência.</p>
               )}
@@ -385,9 +377,9 @@ export default function MetasPage() {
                   </div>
                 );
               })}
-              </div>
+            </ScrollArea>
 
-            <div style={{ paddingTop: 8 }}>
+            <div style={{ paddingTop: 24 }}>
                 <button
                   onClick={() => {
                     setPendingToEdit(null);
@@ -443,16 +435,7 @@ export default function MetasPage() {
                 </div>
               )}
 
-              <div className="scroll-fade-container">
-                <div 
-                  style={{ 
-                    maxHeight: 320, 
-                    overflowY: 'auto', 
-                    paddingRight: 8,
-                    paddingBottom: 8,
-                  }} 
-                  className="custom-scroll"
-                >
+              <ScrollArea maxHeight={320}>
                 {dynamicMonths.map((mk) => {
                 // "nov/26" (o cabeçalho capitaliza: "Nov/26"), para não confundir o mesmo mês de anos diferentes
                 const monthLabel = `${monthKeyToShortLabel(mk)}/${toCanonicalMonthKey(mk).slice(2, 4)}`;
@@ -508,9 +491,8 @@ export default function MetasPage() {
                   </div>
                 );
               })}
-              </div>
-            </div>
-              
+              </ScrollArea>
+
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 0 8px 0', marginTop: 8 }}>
                 <span style={{ fontWeight: 700, fontSize: 15 }}>Total Exibido</span>
                 <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--green)' }}>{formatCurrency(totalHistoryFiltered)}</span>

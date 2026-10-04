@@ -32,6 +32,9 @@ export default function ScrollArea({ maxHeight, children }: ScrollAreaProps) {
 
     updateFades();
     area.addEventListener('scroll', updateFades, { passive: true });
+    // linhas que entram deslizando contam no scrollHeight enquanto animam (com um item só, a lista
+    // parece transbordar); ao fim da animação o tamanho não muda, então o ResizeObserver não avisa
+    area.addEventListener('animationend', updateFades);
     // troca de mês ou nova transação muda a altura do conteúdo
     const observer = new ResizeObserver(updateFades);
     observer.observe(area);
@@ -39,6 +42,7 @@ export default function ScrollArea({ maxHeight, children }: ScrollAreaProps) {
 
     return () => {
       area.removeEventListener('scroll', updateFades);
+      area.removeEventListener('animationend', updateFades);
       observer.disconnect();
     };
   }, []);
