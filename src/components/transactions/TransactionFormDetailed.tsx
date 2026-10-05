@@ -30,7 +30,7 @@ import { useSwipeToClose } from '@/hooks/useSwipeToClose';
 import { hasRepeatingInstallments } from '@/lib/fixedTransactions';
 import FixedToggle from './FixedToggle';
 import MonthKeySelect from './MonthKeySelect';
-import SubTransactionsPanel, { SubTransactionsSummary, useSubTransactionsView, type SubTransactionDraft } from './SubTransactionsPanel';
+import SubTransactionsPanel, { SubTransactionsSummary, draftCategoryFields, useSubTransactionsView, type SubTransactionDraft } from './SubTransactionsPanel';
 import SwitchField from '@/components/ui/SwitchField';
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -125,7 +125,8 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
           amount: totalSubAmt,
           subAmt,
           firstAmt,
-          installments: inst
+          installments: inst,
+          categoryFields: draftCategoryFields(s),
         };
       }).filter(s => s.name && s.amount > 0);
       
@@ -216,7 +217,8 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
                 return {
                   name: s.name,
                   amount: amountForThisMonth,
-                  installments: s.installments > 1 ? `${i + 1}/${s.installments}` : undefined
+                  installments: s.installments > 1 ? `${i + 1}/${s.installments}` : undefined,
+                  ...s.categoryFields,
                 };
               });
               
@@ -245,7 +247,8 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
             const currentSubs = parsedSubTxs.map(s => ({
               name: s.name,
               amount: s.amount,
-              installments: s.installments > 1 ? `1/${s.installments}` : undefined
+              installments: s.installments > 1 ? `1/${s.installments}` : undefined,
+              ...s.categoryFields,
             }));
             
             await addTransaction({
@@ -397,6 +400,7 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
             monthAmount={monthSubAmount}
             totalAmount={totalSubAmount}
             installmentsDigitsOnly
+            parentCategory={movementType === 'expense' ? { category: macro, subcategory: micro.trim() || null } : null}
             disabled={isSubmitting}
           />
         ) : (

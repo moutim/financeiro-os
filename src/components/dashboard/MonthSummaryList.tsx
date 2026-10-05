@@ -1,7 +1,7 @@
 'use client';
 
 import { formatCurrency } from '@/lib/currency';
-import { groupByCategory, useCategoryTaxonomy } from '@/lib/taxonomy';
+import { groupByCategory, splitBySubCategory, useCategoryTaxonomy } from '@/lib/taxonomy';
 import type { Transaction } from '@/lib/types';
 
 interface MonthSummaryListProps {
@@ -16,7 +16,7 @@ export default function MonthSummaryList({ transactions }: MonthSummaryListProps
     const i = taxonomy.categories.indexOf(category);
     return i === -1 ? Number.MAX_SAFE_INTEGER : i;
   };
-  const groups = groupByCategory(transactions.map(taxonomy.normalize))
+  const groups = groupByCategory(transactions.flatMap(splitBySubCategory).map(taxonomy.normalize))
     .filter((g) => g.total > 0)
     .sort((a, b) => order(a.category) - order(b.category));
 

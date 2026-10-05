@@ -19,7 +19,8 @@ import {
   Landmark,
   Receipt,
   FileText,
-  Shirt
+  Shirt,
+  Users,
 } from 'lucide-react';
 
 /**
@@ -95,8 +96,8 @@ export const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
     bgColor: 'rgba(0,199,190,0.12)',
     icon: Handshake,
   },
-  // Viagens, Pets e Cuidados pessoais têm o mesmo nome das macros do modo
-  // detalhado, então valem nos dois modos sem conversão
+  // Viagens, Pets, Cuidados pessoais e Terceiros têm o mesmo nome das macros do
+  // modo detalhado, então valem nos dois modos sem conversão
   Viagens: {
     label: 'Viagens',
     color: '#0EA5E9',
@@ -114,6 +115,13 @@ export const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
     color: '#F472B6',
     bgColor: 'rgba(244,114,182,0.12)',
     icon: Sparkles,
+  },
+  // Compras de outras pessoas no seu cartão (namorada, mãe…)
+  Terceiros: {
+    label: 'Terceiros',
+    color: '#7078C0',
+    bgColor: 'rgba(112,120,192,0.12)',
+    icon: Users,
   },
   Presentes: {
     label: 'Presentes',

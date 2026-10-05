@@ -1,7 +1,7 @@
 'use client';
 
 import { CategoryDistribution } from '@/components/charts/CategoryBreakdown';
-import { groupByCategory, isSpending, useCategoryTaxonomy } from '@/lib/taxonomy';
+import { groupByCategory, isSpending, splitBySubCategory, useCategoryTaxonomy } from '@/lib/taxonomy';
 import type { Transaction } from '@/lib/types';
 
 interface SpendingDonutProps {
@@ -17,6 +17,7 @@ export default function SpendingDonut({ transactions }: SpendingDonutProps) {
 
   // Agrupa por categoria do modo atual (despesas e aportes, sem receitas/transferências)
   const spending = transactions
+    .flatMap(splitBySubCategory)
     .map(taxonomy.normalize)
     .filter((t) => t.amount > 0 && isSpending(t));
 

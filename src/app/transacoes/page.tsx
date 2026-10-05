@@ -9,8 +9,8 @@ import TransactionList from '@/components/transactions/TransactionList';
 import TransactionForm from '@/components/transactions/TransactionForm';
 import { useFinanceStore } from '@/lib/store';
 import { monthKeyToLabel } from '@/lib/currency';
-import { useCategoryTaxonomy } from '@/lib/taxonomy';
-import type { Category } from '@/lib/types';
+import { splitBySubCategory, useCategoryTaxonomy } from '@/lib/taxonomy';
+import type { Category, Transaction } from '@/lib/types';
 
 /* ── Tooltip ──────────────────────────────────────────────────────────────── */
 interface TooltipState {
@@ -130,11 +130,15 @@ export default function TransacoesPage() {
   const filterOptions = ['Todas', ...taxonomy.categories];
   const activeFilter = filterCategory && taxonomy.categories.includes(filterCategory) ? filterCategory : null;
 
+  // Com filtro, a transação aparece se ela ou alguma sub-transação for da categoria,
+  // e o total soma só essas partes (ex: o tênis de uma compra dividida, em Roupas)
+  const partsInFilter = (t: Transaction) =>
+    splitBySubCategory(t).filter((part) => taxonomy.normalize(part).category === activeFilter);
   const filtered = activeFilter
-    ? allTransactions.filter((t) => taxonomy.normalize(t).category === activeFilter)
+    ? allTransactions.filter((t) => partsInFilter(t).length > 0)
     : allTransactions;
 
-  const total = filtered.reduce((s, t) => s + t.amount, 0);
+  const total = (activeFilter ? filtered.flatMap(partsInFilter) : filtered).reduce((s, t) => s + t.amount, 0);
 
   const showTooltip = useCallback((label: string, x: number, y: number) => {
     setTooltip({ label, x, y });

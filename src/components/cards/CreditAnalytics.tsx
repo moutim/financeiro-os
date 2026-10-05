@@ -7,7 +7,7 @@ import { CategoryDistribution, CategoryRanking, MacroMicroGroups } from '@/compo
 import { isLightCardColor } from '@/components/cards/WalletCardFace';
 import { formatCurrency } from '@/lib/currency';
 import { getBankById } from '@/lib/banks';
-import { useCategoryTaxonomy } from '@/lib/taxonomy';
+import { splitBySubCategory, useCategoryTaxonomy } from '@/lib/taxonomy';
 import {
   Wallet,
   CreditCard,
@@ -77,6 +77,7 @@ export default function CreditAnalytics({
   // Gastos no Crédito por Categoria Macro e Micro
   const creditTxs = transactions
     .filter((t) => t.monthKey === selectedMonth && t.cardId && (!t.parentId || t.parentId === 'SHARED'))
+    .flatMap(splitBySubCategory)
     .map(taxonomy.normalize);
 
   const creditMacroMap: Record<string, { total: number; count: number; micros: Record<string, number> }> = {};

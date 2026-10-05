@@ -29,12 +29,18 @@ export async function GET() {
     macros.forEach(macro => {
       const children = subs.filter(sub => sub.parentId === macro.id);
       if (children.length > 0) {
-        macro.subTransactions = children.map(c => ({
-          id: c.id,
-          name: c.name,
-          amount: c.amount,
-          installments: c.installments
-        }));
+        macro.subTransactions = children.map(c => {
+          // a linha da sub guarda uma cópia da categoria da transação quando não tem uma própria
+          const ownCategory = c.category !== macro.category || (c.subcategory ?? null) !== (macro.subcategory ?? null);
+          return {
+            id: c.id,
+            name: c.name,
+            amount: c.amount,
+            installments: c.installments,
+            category: ownCategory ? c.category : null,
+            subcategory: ownCategory ? c.subcategory : null,
+          };
+        });
       }
     });
 

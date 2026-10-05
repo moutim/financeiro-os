@@ -3,6 +3,7 @@
 import { create } from 'zustand';
 import type { Transaction, Income, Pending, SavingsGoal, Category, CreditCard } from '@/lib/types';
 import { isFixedTransaction } from '@/lib/fixedTransactions';
+import { splitBySubCategory } from '@/lib/taxonomy';
 import { requestSpreadsheetAccess } from '@/lib/googlePicker';
 
 const now = new Date();
@@ -570,10 +571,12 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
     const totalFixed = transactions
       .filter(isFixedTransaction)
       .reduce((s, t) => s + t.amount, 0);
-    const totalFood = transactions
+    // sub-transações com categoria própria contam na categoria delas
+    const byCategory = transactions.flatMap(splitBySubCategory);
+    const totalFood = byCategory
       .filter((t) => t.category === 'Comida' || t.category === 'Alimentação')
       .reduce((s, t) => s + t.amount, 0);
-    const totalPurchases = transactions
+    const totalPurchases = byCategory
       .filter((t) => t.category === 'Compras' || t.category === 'Compras e bens')
       .reduce((s, t) => s + t.amount, 0);
     const totalExpenses = transactions.reduce((s, t) => s + t.amount, 0);

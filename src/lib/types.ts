@@ -10,6 +10,7 @@ export type ExpenseMacro =
   | 'Compras e bens'
   | 'Serviços e assinaturas'
   | 'Família e presentes'
+  | 'Terceiros'
   | 'Pets'
   | 'Impostos e obrigações'
   | 'Financeiro';
@@ -29,6 +30,9 @@ export interface SubTransaction {
   amount: number;
   installments?: string | null;
   isPaid?: boolean;
+  // Categoria própria do item (despesas). Vazia: o item fica na categoria da transação
+  category?: Category | null;
+  subcategory?: string | null;
 }
 
 export interface Transaction {

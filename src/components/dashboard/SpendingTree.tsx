@@ -1,7 +1,7 @@
 'use client';
 
 import { formatCurrency } from '@/lib/currency';
-import { groupByCategory, isSpending, useCategoryTaxonomy } from '@/lib/taxonomy';
+import { groupByCategory, isSpending, splitBySubCategory, useCategoryTaxonomy } from '@/lib/taxonomy';
 import type { Transaction } from '@/lib/types';
 
 interface SpendingTreeProps {
@@ -11,7 +11,7 @@ interface SpendingTreeProps {
 /** Análise do mês no modo detalhado: árvore Macro › Micro com totais por nível */
 export default function SpendingTree({ transactions }: SpendingTreeProps) {
   const taxonomy = useCategoryTaxonomy();
-  const groups = groupByCategory(transactions.map(taxonomy.normalize).filter(isSpending))
+  const groups = groupByCategory(transactions.flatMap(splitBySubCategory).map(taxonomy.normalize).filter(isSpending))
     .filter((g) => g.total > 0);
 
   return (

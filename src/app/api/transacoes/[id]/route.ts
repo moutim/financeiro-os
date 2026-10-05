@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { SHEET_TABS } from '@/lib/sheets';
 import { transactionToRow, rowToTransaction } from '@/lib/parsers';
 import { readUserTab, deleteUserRowsByIds, updateUserRowById, appendUserRows } from '@/lib/user-sheets-helpers';
+import { subTransactionCategory } from '@/lib/sheetRows';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,6 +61,7 @@ export async function PUT(
           id: `${id}-sub-${Date.now()}-${idx}`,
           name: sub.name,
           amount: sub.amount,
+          ...subTransactionCategory(body, sub),
           parentId: id,
           installments: sub.installments ?? null,
           subTransactions: null

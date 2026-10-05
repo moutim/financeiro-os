@@ -1279,6 +1279,46 @@ body {
   color: var(--text-tertiary);
 }
 
+/* Categoria do item: ícone com o seletor nativo transparente por cima. Cor cheia quando
+   o item tem categoria própria; clara quando segue a da transação */
+.sub-row-category {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--cat-bg);
+  color: var(--cat-color);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.sub-row-category.is-own {
+  background: var(--cat-color);
+  color: #fff;
+}
+
+.sub-row-category:focus-within {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--blue);
+}
+
+.sub-row-category select {
+  position: absolute;
+  inset: -10px -4px;
+  opacity: 0;
+  border: none;
+  font-size: 16px; /* abaixo de 16px, o iOS dá zoom ao abrir o seletor */
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.sub-row-category select:disabled {
+  cursor: default;
+}
+
 .sub-row-name {
   flex: 1;
 }

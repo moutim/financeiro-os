@@ -60,6 +60,7 @@ const cfg = taxonomy.getConfig(view.category); // cor, ícone, rótulo
 
 - `normalize` é **só para exibição**. Para editar ou salvar, use a transação original.
 - Para listas de gastos, filtre com `isSpending` (exclui receitas e transferências) e agrupe com `groupByCategory`.
+- Sub-transações podem ter categoria própria. Em totais por categoria, divida antes de normalizar: `transactions.flatMap(splitBySubCategory).map(taxonomy.normalize)`. As partes servem só para análise; para editar, use a transação original.
 - Uma tela nova de análise geralmente começa com `useCategorySpending()`, como em `CategoriesDetailedView.tsx`.
 
 ## Leia o modo sempre pelos hooks

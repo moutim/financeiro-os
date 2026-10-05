@@ -35,7 +35,7 @@ O preenchimento de despesas e receitas ganha o layout robusto "Power User".
 
 - **Mudanças na Interface (UI/UX):**
   - **Hierarquia de Categorização:** Adição dos campos divididos "CATEGORIA MACRO" e "CATEGORIA MICRO".
-  - **Sub-Transações:** Inclusão da opção "SUB-TRANSAÇÕES (+ Adicionar)" para quebrar um único lançamento em várias fatias menores de classificação.
+  - **Sub-Transações:** Inclusão da opção "SUB-TRANSAÇÕES (+ Adicionar)" para quebrar um único lançamento em várias fatias menores. Nos dois modos, cada item pode ter categoria própria (ícone à esquerda do nome); sem escolha, ele fica na categoria da transação. Os gráficos e totais por categoria contam cada item na categoria dele.
   - **Detalhamento Opcional:** Associação forte com "Cartão de Crédito" no momento do cadastro e parcelamentos avançados em `TransactionForm.tsx`.
 - **Comportamento Esperado:**
   - No *Modo Simples*, o modal é minimalista (Valor, Título, Categoria única).

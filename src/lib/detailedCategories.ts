@@ -17,10 +17,11 @@ import {
   TrendingUp, 
   ArrowDownLeft, 
   ArrowLeftRight, 
-  Package 
+  Package,
+  Users,
 } from 'lucide-react';
 
-// ─── 14 CATEGORIAS MACRO DE DESPESAS ──────────────────────────────────────────
+// ─── 15 CATEGORIAS MACRO DE DESPESAS ──────────────────────────────────────────
 export const EXPENSE_MACROS: readonly ExpenseMacro[] = [
   'Moradia',
   'Alimentação',
@@ -33,6 +34,7 @@ export const EXPENSE_MACROS: readonly ExpenseMacro[] = [
   'Compras e bens',
   'Serviços e assinaturas',
   'Família e presentes',
+  'Terceiros',
   'Pets',
   'Impostos e obrigações',
   'Financeiro',
@@ -169,6 +171,16 @@ export const EXPENSE_HIERARCHY: Record<ExpenseMacro, readonly string[]> = {
     'Eventos familiares',
     'Outros - Família',
   ],
+  // Compras de outras pessoas no seu cartão, separadas por relação
+  Terceiros: [
+    'Namorado(a) e cônjuge',
+    'Pais',
+    'Filhos',
+    'Irmãos',
+    'Outros parentes',
+    'Amigos',
+    'Outros - Terceiros',
+  ],
   Pets: [
     'Alimentação',
     'Veterinário e medicamentos',
@@ -241,7 +253,7 @@ export const INVESTMENT_TYPES = [
 // Cores bem distintas entre si (todas as macros podem aparecer lado a lado no
 // anel) e iguais às da categoria equivalente do modo simples (Moradia = Casa…).
 export const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
-  // --- 14 Novas Macros de Despesas ---
+  // --- 15 Macros de Despesas ---
   Moradia: {
     label: 'Moradia',
     color: '#007AFF', // Azul Apple
@@ -307,6 +319,12 @@ export const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
     color: '#00C7BE', // Verde-água
     bgColor: 'rgba(0,199,190,0.12)',
     icon: Gift,
+  },
+  Terceiros: {
+    label: 'Terceiros',
+    color: '#7078C0', // Índigo acinzentado (a cor mais distante das outras, com contraste nos dois temas)
+    bgColor: 'rgba(112,120,192,0.12)',
+    icon: Users,
   },
   Pets: {
     label: 'Pets',
@@ -513,7 +531,7 @@ export function migrateTransactionCategory(
     }
   }
 
-  // Caso 2: Categoria informada já é uma das 14 Macros novas
+  // Caso 2: Categoria informada já é uma das Macros novas
   if (trimmedCat in EXPENSE_HIERARCHY) {
     const macro = trimmedCat as ExpenseMacro;
     const validMicros = EXPENSE_HIERARCHY[macro];

@@ -16,7 +16,7 @@ import { isFixedTransaction, hasRepeatingInstallments } from '@/lib/fixedTransac
 import { installmentsToRelink, newInstallmentCount, spreadSubTransactions } from '@/lib/installments';
 import FixedToggle from './FixedToggle';
 import MonthKeySelect from './MonthKeySelect';
-import SubTransactionsPanel, { SubTransactionsSummary, useSubTransactionsView, type SubTransactionDraft } from './SubTransactionsPanel';
+import SubTransactionsPanel, { SubTransactionsSummary, draftCategoryFields, toSubTransactionDraft, useSubTransactionsView, type SubTransactionDraft } from './SubTransactionsPanel';
 import SwitchField from '@/components/ui/SwitchField';
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -50,9 +50,7 @@ export default function TransactionEditModalDetailed({ transaction, onClose }: T
   const [cardId, setCardId] = useState(transaction.cardId || '');
   const [installments, setInstallments] = useState(transaction.installments || '');
   const [subTransactions, setSubTransactions] = useState<SubTransactionDraft[]>(
-    transaction.subTransactions 
-      ? transaction.subTransactions.map(st => ({ name: st.name, rawAmount: String(Math.round(st.amount * 100)), installments: st.installments || '' }))
-      : []
+    transaction.subTransactions ? transaction.subTransactions.map(toSubTransactionDraft) : []
   );
   const subsView = useSubTransactionsView(subTransactions, setSubTransactions);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -75,7 +73,7 @@ export default function TransactionEditModalDetailed({ transaction, onClose }: T
   };
 
   const hasSubTxs = subTransactions.length > 0;
-  const subInputs = subTransactions.map(s => ({ name: s.name.trim(), amount: parseInt(s.rawAmount || '0', 10) / 100, installments: s.installments }));
+  const subInputs = subTransactions.map(s => ({ name: s.name.trim(), amount: parseInt(s.rawAmount || '0', 10) / 100, installments: s.installments, ...draftCategoryFields(s) }));
   const totalSubAmount = subInputs.reduce((acc, s) => acc + s.amount, 0);
   // Valor deste mês: das subs com parcelas novas entra só a 1ª parcela, igual ao que é gravado
   const monthSubAmount = (spreadSubTransactions(subInputs)[0] ?? []).reduce((acc, s) => acc + s.amount, 0);
@@ -218,6 +216,7 @@ export default function TransactionEditModalDetailed({ transaction, onClose }: T
             onDone={subsView.close}
             monthAmount={monthSubAmount}
             totalAmount={totalSubAmount}
+            parentCategory={{ category: macro, subcategory: micro.trim() || null }}
             disabled={isSubmitting}
           />
         ) : (

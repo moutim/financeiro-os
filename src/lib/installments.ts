@@ -55,21 +55,23 @@ function existingInstallmentLabel(value: string): string | undefined {
  * Sub-transações da edição distribuídas pelos meses, a partir do mês editado (índice 0).
  * Sub com número de parcelas: o valor digitado é o total da compra, dividido como no
  * cadastro (599,90 em 6 → 100,00 neste mês e 99,98 nos seguintes). Sub que já era uma
- * parcela: o valor já é o da parcela, e ela fica só no mês editado.
+ * parcela: o valor já é o da parcela, e ela fica só no mês editado. A categoria do item
+ * acompanha todas as parcelas.
  */
 export function spreadSubTransactions(
-  subs: { name: string; amount: number; installments: string }[],
+  subs: (Pick<SubTransaction, 'name' | 'amount' | 'category' | 'subcategory'> & { installments: string })[],
 ): SubTransaction[][] {
   const months: SubTransaction[][] = [];
   for (const sub of subs) {
+    const base = { name: sub.name, category: sub.category ?? null, subcategory: sub.subcategory ?? null };
     const count = newInstallmentCount(sub.installments);
     if (count === 1) {
-      (months[0] ??= []).push({ name: sub.name, amount: sub.amount, installments: existingInstallmentLabel(sub.installments) });
+      (months[0] ??= []).push({ ...base, amount: sub.amount, installments: existingInstallmentLabel(sub.installments) });
       continue;
     }
     const { first, rest } = splitInstallments(sub.amount, count);
     for (let i = 0; i < count; i++) {
-      (months[i] ??= []).push({ name: sub.name, amount: i === 0 ? first : rest, installments: `${i + 1}/${count}` });
+      (months[i] ??= []).push({ ...base, amount: i === 0 ? first : rest, installments: `${i + 1}/${count}` });
     }
   }
   return months;

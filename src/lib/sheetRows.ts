@@ -1,5 +1,5 @@
 import { transactionToRow, incomeToRow } from '@/lib/parsers';
-import type { Income, Transaction } from '@/lib/types';
+import type { Income, SubTransaction, Transaction } from '@/lib/types';
 
 type SheetRow = (string | number | null)[];
 
@@ -10,6 +10,20 @@ type SheetRow = (string | number | null)[];
  */
 export function newRowId(prefix: string): string {
   return `${prefix}-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+}
+
+/**
+ * Categoria gravada na linha de uma sub-transação: a dela, quando escolhida, ou a da
+ * transação. A leitura (GET /api/transacoes) devolve a categoria só quando difere da
+ * transação, então mudar a categoria da transação leva junto as subs sem categoria própria.
+ */
+export function subTransactionCategory(
+  parent: Pick<Transaction, 'category' | 'subcategory'>,
+  sub: Pick<SubTransaction, 'category' | 'subcategory'>,
+): Pick<Transaction, 'category' | 'subcategory'> {
+  return sub.category
+    ? { category: sub.category, subcategory: sub.subcategory ?? null }
+    : { category: parent.category, subcategory: parent.subcategory ?? null };
 }
 
 /** Transação + sub-transações (linhas filhas com parentId) prontas para a planilha */
@@ -24,6 +38,7 @@ export function buildTransactionRows(body: Omit<Transaction, 'id'>): { transacti
       id: `${id}-sub-${idx}`,
       name: sub.name,
       amount: sub.amount,
+      ...subTransactionCategory(transaction, sub),
       parentId: id,
       installments: sub.installments ?? null,
       subTransactions: null,

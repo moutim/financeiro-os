@@ -166,11 +166,23 @@ export default function TransactionList({ transactions, showDelete = true, maxHe
               
           {tx.subTransactions && tx.subTransactions.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', marginTop: 2, gap: 1 }}>
-              {tx.subTransactions.map((st, idx) => (
-                <span key={idx} style={{ fontSize: 11, color: 'var(--text-tertiary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  ↳ {st.name}{st.installments ? ` (${st.installments})` : ''} • {formatCurrency(st.amount)}
-                </span>
-              ))}
+              {tx.subTransactions.map((st, idx) => {
+                // só a sub com categoria própria mostra a dela; as outras seguem a da transação
+                const subView = st.category
+                  ? taxonomy.normalize({ ...tx, name: st.name, category: st.category, subcategory: st.subcategory ?? null })
+                  : null;
+                const subCfg = subView ? taxonomy.getConfig(subView.category) : null;
+                return (
+                  <span key={idx} style={{ fontSize: 11, color: 'var(--text-tertiary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    ↳ {st.name}{st.installments ? ` (${st.installments})` : ''} • {formatCurrency(st.amount)}
+                    {subView && subCfg && (
+                      <span style={{ color: subCfg.color }}>
+                        {' · '}{subCfg.label}{subView.subcategory && subView.subcategory !== subCfg.label ? ` › ${subView.subcategory}` : ''}
+                      </span>
+                    )}
+                  </span>
+                );
+              })}
             </div>
           )}
         </div>

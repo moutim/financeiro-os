@@ -22,9 +22,11 @@ async function findOrCreateSpreadsheet(accessToken: string): Promise<string> {
   const drive = getUserDriveClient(accessToken);
   const sheets = getUserSheetsClient(accessToken);
 
-  // 1. Busca uma planilha existente com o nome exato
+  // 1. Busca uma planilha existente com o nome exato, só entre as da própria conta: quem entrou
+  //    numa meta compartilhada também enxerga a planilha do dono da meta (liberada no seletor
+  //    do Google), que tem o mesmo nome e não pode virar a planilha desta conta
   const searchRes = await drive.files.list({
-    q: "name = 'FinanceiroOS' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false",
+    q: "name = 'FinanceiroOS' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false and 'me' in owners",
     fields: 'files(id, name)',
     spaces: 'drive',
   });

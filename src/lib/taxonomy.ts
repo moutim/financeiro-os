@@ -48,6 +48,7 @@ const DETAILED_TO_SIMPLE: Record<string, string> = {
   'Compras e bens': 'Compras',
   'Serviços e assinaturas': 'Assinaturas',
   'Família e presentes': 'Ajuda Financeira',
+  Terceiros: 'Terceiros',
   Pets: 'Pets',
   'Impostos e obrigações': 'Impostos',
   Financeiro: 'Outros',
@@ -139,6 +140,36 @@ export function isSpending(t: Transaction): boolean {
   return t.transactionType !== 'income'
     && t.transactionType !== 'transfer'
     && t.category !== 'Transferências';
+}
+
+/**
+ * Divide uma transação pelas categorias das sub-transações: cada sub com categoria própria
+ * vira um item com o valor e a categoria dela, e o restante (a transação sem essas subs)
+ * fica na categoria da transação. As partes somam o valor da transação, então os totais
+ * não mudam, só a categoria em que cada parte cai. Use antes do `normalize`, só para
+ * análise: as partes não são transações para editar ou gravar.
+ */
+export function splitBySubCategory(t: Transaction): Transaction[] {
+  const subs = t.subTransactions ?? [];
+  const own = subs.filter((s) => s.category);
+  if (own.length === 0) return [t];
+
+  const rest = Math.round((t.amount - own.reduce((sum, s) => sum + s.amount, 0)) * 100) / 100;
+  // subs que passam do valor da transação (linhas antigas): sem como dividir, ela fica inteira
+  if (rest < 0) return [t];
+
+  const parts = own.map((s, idx): Transaction => ({
+    ...t,
+    id: s.id ?? `${t.id}-sub-${idx}`,
+    name: s.name,
+    amount: s.amount,
+    category: s.category as string,
+    subcategory: s.subcategory ?? null,
+    subTransactions: null,
+  }));
+  return rest > 0
+    ? [{ ...t, amount: rest, subTransactions: subs.filter((s) => !s.category) }, ...parts]
+    : parts;
 }
 
 export interface CategoryGroup {
