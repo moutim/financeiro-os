@@ -6,6 +6,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { formatCompact, formatCurrency } from '@/lib/currency';
+import type { RemainingInvoices } from '@/lib/creditCards';
 import { TrendingUp, ArrowUpRight, ShieldCheck, Sparkles, Calendar } from 'lucide-react';
 
 interface ProjectionData {
@@ -16,6 +17,7 @@ interface ProjectionData {
 
 interface CreditProjectionChartProps {
   data: ProjectionData[];
+  remaining: RemainingInvoices;
 }
 
 interface CustomTooltipProps {
@@ -105,7 +107,7 @@ function CustomTooltip({ active, payload, label, totalLimit, initialDisponivel }
   );
 }
 
-export default function CreditProjectionChart({ data }: CreditProjectionChartProps) {
+export default function CreditProjectionChart({ data, remaining }: CreditProjectionChartProps) {
   if (!data || data.length === 0) {
     return (
       <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--text-tertiary)', fontSize: 14 }}>
@@ -118,7 +120,6 @@ export default function CreditProjectionChart({ data }: CreditProjectionChartPro
   const currentUtilizado = data[0]?.utilizado ?? 0;
   const totalLimit = currentDisponivel + currentUtilizado;
   const finalDisponivel = data[data.length - 1]?.disponivel ?? currentDisponivel;
-  const finalUtilizado = data[data.length - 1]?.utilizado ?? currentUtilizado;
   const creditGain = Math.max(0, finalDisponivel - currentDisponivel);
   const currentAvailablePct = totalLimit > 0 ? (currentDisponivel / totalLimit) * 100 : 0;
   const projectedAvailablePct = totalLimit > 0 ? (finalDisponivel / totalLimit) * 100 : 0;
@@ -166,7 +167,7 @@ export default function CreditProjectionChart({ data }: CreditProjectionChartPro
           </div>
         </div>
 
-        {/* Card 3: Redução de Parcelas */}
+        {/* Card 3: Total das faturas dos próximos meses */}
         <div style={{
           background: 'var(--surface)',
           border: '1px solid var(--separator)',
@@ -178,10 +179,12 @@ export default function CreditProjectionChart({ data }: CreditProjectionChartPro
             <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontWeight: 600 }}>FATURAS RESTANTES</span>
           </div>
           <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
-            {formatCurrency(finalUtilizado)}
+            {formatCurrency(remaining.total)}
           </div>
           <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 2 }}>
-            Redução de {currentUtilizado > 0 ? (((currentUtilizado - finalUtilizado) / currentUtilizado) * 100).toFixed(0) : 0}% no período
+            {remaining.until
+              ? remaining.until === remaining.from ? `Em ${remaining.until}` : `De ${remaining.from} a ${remaining.until}`
+              : 'Nenhuma fatura nos próximos meses'}
           </div>
         </div>
       </div>

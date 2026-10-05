@@ -3,7 +3,7 @@
 import { CreditCard as CreditCardIcon, Plus, TrendingUp } from 'lucide-react';
 import SectionCard from '@/components/ui/SectionCard';
 import CreditProjectionChart from '@/components/charts/CreditProjectionChart';
-import { generateCreditProjection, type CardWithRealData } from '@/lib/creditCards';
+import { generateCreditProjection, summarizeRemainingInvoices, type CardWithRealData } from '@/lib/creditCards';
 
 interface CreditProjectionSectionProps {
   cards: CardWithRealData[];
@@ -41,7 +41,7 @@ export default function CreditProjectionSection({ cards, onAddCard }: CreditProj
           </button>
         </div>
       ) : (
-        <CreditProjectionChart data={generateCreditProjection(cards)} />
+        <CreditProjectionChart data={generateCreditProjection(cards)} remaining={summarizeRemainingInvoices(cards)} />
       )}
     </SectionCard>
   );
