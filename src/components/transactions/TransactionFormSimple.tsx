@@ -258,7 +258,7 @@ export default function TransactionFormSimple({ onClose }: TransactionFormProps)
           <div className="modal-handle" />
           {!subsView.isOpen && (
             <h2 className="tx-modal-title">
-              {type === 'expense' ? 'Nova Saída' : 'Nova Entrada'}
+              {type === 'expense' ? 'Novo Gasto' : 'Novo Ganho'}
             </h2>
           )}
         </div>
@@ -278,8 +278,8 @@ export default function TransactionFormSimple({ onClose }: TransactionFormProps)
           <div className={subsView.formClassName}>
             <div style={{ display: 'flex', background: 'var(--bg-2)', padding: 4, borderRadius: 8, marginBottom: 12 }}>
               {([
-                { id: 'expense', label: 'Saída' },
-                { id: 'income', label: 'Entrada' },
+                { id: 'expense', label: 'Gasto' },
+                { id: 'income', label: 'Ganho' },
               ] as const).map((tab) => {
                 const isActive = type === tab.id;
                 return (
@@ -376,7 +376,7 @@ export default function TransactionFormSimple({ onClose }: TransactionFormProps)
                 <div>
                   {type === 'income' && (
                     <div className="form-group">
-                      <label className="form-label">Tipo de entrada</label>
+                      <label className="form-label">Tipo de ganho</label>
                       <div style={{ display: 'flex', background: 'var(--bg-2)', padding: 4, borderRadius: 8, gap: 4 }}>
                         {(['salary', 'extra'] as const).map((opt) => {
                           const isActive = incomeType === opt;

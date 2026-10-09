@@ -13,7 +13,7 @@ import { formatMask, parseMask, addMonths, parseMonthKey, formatCurrency, splitI
 import { useSwipeToClose } from '@/hooks/useSwipeToClose';
 import { triggerSuccessConfetti } from '@/lib/confetti';
 import { isFixedTransaction, hasRepeatingInstallments } from '@/lib/fixedTransactions';
-import { installmentsToRelink, newInstallmentCount, spreadSubTransactions } from '@/lib/installments';
+import { addSubsToMonthGroup, installmentsToRelink, newInstallmentCount, spreadSubTransactions } from '@/lib/installments';
 import FixedToggle from './FixedToggle';
 import MonthKeySelect from './MonthKeySelect';
 import SubTransactionsPanel, { SubTransactionsSummary, draftCategoryFields, toSubTransactionDraft, useSubTransactionsView, type SubTransactionDraft } from './SubTransactionsPanel';
@@ -105,6 +105,7 @@ export default function TransactionEditModalDetailed({ transaction, onClose }: T
       if (maxMonths > 1) {
         // Só as parcelas vão para os meses seguintes: fixas e salário entram pelo "Iniciar mês"
         const newTransactions: Omit<Transaction, 'id'>[] = [];
+        const monthGroupUpdates: NonNullable<ReturnType<typeof addSubsToMonthGroup>>[] = [];
         let firstInstallment: Partial<Omit<Transaction, 'id'>> | null = null;
         
         // Sem subs, o valor digitado é o total: dividido como no cadastro, centavos na 1ª parcela
@@ -139,6 +140,11 @@ export default function TransactionEditModalDetailed({ transaction, onClose }: T
               installments: installmentLabel
             };
           } else {
+            const monthGroup = currentSubs && addSubsToMonthGroup(transactions, transaction, nextMonthKey, currentSubs);
+            if (monthGroup) {
+              monthGroupUpdates.push(monthGroup);
+              continue;
+            }
             newTransactions.push({
               name: name.trim(),
               amount: currentParentAmount,
@@ -159,6 +165,7 @@ export default function TransactionEditModalDetailed({ transaction, onClose }: T
         }
         // em sequência: nunca duas gravações simultâneas na planilha
         if (firstInstallment) await updateTransaction(transaction.id, firstInstallment);
+        for (const { id, updates } of monthGroupUpdates) await updateTransaction(id, updates);
         await addEntriesBatch({ transactions: newTransactions });
       } else {
         const currentSubs = hasValidSubTxs ? subsByMonth[0] : null;

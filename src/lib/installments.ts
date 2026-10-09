@@ -29,6 +29,30 @@ export function installmentsToRelink(
   });
 }
 
+/**
+ * Parcelas de uma sub nova num mês seguinte: entram no lançamento de mesmo nome e cartão que
+ * já agrupa sub-transações naquele mês (o cartão criado pelas parcelas das outras subs), em
+ * vez de num segundo lançamento igual. O lançamento é procurado pelo nome e cartão de antes da
+ * edição, que são os gravados nos outros meses. Sem ele no mês, devolve null e a edição cria um.
+ */
+export function addSubsToMonthGroup(
+  transactions: Transaction[],
+  edited: Transaction,
+  monthKey: string,
+  subs: SubTransaction[],
+): { id: string; updates: Pick<Transaction, 'subTransactions' | 'amount'> } | null {
+  const group = transactions.find((t) =>
+    t.id !== edited.id &&
+    t.monthKey === monthKey &&
+    t.name === edited.name &&
+    (t.cardId ?? null) === (edited.cardId ?? null) &&
+    !!t.subTransactions?.length,
+  );
+  if (!group?.subTransactions) return null;
+  const merged = [...group.subTransactions, ...subs];
+  return { id: group.id, updates: { subTransactions: merged, amount: merged.reduce((acc, s) => acc + s.amount, 0) } };
+}
+
 // ─── Parcelas na edição ──────────────────────────────────────────────────────
 
 /** Número de parcelas digitado ("6" ou "6x"), e não a marcação "x/y" de uma parcela já gravada */
