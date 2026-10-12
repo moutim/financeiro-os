@@ -19,7 +19,7 @@ interface TransactionListProps {
   /** Limita a altura da lista; o excedente rola dentro dela */
   maxHeight?: number;
   /**
-   * `category` (padrão): fixos primeiro, depois por categoria.
+   * `category` (padrão): fixos primeiro, depois investimentos, depois por categoria.
    * `added`: na ordem em que foram lançadas (a das linhas da planilha).
    */
   order?: 'category' | 'added';
@@ -54,6 +54,8 @@ export default function TransactionList({ transactions, showDelete = true, maxHe
   const sortedRows = order === 'added' ? rowsInput : rowsInput
     .sort((a, b) => {
       if (a.isFixed !== b.isFixed) return a.isFixed ? -1 : 1;
+      const aInvest = a.view.category === 'Investimentos';
+      if (aInvest !== (b.view.category === 'Investimentos')) return aInvest ? -1 : 1;
       if (a.view.category < b.view.category) return -1;
       if (a.view.category > b.view.category) return 1;
       return 0;
