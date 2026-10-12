@@ -2214,7 +2214,7 @@ body {
     bottom: calc(7px + env(safe-area-inset-bottom));
     left: 20px;
     right: 20px;
-    height: 72px;
+    height: 64px;
     background: var(--surface-glass);
     backdrop-filter: blur(24px) saturate(200%);
     -webkit-backdrop-filter: blur(24px) saturate(200%);
@@ -2233,30 +2233,60 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 4px;
     flex: 1;
+    height: 46px;
     color: var(--text-tertiary);
     text-decoration: none;
     -webkit-tap-highlight-color: transparent;
     transition: all 0.2s ease;
-    padding: 8px 0;
-    border-radius: 24px;
+    border-radius: 23px;
+  }
+
+  .mobile-nav-item {
+    position: relative;
+    z-index: 1;
   }
 
   .mobile-nav-item.active {
     color: var(--blue);
   }
 
+  /* cápsula na cor de destaque do usuário; desliza entre os itens (posição vem do Sidebar) */
+  .mobile-nav-pill {
+    position: absolute;
+    top: 50%;
+    height: 46px;
+    margin-top: -23px;
+    border-radius: 23px;
+    background: var(--blue-light);
+    opacity: 0;
+    transition: left 0.4s cubic-bezier(0.32, 0.72, 0, 1), width 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+    pointer-events: none;
+  }
+
+  /* só ícones; o nome de cada aba aparece por instantes ao trocar de página (.show-labels) */
   .mobile-nav-item span {
-    font-size: 10px;
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    font-size: 9px;
+    line-height: 12px;
     font-weight: 600;
     letter-spacing: -0.01em;
+    transition: max-height 0.25s ease, opacity 0.25s ease, margin-top 0.25s ease;
+  }
+
+  .mobile-nav.show-labels .mobile-nav-item span {
+    max-height: 12px;
+    margin-top: 2px;
+    opacity: 1;
   }
 
   .main-content {
     margin-left: 0;
     padding: 16px;
-    padding-bottom: 116px;
+    padding-bottom: 108px;
     width: 100%;
     /* Space for floating nav */
   }
@@ -2495,7 +2525,7 @@ body {
   }
 
   .fab {
-    bottom: 112px;
+    bottom: 104px;
   }
 
   .fab-menu {
@@ -2503,6 +2533,6 @@ body {
   }
 
   .main-content {
-    padding-bottom: 124px;
+    padding-bottom: 116px;
   }
 }

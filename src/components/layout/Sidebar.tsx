@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
@@ -13,8 +14,69 @@ const navItems = [
   { href: '/settings', icon: Settings, label: 'Configurações' },
 ];
 
+/**
+ * Cada página renderiza a sua própria Sidebar, então a barra mobile é remontada a cada
+ * navegação. A posição da cápsula fica aqui para ela partir de onde estava e deslizar.
+ */
+let lastPill: { left: number; width: number } | null = null;
+let lastActiveIndex: number | null = null;
+const PILL_INSET = 4;
+/** Tempo que os nomes das abas ficam visíveis depois de trocar de página */
+const LABELS_VISIBLE_MS = 2200;
+
 export default function Sidebar() {
   const pathname = usePathname();
+  const pillRef = useRef<HTMLSpanElement>(null);
+  const itemRefs = useRef<(HTMLAnchorElement | null)[]>([]);
+  const activeIndex = navItems.findIndex((item) => pathname.startsWith(item.href));
+  // nomes das abas aparecem ao trocar de página (não na abertura do app), para quem não conhece os ícones
+  const changedPage = useRef(lastActiveIndex !== null && lastActiveIndex !== activeIndex);
+  const [labelsVisible, setLabelsVisible] = useState(false);
+
+  useEffect(() => {
+    lastActiveIndex = activeIndex;
+    if (!changedPage.current) return;
+    const frame = requestAnimationFrame(() => setLabelsVisible(true));
+    const timer = setTimeout(() => setLabelsVisible(false), LABELS_VISIBLE_MS);
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(timer);
+    };
+  }, [activeIndex]);
+
+  useLayoutEffect(() => {
+    const pill = pillRef.current;
+    const item = itemRefs.current[activeIndex];
+    if (!pill) return;
+    if (!item) {
+      pill.style.opacity = '0';
+      return;
+    }
+    const place = (box: { left: number; width: number }) => {
+      pill.style.left = `${box.left}px`;
+      pill.style.width = `${box.width}px`;
+    };
+    const measure = () => ({ left: item.offsetLeft - PILL_INSET, width: item.offsetWidth + PILL_INSET * 2 });
+    const target = measure();
+
+    // posição de partida sem animar; em seguida a cápsula desliza até o item atual
+    pill.style.transition = 'none';
+    place(lastPill ?? target);
+    pill.style.opacity = '1';
+    pill.getBoundingClientRect();
+    pill.style.transition = '';
+    place(target);
+    lastPill = target;
+
+    const onResize = () => {
+      pill.style.transition = 'none';
+      const next = measure();
+      place(next);
+      lastPill = next;
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [activeIndex]);
   const { data: session } = useSession();
 
   const user = session?.user;
@@ -147,12 +209,15 @@ export default function Sidebar() {
     </aside>
 
     {/* Mobile Bottom Nav */}
-    <nav className="mobile-nav">
-      {navItems.map((item) => (
+    <nav className={`mobile-nav${labelsVisible ? ' show-labels' : ''}`}>
+      <span ref={pillRef} className="mobile-nav-pill" aria-hidden />
+      {navItems.map((item, index) => (
         <Link
           key={item.href}
+          ref={(el) => { itemRefs.current[index] = el; }}
           href={item.href}
           className={`mobile-nav-item ${pathname.startsWith(item.href) ? 'active' : ''}`}
+          aria-label={item.label}
         >
           <item.icon size={24} strokeWidth={pathname.startsWith(item.href) ? 2.5 : 2} />
           <span>{item.label}</span>
