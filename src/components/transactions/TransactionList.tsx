@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { Inbox, Trash2, Pencil, Check, Repeat } from 'lucide-react';
 
 import type { Transaction } from '@/lib/types';
@@ -10,6 +10,7 @@ import { formatCurrency } from '@/lib/currency';
 import { useFinanceStore } from '@/lib/store';
 import TransactionEditModal from './TransactionEditModal';
 import TransactionDeleteModal from './TransactionDeleteModal';
+import SubTransactionsGroups from './SubTransactionsGroups';
 import ScrollArea from '@/components/ui/ScrollArea';
 
 interface TransactionListProps {
@@ -60,9 +61,10 @@ export default function TransactionList({ transactions, showDelete = true, maxHe
 
   const rows = sortedRows.map(({ tx, view, isFixed }, i) => {
     const cfg = taxonomy.getConfig(view.category);
+    const hasSubs = !!tx.subTransactions?.length;
     return (
+      <Fragment key={tx.id}>
       <div
-        key={tx.id}
         className="transaction-item animate-fade-in-up"
         style={{ 
           animationDelay: `${i * 40}ms`, 
@@ -71,6 +73,7 @@ export default function TransactionList({ transactions, showDelete = true, maxHe
           margin: tx.isPaid ? '4px -12px' : '0',
           borderRadius: tx.isPaid ? 8 : 0,
           background: tx.isPaid ? 'var(--green-light)' : 'transparent',
+          borderBottom: hasSubs ? 'none' : undefined,
           alignItems: 'center', 
           filter: tx.isPaid ? 'opacity(0.7)' : 'none' 
         }}
@@ -164,27 +167,6 @@ export default function TransactionList({ transactions, showDelete = true, maxHe
             </span>
           </div>
               
-          {tx.subTransactions && tx.subTransactions.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', marginTop: 2, gap: 1 }}>
-              {tx.subTransactions.map((st, idx) => {
-                // só a sub com categoria própria mostra a dela; as outras seguem a da transação
-                const subView = st.category
-                  ? taxonomy.normalize({ ...tx, name: st.name, category: st.category, subcategory: st.subcategory ?? null })
-                  : null;
-                const subCfg = subView ? taxonomy.getConfig(subView.category) : null;
-                return (
-                  <span key={idx} style={{ fontSize: 11, color: 'var(--text-tertiary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    ↳ {st.name}{st.installments ? ` (${st.installments})` : ''} • {formatCurrency(st.amount)}
-                    {subView && subCfg && (
-                      <span style={{ color: subCfg.color }}>
-                        {' · '}{subCfg.label}{subView.subcategory && subView.subcategory !== subCfg.label ? ` › ${subView.subcategory}` : ''}
-                      </span>
-                    )}
-                  </span>
-                );
-              })}
-            </div>
-          )}
         </div>
             
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -237,6 +219,8 @@ export default function TransactionList({ transactions, showDelete = true, maxHe
           )}
         </div>
       </div>
+      {hasSubs && <SubTransactionsGroups transaction={tx} />}
+      </Fragment>
     );
   });
 
