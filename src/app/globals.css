@@ -2212,9 +2212,9 @@ body {
     display: flex;
     position: fixed;
     bottom: calc(7px + env(safe-area-inset-bottom));
-    left: 20px;
-    right: 20px;
-    height: 64px;
+    left: 22px;
+    right: 22px;
+    height: 58px;
     background: var(--surface-glass);
     backdrop-filter: blur(24px) saturate(200%);
     -webkit-backdrop-filter: blur(24px) saturate(200%);
@@ -2234,12 +2234,12 @@ body {
     align-items: center;
     justify-content: center;
     flex: 1;
-    height: 46px;
+    height: 48px;
     color: var(--text-tertiary);
     text-decoration: none;
     -webkit-tap-highlight-color: transparent;
     transition: all 0.2s ease;
-    border-radius: 23px;
+    border-radius: 24px;
   }
 
   .mobile-nav-item {
@@ -2255,9 +2255,9 @@ body {
   .mobile-nav-pill {
     position: absolute;
     top: 50%;
-    height: 46px;
-    margin-top: -23px;
-    border-radius: 23px;
+    height: 48px;
+    margin-top: -24px;
+    border-radius: 24px;
     background: var(--blue-light);
     opacity: 0;
     transition: left 0.4s cubic-bezier(0.32, 0.72, 0, 1), width 0.4s cubic-bezier(0.32, 0.72, 0, 1);
@@ -2286,7 +2286,7 @@ body {
   .main-content {
     margin-left: 0;
     padding: 16px;
-    padding-bottom: 108px;
+    padding-bottom: 102px;
     width: 100%;
     /* Space for floating nav */
   }
@@ -2525,7 +2525,7 @@ body {
   }
 
   .fab {
-    bottom: 104px;
+    bottom: 98px;
   }
 
   .fab-menu {
@@ -2533,6 +2533,6 @@ body {
   }
 
   .main-content {
-    padding-bottom: 116px;
+    padding-bottom: 110px;
   }
 }
