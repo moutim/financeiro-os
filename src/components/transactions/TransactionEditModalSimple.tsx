@@ -33,7 +33,7 @@ interface TransactionEditModalProps {
 }
 
 export default function TransactionEditModalSimple({ transaction, onClose }: TransactionEditModalProps) {
-  const { updateTransaction, addEntriesBatch, setTransactionsCard, transactions, cards } = useFinanceStore();
+  const { updateTransaction, addEntriesBatch, setTransactionsCard, transactions, cards, goals } = useFinanceStore();
   const [name, setName] = useState(transaction.name);
   const [rawAmount, setRawAmount] = useState(String(Math.round(Math.abs(transaction.amount) * 100)));
   // Transações lançadas no modo detalhado aparecem com a categoria simples
@@ -47,6 +47,11 @@ export default function TransactionEditModalSimple({ transaction, onClose }: Tra
     ? { category: transaction.category, subcategory: transaction.subcategory ?? null }
     : { category, subcategory: null };
   const [cardId, setCardId] = useState(transaction.cardId || '');
+  const [goalId, setGoalId] = useState(transaction.goalId || '');
+  const showGoal = category === 'Investimentos' && goals.length > 0;
+  const linkedGoal = goalId ? goals.find((g) => g.id === goalId) : undefined;
+  // fora de Investimentos a meta não vale: o vínculo é limpo ao salvar
+  const savedGoalId = category === 'Investimentos' ? goalId || null : null;
   const [installments, setInstallments] = useState(transaction.installments || '');
   const [subTransactions, setSubTransactions] = useState<SubTransactionDraft[]>(
     transaction.subTransactions ? transaction.subTransactions.map(toSubTransactionDraft) : []
@@ -111,6 +116,7 @@ export default function TransactionEditModalSimple({ transaction, onClose }: Tra
               ...categoryFields,
               subTransactions: currentSubs,
               isPaid,
+              goalId: savedGoalId,
               cardId: cardId || null,
               installments: installmentLabel,
               recurrency: fixedRecurrency,
@@ -127,7 +133,7 @@ export default function TransactionEditModalSimple({ transaction, onClose }: Tra
               ...categoryFields,
               monthKey: nextMonthKey,
               installments: installmentLabel,
-              goalId: transaction.goalId || null,
+              goalId: savedGoalId,
               cardId: cardId || null,
               subTransactions: currentSubs,
               isPaid: false,
@@ -147,6 +153,7 @@ export default function TransactionEditModalSimple({ transaction, onClose }: Tra
           ...categoryFields,
           subTransactions: currentSubs,
           isPaid,
+          goalId: savedGoalId,
           cardId: cardId || null,
           installments: installments || null,
           recurrency: fixedRecurrency,
@@ -293,6 +300,30 @@ export default function TransactionEditModalSimple({ transaction, onClose }: Tra
                     </div>
                   )}
                 </div>
+
+                {showGoal && (
+                  <div className="form-group">
+                    <label className="form-label">Meta{linkedGoal ? ' vinculada' : ' (opcional)'}</label>
+                    <select
+                      className="form-select"
+                      value={goalId}
+                      onChange={(e) => setGoalId(e.target.value)}
+                      disabled={isSubmitting}
+                    >
+                      <option value="">Nenhuma</option>
+                      {goals.map((g) => (
+                        <option key={g.id} value={g.id}>
+                          {g.name}
+                        </option>
+                      ))}
+                    </select>
+                    {linkedGoal && (
+                      <p style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 6 }}>
+                        Alterar o nome, o valor ou o mês atualiza o progresso de “{linkedGoal.name}”.
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 <div className="tx-form-row tx-switch-row form-group">
                   <FixedToggle

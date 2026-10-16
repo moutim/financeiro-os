@@ -32,7 +32,7 @@ interface TransactionEditModalProps {
 }
 
 export default function TransactionEditModalDetailed({ transaction, onClose }: TransactionEditModalProps) {
-  const { updateTransaction, addEntriesBatch, setTransactionsCard, transactions, cards, addAvailableMonth } = useFinanceStore();
+  const { updateTransaction, addEntriesBatch, setTransactionsCard, transactions, cards, goals, addAvailableMonth } = useFinanceStore();
   const [name, setName] = useState(transaction.name);
   const [rawAmount, setRawAmount] = useState(String(Math.round(Math.abs(transaction.amount) * 100)));
 
@@ -48,6 +48,11 @@ export default function TransactionEditModalDetailed({ transaction, onClose }: T
   const [micro, setMicro] = useState<string>(initialView.subcategory || '');
 
   const [cardId, setCardId] = useState(transaction.cardId || '');
+  const [goalId, setGoalId] = useState(transaction.goalId || '');
+  const showGoal = macro === 'Investimentos' && goals.length > 0;
+  const linkedGoal = goalId ? goals.find((g) => g.id === goalId) : undefined;
+  // fora de Investimentos a meta não vale: o vínculo é limpo ao salvar
+  const savedGoalId = macro === 'Investimentos' ? goalId || null : null;
   const [installments, setInstallments] = useState(transaction.installments || '');
   const [subTransactions, setSubTransactions] = useState<SubTransactionDraft[]>(
     transaction.subTransactions ? transaction.subTransactions.map(toSubTransactionDraft) : []
@@ -136,6 +141,7 @@ export default function TransactionEditModalDetailed({ transaction, onClose }: T
               paymentMethod: finalPaymentMethod,
               subTransactions: currentSubs,
               isPaid,
+              goalId: savedGoalId,
               cardId: cardId || null,
               installments: installmentLabel
             };
@@ -156,7 +162,7 @@ export default function TransactionEditModalDetailed({ transaction, onClose }: T
               paymentMethod: finalPaymentMethod,
               monthKey: nextMonthKey,
               installments: installmentLabel,
-              goalId: transaction.goalId || null,
+              goalId: savedGoalId,
               cardId: cardId || null,
               subTransactions: currentSubs,
               isPaid: false,
@@ -183,6 +189,7 @@ export default function TransactionEditModalDetailed({ transaction, onClose }: T
           monthKey,
           subTransactions: currentSubs,
           isPaid,
+          goalId: savedGoalId,
           cardId: cardId || null,
           installments: installments || null
         });
@@ -349,6 +356,30 @@ export default function TransactionEditModalDetailed({ transaction, onClose }: T
                     <MonthKeySelect value={monthKey} onChange={setMonthKey} disabled={isSubmitting} />
                   </div>
                 </div>
+
+                {showGoal && (
+                  <div className="form-group">
+                    <label className="form-label">Meta{linkedGoal ? ' vinculada' : ' (opcional)'}</label>
+                    <select
+                      className="form-select"
+                      value={goalId}
+                      onChange={(e) => setGoalId(e.target.value)}
+                      disabled={isSubmitting}
+                    >
+                      <option value="">Nenhuma</option>
+                      {goals.map((g) => (
+                        <option key={g.id} value={g.id}>
+                          {g.name}
+                        </option>
+                      ))}
+                    </select>
+                    {linkedGoal && (
+                      <p style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 6 }}>
+                        Alterar o nome, o valor ou o mês atualiza o progresso de “{linkedGoal.name}”.
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 <div className="tx-form-row tx-switch-row form-group">
                   <FixedToggle

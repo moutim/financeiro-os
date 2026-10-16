@@ -86,6 +86,42 @@ interface FinanceStore {
   };
 }
 
+const sharedGoalOf = (state: FinanceStore, tx: Transaction | null) =>
+  tx && tx.category === 'Investimentos' && tx.goalId
+    ? state.goals.find((g) => g.id === tx.goalId && g.isShared && g.ownerSpreadsheetId) ?? null
+    : null;
+
+/**
+ * O saldo de uma meta compartilhada é lido da planilha do dono, onde fica uma cópia de cada aporte do convidado.
+ * Depois de editar/excluir um aporte (`after` null), o servidor reconcilia as cópias de cada meta envolvida
+ * (a de antes e a de depois, se o aporte mudou de meta).
+ */
+async function syncSharedGoalCopy(get: () => FinanceStore, before: Transaction, after: Transaction | null) {
+  const state = get();
+  const goals = new Map(
+    [sharedGoalOf(state, before), sharedGoalOf(state, after)].flatMap((g) => (g ? [[g.id, g] as const] : []))
+  );
+  if (goals.size === 0) return;
+
+  for (const goal of goals.values()) {
+    const send = () => fetch('/api/transacoes/shared', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ownerSpreadsheetId: goal.ownerSpreadsheetId, goalId: goal.id }),
+    });
+    let res = await send();
+    if (!res.ok) {
+      const err = await res.json();
+      if (!(err.needsAccess && await requestSpreadsheetAccess(goal.ownerSpreadsheetId!))) {
+        throw new Error(err.error ?? 'Erro ao atualizar o aporte na meta compartilhada');
+      }
+      res = await send();
+      if (!res.ok) throw new Error((await res.json()).error ?? 'Erro ao atualizar o aporte na meta compartilhada');
+    }
+  }
+  await get().refreshGoals();
+}
+
 export const useFinanceStore = create<FinanceStore>()((set, get) => ({
   transactions: [],
   sharedGoalCopies: [],
@@ -184,6 +220,7 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
 
   // ─── Delete transaction ───────────────────────────────────────────────────
   deleteTransaction: async (id) => {
+    const removed = get().transactions.find((t) => t.id === id);
     // Optimistic update
     set((state) => ({ transactions: state.transactions.filter((t) => t.id !== id) }));
     const res = await fetch(`/api/transacoes/${id}`, { method: 'DELETE' });
@@ -193,6 +230,7 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
       const err = await res.json();
       throw new Error(err.error ?? 'Erro ao deletar transação');
     }
+    if (removed) await syncSharedGoalCopy(get, removed, null);
   },
 
   // ─── Mark many as paid ────────────────────────────────────────────────────
@@ -239,6 +277,7 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
 
   // ─── Update transaction ───────────────────────────────────────────────────
   updateTransaction: async (id, updates) => {
+    const before = get().transactions.find((t) => t.id === id);
     set((state) => ({
       transactions: state.transactions.map((t) => (t.id === id ? { ...t, ...updates } : t)),
     }));
@@ -254,6 +293,7 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
       const err = await res.json();
       throw new Error(err.error ?? 'Erro ao atualizar transação');
     }
+    if (before) await syncSharedGoalCopy(get, before, updated);
   },
 
   // ─── Add income ───────────────────────────────────────────────────────────
