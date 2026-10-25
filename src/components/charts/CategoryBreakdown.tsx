@@ -60,6 +60,8 @@ interface CategoryDistributionProps {
    * `compact`: bolinha + nome lado a lado abaixo de um anel menor (dashboard).
    */
   legend?: 'list' | 'compact';
+  /** Torna anel e legenda clicáveis; recebe o nome da categoria escolhida */
+  onSelect?: (cat: string) => void;
 }
 
 export function CategoryDistribution({
@@ -68,6 +70,7 @@ export function CategoryDistribution({
   totalLabel,
   formatCount = formatItemsDefault,
   legend = 'list',
+  onSelect,
 }: CategoryDistributionProps) {
   const [hoveredCat, setHoveredCat] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
@@ -97,6 +100,7 @@ export function CategoryDistribution({
               style: { cursor: 'pointer', transition: 'opacity 0.2s ease, stroke-width 0.2s ease, r 0.2s ease' },
               onMouseEnter: () => setHoveredCat(segment.cat),
               onMouseLeave: () => setHoveredCat(null),
+              onClick: onSelect ? () => onSelect(segment.cat) : undefined,
             };
             const { shape } = segment;
             if (shape.kind === 'arc') {
@@ -146,7 +150,7 @@ export function CategoryDistribution({
           </span>
           <span style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 2 }}>
             {hovered
-              ? `${(hovered.pct * 100).toFixed(1)}% do total`
+              ? `${(hovered.pct * 100).toFixed(1)}% do total${onSelect ? ' · ver lançamentos' : ''}`
               : `${items.length} ${items.length === 1 ? 'categoria' : 'categorias'}`}
           </span>
         </div>
@@ -163,6 +167,10 @@ export function CategoryDistribution({
           {items.map((item) => (
             <div
               key={item.cat}
+              role={onSelect ? 'button' : undefined}
+              tabIndex={onSelect ? 0 : undefined}
+              onClick={onSelect ? () => onSelect(item.cat) : undefined}
+              onKeyDown={onSelect ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(item.cat); } } : undefined}
               onMouseEnter={() => setHoveredCat(item.cat)}
               onMouseLeave={() => setHoveredCat(null)}
               style={{
@@ -170,7 +178,7 @@ export function CategoryDistribution({
                 alignItems: 'center',
                 gap: 6,
                 minWidth: 0,
-                cursor: 'default',
+                cursor: onSelect ? 'pointer' : 'default',
                 opacity: hoveredCat && hoveredCat !== item.cat ? 0.45 : 1,
                 transition: 'opacity 0.15s ease',
               }}
@@ -180,6 +188,11 @@ export function CategoryDistribution({
             </div>
           ))}
         </div>
+        {onSelect && (
+          <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--text-tertiary)', marginTop: 12 }}>
+            Toque em uma categoria para ver os lançamentos
+          </p>
+        )}
       </>
     );
   }

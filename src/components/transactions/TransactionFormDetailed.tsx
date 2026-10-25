@@ -128,7 +128,7 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
           installments: inst,
           categoryFields: draftCategoryFields(s),
         };
-      }).filter(s => s.name && s.amount > 0);
+      }).filter(s => s.name && s.amount !== 0);
       
       const hasValidSubTxs = parsedSubTxs.length > 0;
       const parsedInst = parseInstallmentInput(installments);

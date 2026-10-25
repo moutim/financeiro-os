@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type CSSProperties } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Minus } from 'lucide-react';
 import { formatCurrency, formatMask, parseMask } from '@/lib/currency';
 import { EXPENSE_MACROS, getMicrosForMacro, isValidMicroForMacro } from '@/lib/detailedCategories';
 import { useCategoryTaxonomy, type CategoryTaxonomy } from '@/lib/taxonomy';
@@ -10,6 +10,7 @@ import type { SubTransaction, Transaction } from '@/lib/types';
 /** Sub-transação em edição no formulário (valores como digitados) */
 export interface SubTransactionDraft {
   name: string;
+  /** Centavos em dígitos; com "-" na frente é um crédito (ex: "-15000"), que abate da fatura */
   rawAmount: string;
   installments: string;
   /** Categoria própria do item, como gravada (vazia: fica na categoria da transação) */
@@ -40,7 +41,22 @@ export function draftCategoryFields(sub: Pick<SubTransactionDraft, 'category' | 
     : { category: null, subcategory: null };
 }
 
-const isBlank = (s: SubTransactionDraft) => !s.name.trim() && !s.rawAmount && !s.installments.trim();
+const isBlank = (s: SubTransactionDraft) => !s.name.trim() && !parseInt(s.rawAmount || '0', 10) && !s.installments.trim();
+
+const isCredit = (rawAmount: string) => rawAmount.startsWith('-');
+
+/** Digita o valor mantendo o sinal do item: o crédito só muda pelo botão */
+function typedAmount(typed: string, current: string): string {
+  const digits = parseMask(typed).replace(/^0+/, '');
+  if (digits) return isCredit(current) ? `-${digits}` : digits;
+  return isCredit(current) ? '-0' : '';
+}
+
+/** Alterna o item entre despesa e crédito, sem perder o valor digitado */
+function toggledCredit(current: string): string {
+  if (isCredit(current)) return current.slice(1).replace(/^0+$/, '');
+  return `-${current || '0'}`;
+}
 
 /** Número de parcelas aparece como "6x" */
 const displayInstallments = (value: string) => (/^\d+$/.test(value) ? `${value}x` : value);
@@ -333,14 +349,27 @@ export default function SubTransactionsPanel({
                 disabled={disabled}
               />
               <input
-                className="sub-row-amount"
+                className={`sub-row-amount${isCredit(sub.rawAmount) ? ' is-credit' : ''}`}
                 placeholder="R$ 0,00"
                 aria-label={`Valor do item ${index + 1}`}
                 inputMode="numeric"
                 value={formatMask(sub.rawAmount)}
-                onChange={(e) => update(index, { rawAmount: parseMask(e.target.value) })}
+                onChange={(e) => update(index, { rawAmount: typedAmount(e.target.value, sub.rawAmount) })}
                 disabled={disabled}
               />
+              {parentCategory && (
+                <button
+                  type="button"
+                  className={`sub-row-credit${isCredit(sub.rawAmount) ? ' is-active' : ''}`}
+                  onClick={() => update(index, { rawAmount: toggledCredit(sub.rawAmount) })}
+                  disabled={disabled}
+                  aria-pressed={isCredit(sub.rawAmount)}
+                  aria-label={`Item ${index + 1} é um crédito`}
+                  title="Crédito (valor negativo)"
+                >
+                  <Minus size={12} strokeWidth={3} aria-hidden />
+                </button>
+              )}
             </div>
           );
         })}
@@ -351,7 +380,7 @@ export default function SubTransactionsPanel({
       </div>
       <p className="grouped-footer">
         Informe o valor total de cada item. Com parcelas, entra só a 1ª neste mês.
-        {parentCategory && ' Toque no ícone para mudar a categoria do item.'}
+        {parentCategory && ' Toque no ícone para mudar a categoria do item e em − para lançar um crédito (estorno ou cancelamento).'}
       </p>
 
       <div className="grouped-list">

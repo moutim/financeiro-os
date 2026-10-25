@@ -59,7 +59,7 @@ export default function SubTransactionsGroups({ transaction: tx }: SubTransactio
                 </span>
               </div>
             </div>
-            <div className="transaction-amount" style={{ fontSize: 13 }}>{formatCurrency(st.amount)}</div>
+            <div className="transaction-amount" style={{ fontSize: 13, color: st.amount < 0 ? 'var(--green)' : undefined }}>{formatCurrency(st.amount)}</div>
           </div>
         );
       })}

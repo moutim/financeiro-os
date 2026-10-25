@@ -92,7 +92,7 @@ export default function TransactionEditModalDetailed({ transaction, onClose }: T
     const numAmount = hasSubTxs ? monthSubAmount : (parseInt(rawAmount || '0', 10) / 100);
     if (isNaN(numAmount) || numAmount <= 0) return;
     
-    const validSubs = subInputs.filter(s => s.name && s.amount > 0);
+    const validSubs = subInputs.filter(s => s.name && s.amount !== 0);
     const hasValidSubTxs = validSubs.length > 0;
     // Subs de cada mês a partir do editado. Só um número de parcelas digitado cria meses:
     // uma parcela já gravada ("2/6") fica no mês dela, sem duplicar as seguintes

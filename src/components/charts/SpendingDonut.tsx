@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+import CategoryTransactionsModal from '@/components/charts/CategoryTransactionsModal';
 import { CategoryDistribution } from '@/components/charts/CategoryBreakdown';
 import { groupByCategory, isSpending, splitBySubCategory, useCategoryTaxonomy } from '@/lib/taxonomy';
 import type { Transaction } from '@/lib/types';
@@ -14,6 +16,7 @@ interface SpendingDonutProps {
  */
 export default function SpendingDonut({ transactions }: SpendingDonutProps) {
   const taxonomy = useCategoryTaxonomy();
+  const [selectedCat, setSelectedCat] = useState<string | null>(null);
 
   // Agrupa por categoria do modo atual (despesas e aportes, sem receitas/transferências)
   const spending = transactions
@@ -33,7 +36,9 @@ export default function SpendingDonut({ transactions }: SpendingDonutProps) {
   }
 
   return (
+    <>
     <CategoryDistribution
+      onSelect={setSelectedCat}
       items={groups.map((g) => ({
         cat: g.category,
         total: g.total,
@@ -45,5 +50,15 @@ export default function SpendingDonut({ transactions }: SpendingDonutProps) {
       totalLabel="Total gasto"
       legend="compact"
     />
+    {selectedCat && (
+      <CategoryTransactionsModal
+        category={selectedCat}
+        transactions={spending.filter((t) => (t.category || 'Outros') === selectedCat)}
+        total={groups.find((g) => g.category === selectedCat)?.total ?? 0}
+        config={taxonomy.getConfig(selectedCat)}
+        onClose={() => setSelectedCat(null)}
+      />
+    )}
+    </>
   );
 }

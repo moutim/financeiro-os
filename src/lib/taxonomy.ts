@@ -146,17 +146,24 @@ export function isSpending(t: Transaction): boolean {
  * Divide uma transação pelas categorias das sub-transações: cada sub com categoria própria
  * vira um item com o valor e a categoria dela, e o restante (a transação sem essas subs)
  * fica na categoria da transação. As partes somam o valor da transação, então os totais
- * não mudam, só a categoria em que cada parte cai. Use antes do `normalize`, só para
- * análise: as partes não são transações para editar ou gravar.
+ * não mudam, só a categoria em que cada parte cai. Estornos (subs negativas) ficam
+ * de fora, porque não são gasto. Use antes do `normalize`, só para análise: as partes não são transações para editar ou gravar.
  */
 export function splitBySubCategory(t: Transaction): Transaction[] {
-  const subs = t.subTransactions ?? [];
-  const own = subs.filter((s) => s.category);
-  if (own.length === 0) return [t];
+  const all = t.subTransactions ?? [];
+  // estorno (sub negativa) não é gasto: sai da análise, e o valor da transação volta a ser o bruto
+  const credits = all.filter((s) => s.amount < 0);
+  const subs = all.filter((s) => s.amount >= 0);
+  const base: Transaction = credits.length === 0
+    ? t
+    : { ...t, amount: Math.round((t.amount - credits.reduce((sum, s) => sum + s.amount, 0)) * 100) / 100, subTransactions: subs };
 
-  const rest = Math.round((t.amount - own.reduce((sum, s) => sum + s.amount, 0)) * 100) / 100;
+  const own = subs.filter((s) => s.category);
+  if (own.length === 0) return [base];
+
+  const rest = Math.round((base.amount - own.reduce((sum, s) => sum + s.amount, 0)) * 100) / 100;
   // subs que passam do valor da transação (linhas antigas): sem como dividir, ela fica inteira
-  if (rest < 0) return [t];
+  if (rest < 0) return [base];
 
   const parts = own.map((s, idx): Transaction => ({
     ...t,
