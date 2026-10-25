@@ -24,6 +24,9 @@ export default function MetasPage() {
   const { pending, transactions, sharedGoalCopies, goals, deletePending, addGoal, updateGoal, deleteGoal, reconnectSharedGoal, loadingState } = useFinanceStore();
   const { data: session } = useSession();
   const [showPendingModal, setShowPendingModal] = useState(false);
+  // Pendências com valor negativo são a pagar; positivas, a receber
+  const totalToPay = pending.reduce((sum, p) => (p.amount < 0 ? sum + Math.abs(p.amount) : sum), 0);
+  const totalToReceive = pending.reduce((sum, p) => (p.amount > 0 ? sum + p.amount : sum), 0);
   const [pendingToEdit, setPendingToEdit] = useState<Pending | null>(null);
   const [showFabMenu, setShowFabMenu] = useState(false);
   
@@ -373,7 +376,7 @@ export default function MetasPage() {
               })}
             </ScrollArea>
 
-            <div style={{ paddingTop: 24 }}>
+            <div style={{ paddingTop: 16 }}>
                 <button
                   onClick={() => {
                     setPendingToEdit(null);
@@ -396,6 +399,19 @@ export default function MetasPage() {
                   Adicionar item
                 </button>
             </div>
+
+            {pending.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '16px 0 0 0', marginTop: 16, borderTop: '1px solid var(--separator)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ fontWeight: 700, fontSize: 15 }}>Total a Pagar</span>
+                  <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--red)' }}>{formatCurrency(totalToPay)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ fontWeight: 700, fontSize: 15 }}>Total a Receber</span>
+                  <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--green)' }}>{formatCurrency(totalToReceive)}</span>
+                </div>
+              </div>
+            )}
           </SectionCard>
 
           {/* Histórico Geral de Investimentos do App */}
