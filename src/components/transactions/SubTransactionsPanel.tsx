@@ -16,6 +16,8 @@ export interface SubTransactionDraft {
   /** Categoria própria do item, como gravada (vazia: fica na categoria da transação) */
   category: string;
   subcategory: string;
+  /** Posição do item na transação antes da edição (ausente nos itens novos) */
+  origin?: number;
 }
 
 /** Itens por página: a tela das subs nunca cresce além disso, então o modal não rola */
@@ -24,8 +26,9 @@ const PAGE_SIZE = 5;
 const EMPTY_SUB: SubTransactionDraft = { name: '', rawAmount: '', installments: '', category: '', subcategory: '' };
 
 /** Rascunho de uma sub-transação já gravada, para a edição */
-export function toSubTransactionDraft(sub: SubTransaction): SubTransactionDraft {
+export function toSubTransactionDraft(sub: SubTransaction, index: number): SubTransactionDraft {
   return {
+    origin: index,
     name: sub.name,
     rawAmount: String(Math.round(sub.amount * 100)),
     installments: sub.installments || '',

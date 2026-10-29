@@ -10,8 +10,9 @@ import { splitInstallments } from '@/lib/currency';
 import { useSwipeToClose } from '@/hooks/useSwipeToClose';
 import { triggerSuccessConfetti } from '@/lib/confetti';
 import { isFixedTransaction, hasRepeatingInstallments, LEGACY_FIXED_CATEGORY } from '@/lib/fixedTransactions';
-import { addSubsToMonthGroup, installmentsToRelink, newInstallmentCount, spreadSubTransactions } from '@/lib/installments';
+import { addSubsToMonthGroup, installmentsToRelink, applyLaterRemovals, laterInstallmentRemovals, removedInstallmentSubs, newInstallmentCount, spreadSubTransactions } from '@/lib/installments';
 import FixedToggle from './FixedToggle';
+import RemoveInstallmentsModal from './RemoveInstallmentsModal';
 import SubTransactionsPanel, { SubTransactionsSummary, draftCategoryFields, toSubTransactionDraft, useSubTransactionsView, type SubTransactionDraft } from './SubTransactionsPanel';
 import SwitchField from '@/components/ui/SwitchField';
 
@@ -34,7 +35,7 @@ interface TransactionEditModalProps {
 }
 
 export default function TransactionEditModalSimple({ transaction, onClose }: TransactionEditModalProps) {
-  const { updateTransaction, addEntriesBatch, setTransactionsCard, transactions, cards, goals } = useFinanceStore();
+  const { updateTransaction, deleteTransaction, addEntriesBatch, setTransactionsCard, transactions, cards, goals } = useFinanceStore();
   const [name, setName] = useState(transaction.name);
   const [rawAmount, setRawAmount] = useState(String(Math.round(transaction.amount * 100)));
   // Transações lançadas no modo detalhado aparecem com a categoria simples
@@ -59,6 +60,8 @@ export default function TransactionEditModalSimple({ transaction, onClose }: Tra
   );
   const subsView = useSubTransactionsView(subTransactions, setSubTransactions);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Itens parcelados removidos à espera da resposta sobre as parcelas seguintes
+  const [askRemoval, setAskRemoval] = useState<string[] | null>(null);
   const [isPaid, setIsPaid] = useState(transaction.isPaid || false);
   const [isFixed, setIsFixed] = useState(isFixedTransaction(transaction));
   const swipeToClose = useSwipeToClose(onClose);
@@ -71,8 +74,8 @@ export default function TransactionEditModalSimple({ transaction, onClose }: Tra
   // Valor deste mês: das subs com parcelas novas entra só a 1ª parcela, igual ao que é gravado
   const monthSubAmount = (spreadSubTransactions(subInputs)[0] ?? []).reduce((acc, s) => acc + s.amount, 0);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e: React.FormEvent | null, removeLaterChoice?: boolean) => {
+    e?.preventDefault();
     if (!name.trim()) return;
     
     const numAmount = hasSubTxs ? monthSubAmount : (parseInt(rawAmount || '0', 10) / 100);
@@ -88,6 +91,19 @@ export default function TransactionEditModalSimple({ transaction, onClose }: Tra
     // O cartão vale para a compra toda: as parcelas seguintes acompanham a escolha,
     // senão só a parcela editada entra no limite usado do cartão
     const relinkIds = installmentsToRelink(transactions, transaction, cardId || null).map((t) => t.id);
+
+    // Parcela removida da lista: as seguintes saem dos próximos meses (com confirmação)
+    const removedSubs = removedInstallmentSubs(transaction, subTransactions);
+    const laterRemovals = laterInstallmentRemovals(transactions, transaction, removedSubs);
+    const hasLaterRemovals = laterRemovals.updates.length > 0 || laterRemovals.deleteIds.length > 0;
+    if (hasLaterRemovals && removeLaterChoice === undefined) {
+      setAskRemoval(removedSubs.map((s) => s.name));
+      return;
+    }
+    const removeLater = hasLaterRemovals && removeLaterChoice === true;
+    // Parcelas novas entram nos meses já sem as removidas, senão sobrariam as antigas ao lado das novas
+    const baseTransactions = removeLater ? applyLaterRemovals(transactions, laterRemovals) : transactions;
+    const rewrittenGroupIds = new Set<string>();
 
     setIsSubmitting(true);
     try {
@@ -123,9 +139,10 @@ export default function TransactionEditModalSimple({ transaction, onClose }: Tra
               recurrency: fixedRecurrency,
             };
           } else {
-            const monthGroup = currentSubs && addSubsToMonthGroup(transactions, transaction, nextMonthKey, currentSubs);
+            const monthGroup = currentSubs && addSubsToMonthGroup(baseTransactions, transaction, nextMonthKey, currentSubs);
             if (monthGroup) {
               monthGroupUpdates.push(monthGroup);
+              rewrittenGroupIds.add(monthGroup.id);
               continue;
             }
             newTransactions.push({
@@ -161,6 +178,12 @@ export default function TransactionEditModalSimple({ transaction, onClose }: Tra
         });
       }
       
+      if (removeLater) {
+        // os meses que também recebem parcelas novas já saem gravados com a remoção aplicada
+        for (const { id, updates } of laterRemovals.updates) if (!rewrittenGroupIds.has(id)) await updateTransaction(id, updates);
+        for (const id of laterRemovals.deleteIds) await deleteTransaction(id);
+      }
+
       await setTransactionsCard(relinkIds, cardId || null);
 
       if (isPaid && !transaction.isPaid) {
@@ -190,6 +213,7 @@ export default function TransactionEditModalSimple({ transaction, onClose }: Tra
   );
 
   return (
+    <>
     <div className="modal-overlay animate-fade-in" onClick={!isSubmitting ? onClose : undefined}>
       <div
         className={`modal-sheet tx-modal animate-slide-in-sheet ${subsView.isOpen ? '' : 'tx-modal-columns'}`}
@@ -354,5 +378,14 @@ export default function TransactionEditModalSimple({ transaction, onClose }: Tra
         )}
       </div>
     </div>
+    {askRemoval && (
+      <RemoveInstallmentsModal
+        names={askRemoval}
+        onRemoveAll={() => { setAskRemoval(null); handleSubmit(null, true); }}
+        onKeepLater={() => { setAskRemoval(null); handleSubmit(null, false); }}
+        onCancel={() => setAskRemoval(null)}
+      />
+    )}
+    </>
   );
 }

@@ -100,3 +100,53 @@ export function spreadSubTransactions(
   }
   return months;
 }
+
+// ─── Remoção de parcelas ─────────────────────────────────────────────────────
+
+/** Sub-transações parceladas ("x/y") que existiam antes da edição e foram removidas dela */
+export function removedInstallmentSubs(original: Transaction, drafts: { origin?: number }[]): SubTransaction[] {
+  return (original.subTransactions ?? []).filter(
+    (sub, index) => sub.installments?.includes('/') && !drafts.some((d) => d.origin === index),
+  );
+}
+
+/**
+ * O que remover dos meses seguintes quando parcelas de uma sub-transação são apagadas: a parcela
+ * de mesmo nome sai do lançamento de mesmo nome e cartão de cada mês seguinte (o lançamento sem
+ * mais nenhum item é excluído). Os meses anteriores ficam como estão.
+ */
+export function laterInstallmentRemovals(
+  transactions: Transaction[],
+  edited: Transaction,
+  removed: SubTransaction[],
+): { updates: { id: string; updates: Pick<Transaction, 'subTransactions' | 'amount'> }[]; deleteIds: string[] } {
+  const updates: { id: string; updates: Pick<Transaction, 'subTransactions' | 'amount'> }[] = [];
+  const deleteIds: string[] = [];
+  const names = new Set(removed.map((sub) => sub.name));
+  for (const group of transactions) {
+    if (
+      group.id === edited.id ||
+      group.monthKey <= edited.monthKey ||
+      group.name !== edited.name ||
+      (group.cardId ?? null) !== (edited.cardId ?? null) ||
+      !group.subTransactions?.length
+    ) continue;
+    const kept = group.subTransactions.filter((sub) => !(names.has(sub.name) && sub.installments?.includes('/')));
+    if (kept.length === group.subTransactions.length) continue;
+    if (kept.length === 0) deleteIds.push(group.id);
+    else updates.push({ id: group.id, updates: { subTransactions: kept, amount: kept.reduce((acc, sub) => acc + sub.amount, 0) } });
+  }
+  return { updates, deleteIds };
+}
+
+/** Lista de transações como ficará depois das remoções, para as próximas etapas da edição partirem dela */
+export function applyLaterRemovals(
+  transactions: Transaction[],
+  removals: ReturnType<typeof laterInstallmentRemovals>,
+): Transaction[] {
+  const byId = new Map(removals.updates.map((u) => [u.id, u.updates]));
+  const deleted = new Set(removals.deleteIds);
+  return transactions
+    .filter((t) => !deleted.has(t.id))
+    .map((t) => (byId.has(t.id) ? { ...t, ...byId.get(t.id) } : t));
+}
