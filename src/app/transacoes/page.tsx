@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import Sidebar from '@/components/layout/Sidebar';
 import GlassCard from '@/components/ui/GlassCard';
 import MonthSelector from '@/components/transactions/MonthSelector';
+import MonthSettledBadge from '@/components/transactions/MonthSettledBadge';
 import TransactionList from '@/components/transactions/TransactionList';
 import TransactionForm from '@/components/transactions/TransactionForm';
 import { useFinanceStore } from '@/lib/store';
@@ -163,9 +164,12 @@ export default function TransacoesPage() {
             <p style={{ fontSize: 13, color: 'var(--text-tertiary)', fontWeight: 500, marginBottom: 2 }}>
               Transações
             </p>
-            <h1 className="text-title-1" style={{ textTransform: 'capitalize' }}>
-              {monthKeyToLabel(selectedMonth)}
-            </h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <h1 className="text-title-1" style={{ textTransform: 'capitalize' }}>
+                {monthKeyToLabel(selectedMonth)}
+              </h1>
+              <MonthSettledBadge monthKey={selectedMonth} />
+            </div>
             <p style={{ fontSize: 13, color: 'var(--text-tertiary)', marginTop: 4 }}>
               {filtered.length} {filtered.length === 1 ? 'transação' : 'transações'} · Total: <strong style={{ color: 'var(--text-primary)' }}>
                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(total)}

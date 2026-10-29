@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import DataProvider from '@/components/providers/DataProvider';
+import MonthSettledModal from '@/components/transactions/MonthSettledModal';
 import { SessionProvider } from 'next-auth/react';
 import ThemeProvider from '@/components/providers/ThemeProvider';
 import { THEME_COLOR_LIGHT, THEME_INIT_SCRIPT } from '@/lib/themeInit';
@@ -56,6 +57,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <ThemeProvider>
             <DataProvider>
               {children}
+              <MonthSettledModal />
             </DataProvider>
           </ThemeProvider>
         </SessionProvider>

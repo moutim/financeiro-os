@@ -26,7 +26,16 @@ export default function MarkAllPaidButton({ transactions }: { transactions: Tran
     return () => clearTimeout(timer);
   }, [confirming]);
 
-  if (unpaidIds.length === 0 && !isSaving) return null;
+  if (unpaidIds.length === 0 && !isSaving) {
+    if (transactions.length === 0) return null;
+    // tudo pago: o botão dá lugar ao selo, sem deixar o cabeçalho vazio
+    return (
+      <span className="month-settled-badge">
+        <CheckCheck size={14} strokeWidth={2.5} />
+        Tudo pago
+      </span>
+    );
+  }
 
   const handleClick = async () => {
     if (!confirming) {

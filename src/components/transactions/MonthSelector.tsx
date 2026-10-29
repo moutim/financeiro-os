@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react';
+import { Check } from 'lucide-react';
 import { CURRENT_MONTH_KEY, useFinanceStore } from '@/lib/store';
 import { monthKeyToShortLabel } from '@/lib/currency';
+import { useSettledMonths } from '@/lib/monthSettled';
 
 /** Meses passados soltos no seletor; os mais antigos ficam num baralho à esquerda */
 const MAX_VISIBLE_PAST_MONTHS = 3;
@@ -17,7 +19,7 @@ const DECK_LAYER_SCALE_STEP = 0.08;
 /** Antigos à esquerda dos meses soltos, próximos à direita */
 type DeckSide = 'past' | 'future';
 
-function MonthChipLabel({ monthKey, active }: { monthKey: string; active: boolean }) {
+function MonthChipLabel({ monthKey, active, settled }: { monthKey: string; active: boolean; settled: boolean }) {
   const [year, month] = monthKey.split('-').map(Number);
   const yearLabel = new Date(year, month - 1, 1).toLocaleDateString('pt-BR', { year: '2-digit' });
 
@@ -37,6 +39,13 @@ function MonthChipLabel({ monthKey, active }: { monthKey: string; active: boolea
       }}>
         {yearLabel}
       </span>
+      {/* mês quitado: todas as despesas pagas */}
+      {settled && (
+        <span className="month-chip-settled">
+          <Check size={10} strokeWidth={3.5} aria-hidden />
+          <span className="sr-only">Mês quitado</span>
+        </span>
+      )}
     </>
   );
 }
@@ -46,6 +55,7 @@ interface MonthDeckProps {
   /** Meses do baralho, em ordem cronológica */
   months: string[];
   selectedMonth: string;
+  settledMonths: Set<string>;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSelect: (monthKey: string) => void;
@@ -57,7 +67,7 @@ interface MonthDeckProps {
  * próximo dos meses soltos) e os demais aparecem atrás, para o lado de fora.
  * Abre em leque, em ordem cronológica, no hover ou no toque.
  */
-function MonthDeck({ side, months, selectedMonth, open, onOpenChange, onSelect, activeRef }: MonthDeckProps) {
+function MonthDeck({ side, months, selectedMonth, settledMonths, open, onOpenChange, onSelect, activeRef }: MonthDeckProps) {
   const deckRef = useRef<HTMLDivElement>(null);
   const openTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const lastPointerType = useRef('mouse');
@@ -129,6 +139,7 @@ function MonthDeck({ side, months, selectedMonth, open, onOpenChange, onSelect, 
       {months.map((mk, index) => {
         const active = mk === selectedMonth;
         const isTop = index === topIndex;
+        const settled = settledMonths.has(mk);
 
         return (
           <button
@@ -137,6 +148,7 @@ function MonthDeck({ side, months, selectedMonth, open, onOpenChange, onSelect, 
             type="button"
             className={`month-chip ${active ? 'active' : ''}`}
             style={{ ...cardStyle(index), color: active ? 'white' : undefined }}
+            title={settled ? 'Mês quitado' : undefined}
             inert={!open && !isTop}
             aria-expanded={isTop ? open : undefined}
             onClick={(e) => {
@@ -152,7 +164,7 @@ function MonthDeck({ side, months, selectedMonth, open, onOpenChange, onSelect, 
               if (lastPointerType.current !== 'mouse') onOpenChange(false);
             }}
           >
-            <MonthChipLabel monthKey={mk} active={active} />
+            <MonthChipLabel monthKey={mk} active={active} settled={settled} />
           </button>
         );
       })}
@@ -162,6 +174,7 @@ function MonthDeck({ side, months, selectedMonth, open, onOpenChange, onSelect, 
 
 export default function MonthSelector() {
   const { selectedMonth, setSelectedMonth, availableMonths, addAvailableMonth } = useFinanceStore();
+  const settledMonths = useSettledMonths();
   const activeRef = useRef<HTMLButtonElement>(null);
   // só um baralho aberto por vez
   const [openDeck, setOpenDeck] = useState<DeckSide | null>(null);
@@ -218,6 +231,7 @@ export default function MonthSelector() {
 
   const renderMonthChip = (mk: string) => {
     const active = mk === selectedMonth;
+    const settled = settledMonths.has(mk);
 
     return (
       <button
@@ -226,8 +240,9 @@ export default function MonthSelector() {
         className={`month-chip ${active ? 'active' : ''}`}
         onClick={() => setSelectedMonth(mk)}
         style={{ color: active ? 'white' : undefined }}
+        title={settled ? 'Mês quitado' : undefined}
       >
-        <MonthChipLabel monthKey={mk} active={active} />
+        <MonthChipLabel monthKey={mk} active={active} settled={settled} />
       </button>
     );
   };
@@ -239,6 +254,7 @@ export default function MonthSelector() {
         side={side}
         months={months}
         selectedMonth={selectedMonth}
+        settledMonths={settledMonths}
         open={openDeck === side}
         onOpenChange={(open) => setOpenDeck((current) => (open ? side : current === side ? null : current))}
         onSelect={setSelectedMonth}

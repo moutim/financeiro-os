@@ -13,6 +13,7 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import MonthSelector from '@/components/transactions/MonthSelector';
 import TransactionList from '@/components/transactions/TransactionList';
 import MarkAllPaidButton from '@/components/transactions/MarkAllPaidButton';
+import MonthSettledBadge from '@/components/transactions/MonthSettledBadge';
 import TransactionForm from '@/components/transactions/TransactionForm';
 import StartMonthWizard from '@/components/transactions/StartMonthWizard';
 import IncomeEditModal from '@/components/transactions/IncomeEditModal';
@@ -166,9 +167,12 @@ export default function DashboardPage() {
             <p style={{ fontSize: 13, color: 'var(--text-tertiary)', fontWeight: 500, marginBottom: 2 }}>
               Controle Financeiro
             </p>
-            <h1 className="text-title-1" style={{ textTransform: 'capitalize' }}>
-              {monthKeyToLabel(selectedMonth)}
-            </h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <h1 className="text-title-1" style={{ textTransform: 'capitalize' }}>
+                {monthKeyToLabel(selectedMonth)}
+              </h1>
+              <MonthSettledBadge monthKey={selectedMonth} />
+            </div>
           </div>
         </div>
 
