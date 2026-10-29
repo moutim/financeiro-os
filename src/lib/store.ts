@@ -137,6 +137,7 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
 
   // ─── Load all data from Google Sheets via API routes ─────────────────────
   loadAll: async () => {
+    const isInitialLoad = get().loadingState === 'idle';
     set({ loadingState: 'loading', error: null });
     try {
       const [txRes, incRes, pendRes, goalsRes, cardsRes] = await Promise.all([
@@ -174,6 +175,16 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
       let newSelectedMonth = get().selectedMonth;
       if (loadedMonths.length > 0 && !loadedMonths.includes(newSelectedMonth)) {
         newSelectedMonth = loadedMonths[loadedMonths.length - 1];
+      }
+
+      // Ao entrar com o mês atual todo pago, já abre no próximo (se ele existir)
+      if (isInitialLoad && newSelectedMonth === CURRENT_MONTH_KEY) {
+        const currentTxs = transactions.filter(t => t.monthKey === CURRENT_MONTH_KEY);
+        const nextDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        const nextKey = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}`;
+        if (currentTxs.length > 0 && currentTxs.every(t => t.isPaid) && loadedMonths.includes(nextKey)) {
+          newSelectedMonth = nextKey;
+        }
       }
 
       set({ 

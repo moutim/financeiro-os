@@ -4,7 +4,7 @@ import type { CSSProperties } from 'react';
 import { HandCoins, Pencil } from 'lucide-react';
 import { DetailedOnly } from '@/components/mode/ModeSwitch';
 import { TiltCard } from '@/components/ui/TiltCard';
-import { getBankById } from '@/lib/banks';
+import { getBankById, resolveCardColor } from '@/lib/banks';
 import type { CreditCard } from '@/lib/types';
 
 /** Cor clara o bastante para precisar de texto escuro (ex: cartões brancos) */
@@ -70,7 +70,7 @@ export const bankLogoSrc = (domain: string) => `https://www.google.com/s2/favico
  */
 export function walletFace(card: Pick<CreditCard, 'color' | 'bankId'>) {
   const bank = getBankById(card.bankId);
-  const color = bank?.color || card.color || '#1E1E1E';
+  const color = resolveCardColor(card) || '#1E1E1E';
   const isLight = isLightCardColor(color);
   const style = {
     '--wallet-bg': isLight ? '#F5F5F7' : color,

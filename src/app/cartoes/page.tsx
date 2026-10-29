@@ -16,7 +16,7 @@ import { formatCurrency } from '@/lib/currency';
 import { Plus, CheckCircle2, AlertTriangle, ChevronLeft, ChevronRight, WalletCards, ArrowUpDown } from 'lucide-react';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import MonthSelector from '@/components/transactions/MonthSelector';
-import { getBankById } from '@/lib/banks';
+import { getBankById, resolveCardColor } from '@/lib/banks';
 import { useIsDetailedMode, useAppConfigStore } from '@/lib/appConfigStore';
 import { useCarousel } from '@/hooks/useCarousel';
 import {
@@ -240,7 +240,7 @@ export default function CartoesPage() {
                           <div style={{ 
                             height: '100%', 
                             width: `${Math.min(usagePct, 100)}%`, 
-                            background: bank?.color || card.color,
+                            background: resolveCardColor(card),
                             borderRadius: 3
                           }} />
                         </div>

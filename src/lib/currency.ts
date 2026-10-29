@@ -197,3 +197,19 @@ export function formatMask(digits: string): string {
 export function parseMask(value: string): string {
   return value.replace(/\D/g, '');
 }
+
+/** Valor digitado como string de centavos; o prefixo '-' marca um crédito (valor negativo) */
+export const isCredit = (rawAmount: string) => rawAmount.startsWith('-');
+
+/** Digita o valor mantendo o sinal atual: o crédito só muda pelo botão */
+export function typedAmount(typed: string, current: string): string {
+  const digits = parseMask(typed).replace(/^0+/, '');
+  if (digits) return isCredit(current) ? `-${digits}` : digits;
+  return isCredit(current) ? '-0' : '';
+}
+
+/** Alterna entre despesa e crédito, sem perder o valor digitado */
+export function toggledCredit(current: string): string {
+  if (isCredit(current)) return current.slice(1).replace(/^0+$/, '');
+  return `-${current || '0'}`;
+}

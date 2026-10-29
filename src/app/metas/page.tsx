@@ -74,6 +74,13 @@ export default function MetasPage() {
     return author?.trim().split(/\s+/)[0].split('@')[0] || author;
   };
 
+  // Data do aporte (dd/mm); sem data gravada, mostra só o mês
+  const formatContributionDate = (tx: Transaction) => {
+    const d = tx.date ? new Date(tx.date) : null;
+    if (d && !isNaN(d.getTime())) return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+    return monthKeyToShortLabel(tx.monthKey);
+  };
+
   // Extrair todos os meses disponíveis nas transações para o dropdown
   const allAvailableMonths = Array.from(new Set([...transactions, ...investmentTxs].map(t => t.monthKey))).sort((a, b) => a.localeCompare(b));
 
@@ -181,6 +188,20 @@ export default function MetasPage() {
             const actualCurrent = getGoalCurrent(goal.id, goal.current);
             const goalPct = goal.target > 0 ? Math.min((actualCurrent / goal.target) * 100, 100) : 0;
             const remaining = goal.target - actualCurrent;
+            const contributions = investmentTxs
+              .filter(tx => tx.goalId === goal.id)
+              .sort((a, b) => (b.date ?? b.monthKey).localeCompare(a.date ?? a.monthKey));
+            // Total por pessoa (só nas metas com mais de uma pessoa), do maior para o menor
+            const totalsByPerson = new Map<string, number>();
+            contributions.forEach(tx => {
+              const who = getContributor(tx);
+              if (who) totalsByPerson.set(who, (totalsByPerson.get(who) ?? 0) + tx.amount);
+            });
+            const contributionMonths = [...contributions.reduce((map, tx) => {
+              map.set(tx.monthKey, [...(map.get(tx.monthKey) ?? []), tx]);
+              return map;
+            }, new Map<string, Transaction[]>())];
+            const personTotals = [...totalsByPerson.entries()].sort((a, b) => b[1] - a[1]);
             
             // Predição de meses faltantes
             let predictionText = 'Sem previsão';
@@ -266,6 +287,8 @@ export default function MetasPage() {
                   </div>
                 )}
 
+                <div className="goal-card-body">
+                <div className="goal-card-main">
                 {/* Big Numbers */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 16 }}>
                   <div>
@@ -313,6 +336,74 @@ export default function MetasPage() {
                   <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)' }}>
                     {predictionText}
                   </span>
+                </div>
+
+                </div>
+
+                {/* Aportes: total de cada pessoa e o histórico */}
+                <div className="goal-card-aportes">
+                  <p style={{ fontSize: 12, color: 'var(--text-tertiary)', fontWeight: 500, marginBottom: 8 }}>
+                    Aportes{contributions.length > 0 && ` · ${contributions.length}`}
+                  </p>
+
+                  {personTotals.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 24px', paddingBottom: 12, marginBottom: 4, borderBottom: '1px solid var(--separator)' }}>
+                      {personTotals.map(([who, total]) => (
+                        <div
+                          key={who}
+                          style={{
+                            flex: '1 1 120px',
+                            minWidth: 0,
+                          }}
+                        >
+                          <p style={{ fontSize: 12, color: 'var(--text-tertiary)', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{who}</p>
+                          <p style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.015em', color: 'var(--green)', whiteSpace: 'nowrap' }}>{formatCurrency(total)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {contributions.length === 0 && goal.current <= 0 ? (
+                    <p style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>Nenhum aporte ainda.</p>
+                  ) : (
+                    <ScrollArea maxHeight={220}>
+                      {contributionMonths.map(([mk, monthTxs]) => (
+                        <div key={mk} style={{ padding: '12px 0', borderBottom: '1px solid var(--separator)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                            <span style={{ fontSize: 14, fontWeight: 700, textTransform: 'capitalize' }}>
+                              {`${monthKeyToShortLabel(mk)}/${toCanonicalMonthKey(mk).slice(2, 4)}`}
+                            </span>
+                            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--green)' }}>
+                              {formatCurrency(monthTxs.reduce((sum, tx) => sum + tx.amount, 0))}
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {monthTxs.map(tx => {
+                              const contributor = getContributor(tx);
+                              const ItemIcon = contributor ? Users : Target;
+                              return (
+                                <div key={tx.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, color: 'var(--text-secondary)' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                                    <ItemIcon size={12} style={{ opacity: 0.5, flexShrink: 0 }} />
+                                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{contributor ?? tx.name}</span>
+                                    <span style={{ color: 'var(--text-tertiary)', whiteSpace: 'nowrap', flexShrink: 0 }}>· {formatContributionDate(tx)}</span>
+                                  </div>
+                                  <span style={{ flexShrink: 0 }}>+{formatCurrency(tx.amount)}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                      {goal.current > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', fontSize: 13, color: 'var(--text-tertiary)' }}>
+                          <span>Saldo inicial</span>
+                          <span>{formatCurrency(goal.current)}</span>
+                        </div>
+                      )}
+                    </ScrollArea>
+                  )}
+                </div>
                 </div>
               </GlassCard>
             );

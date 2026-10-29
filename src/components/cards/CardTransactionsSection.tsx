@@ -6,7 +6,7 @@ import SectionCard from '@/components/ui/SectionCard';
 import SegmentedTabs from '@/components/ui/SegmentedTabs';
 import ScrollArea from '@/components/ui/ScrollArea';
 import TransactionList from '@/components/transactions/TransactionList';
-import { getBankById } from '@/lib/banks';
+import { resolveCardColor } from '@/lib/banks';
 import { formatCurrency, monthKeyToLabel } from '@/lib/currency';
 import type { CardWithRealData } from '@/lib/creditCards';
 import type { Transaction } from '@/lib/types';
@@ -103,7 +103,7 @@ export default function CardTransactionsSection({ cards, selectedMonth }: CardTr
       <div className="card-chips">
         {cards.map((c) => {
           const isActive = c.id === card.id;
-          const color = getBankById(c.bankId)?.color || c.color;
+          const color = resolveCardColor(c);
           const openCount = transactionsInView(c, view, selectedMonth).filter((t) => !t.isPaid).length;
           return (
             <button

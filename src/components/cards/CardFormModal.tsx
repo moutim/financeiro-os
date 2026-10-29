@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { formatMask, parseMask } from '@/lib/currency';
 import { useSwipeToClose } from '@/hooks/useSwipeToClose';
-import { BANKS } from '@/lib/banks';
+import { BANKS, BRAND_COLORS, getBankById, isAutoCardColor } from '@/lib/banks';
 import { DetailedOnly } from '@/components/mode/ModeSwitch';
 
 const PRIORITY_LABELS = [
@@ -32,14 +32,24 @@ interface CardFormModalProps {
   onDelete?: (id: string) => Promise<void> | void;
 }
 
-const BRAND_COLORS: Record<string, { color: string; colorLight: string }> = {
-  Mastercard: { color: '#EC7000', colorLight: '#fdf1e5' },
-  Visa: { color: '#1A1F71', colorLight: '#e8e9f1' },
-  Elo: { color: '#00A4E0', colorLight: '#e5f6fc' },
-  Amex: { color: '#002663', colorLight: '#e5e9f0' },
-  Nubank: { color: '#8A05BE', colorLight: '#f3e5f8' },
-  Outro: { color: '#1E1E1E', colorLight: '#e8e8e8' },
-};
+/** Cores de bancos e programas, para o cartão ter a cara do emissor */
+const COLOR_PRESETS = [
+  { label: 'Laranja (Itaú)', color: '#EC7000' },
+  { label: 'Azul Uniclass (Itaú)', color: '#003A8F' },
+  { label: 'Personnalité (Itaú)', color: '#1F2A44' },
+  { label: 'LATAM Pass vermelho', color: '#E4002B' },
+  { label: 'LATAM Pass índigo', color: '#2B1A7D' },
+  { label: 'Roxo (Nubank)', color: '#8A05BE' },
+  { label: 'Verde', color: '#1B8A4B' },
+  { label: 'Preto', color: '#1E1E1E' },
+];
+
+/** Versão clara da cor (fundo de destaque): mistura com branco */
+function lightenColor(hex: string, amount = 0.9): string {
+  const n = parseInt(hex.slice(1), 16);
+  const mix = (c: number) => Math.round(c + (255 - c) * amount).toString(16).padStart(2, '0');
+  return `#${mix((n >> 16) & 255)}${mix((n >> 8) & 255)}${mix(n & 255)}`;
+}
 
 export default function CardFormModal({ initialData, onSave, onClose, onDelete }: CardFormModalProps) {
   const [name, setName] = useState(initialData?.name ?? '');
@@ -49,6 +59,8 @@ export default function CardFormModal({ initialData, onSave, onClose, onDelete }
   const [freedMonth, setFreedMonth] = useState(initialData?.freedMonthKey ? initialData.freedMonthKey.split('-')[1] : '');
   const [freedYear, setFreedYear] = useState(initialData?.freedMonthKey ? initialData.freedMonthKey.split('-')[0] : '');
   const [lastDigits, setLastDigits] = useState(initialData?.lastDigits ? initialData.lastDigits.split('-').pop() ?? '' : '');
+  // null = automática (segue o banco ou a bandeira)
+  const [customColor, setCustomColor] = useState<string | null>(isAutoCardColor(initialData?.color) ? null : initialData!.color);
   const [bankId, setBankId] = useState(initialData?.bankId ?? '');
   // Editável só no modo detalhado, mas sempre preservada ao salvar
   const [priority, setPriority] = useState<string>(initialData?.priority ? String(initialData.priority) : '');
@@ -57,15 +69,13 @@ export default function CardFormModal({ initialData, onSave, onClose, onDelete }
   const [isDeleting, setIsDeleting] = useState(false);
   const swipeToClose = useSwipeToClose(onClose);
 
+  const brandColor = (name.toLowerCase().includes('nubank') ? BRAND_COLORS['Nubank'] : BRAND_COLORS[brand] || BRAND_COLORS['Outro']).color;
+  // O que aparece selecionado; sem escolha do usuário o banco manda (ver resolveCardColor)
+  const selectedColor = customColor ?? getBankById(bankId)?.color ?? brandColor;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Auto color based on name or brand
-    let colorObj = BRAND_COLORS[brand] || BRAND_COLORS['Outro'];
-    if (name.toLowerCase().includes('nubank')) {
-      colorObj = BRAND_COLORS['Nubank'];
-    }
-
     let finalLastDigits = null;
     if (lastDigits) {
       const slug = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -77,8 +87,9 @@ export default function CardFormModal({ initialData, onSave, onClose, onDelete }
       name,
       limit: parseInt(limit || '0', 10) / 100,
       used: parseInt(used || '0', 10) / 100,
-      color: initialData?.color ?? colorObj.color,
-      colorLight: initialData?.colorLight ?? colorObj.colorLight,
+      // automática grava a cor da bandeira, para o banco seguir mandando se mudar depois
+      color: customColor ?? brandColor,
+      colorLight: customColor === null ? BRAND_COLORS[brand]?.colorLight ?? BRAND_COLORS['Outro'].colorLight : customColor === initialData?.color ? initialData.colorLight : lightenColor(customColor),
       brand,
       freedMonthKey: (freedYear && freedMonth) ? `${freedYear}-${freedMonth}` : null,
       lastDigits: finalLastDigits,
@@ -140,7 +151,7 @@ export default function CardFormModal({ initialData, onSave, onClose, onDelete }
           <div className="card-form-identity">
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Banco</label>
-              <select className="form-select" value={bankId} onChange={e => setBankId(e.target.value)} disabled={isLoading}>
+              <select className="form-select" value={bankId} onChange={e => { setBankId(e.target.value); setCustomColor(null); }} disabled={isLoading}>
                 <option value="">(Nenhum)</option>
                 {BANKS.map(b => (
                   <option key={b.id} value={b.id}>{b.name}</option>
@@ -172,6 +183,61 @@ export default function CardFormModal({ initialData, onSave, onClose, onDelete }
                 disabled={isLoading}
               />
             </div>
+          </div>
+
+          <div className="form-group" style={{ marginBottom: 16 }}>
+            <label className="form-label">Cor do Cartão</label>
+            <div role="radiogroup" aria-label="Cor do cartão" style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+              {COLOR_PRESETS.map(p => (
+                <button
+                  key={p.color}
+                  type="button"
+                  role="radio"
+                  aria-checked={selectedColor.toLowerCase() === p.color.toLowerCase()}
+                  aria-label={p.label}
+                  title={p.label}
+                  onClick={() => setCustomColor(p.color)}
+                  disabled={isLoading}
+                  style={{
+                    width: 28, height: 28, borderRadius: '50%', border: 'none', padding: 0, cursor: 'pointer',
+                    background: p.color,
+                    boxShadow: selectedColor.toLowerCase() === p.color.toLowerCase() ? '0 0 0 2px var(--bg), 0 0 0 4px var(--text-primary)' : 'none',
+                  }}
+                />
+              ))}
+              <label
+                title="Escolher outra cor"
+                style={{
+                  width: 28, height: 28, borderRadius: '50%', cursor: 'pointer', position: 'relative', overflow: 'hidden',
+                  background: 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)',
+                  boxShadow: COLOR_PRESETS.every(p => p.color.toLowerCase() !== selectedColor.toLowerCase()) ? '0 0 0 2px var(--bg), 0 0 0 4px var(--text-primary)' : 'none',
+                }}
+              >
+                <input
+                  type="color"
+                  aria-label="Escolher outra cor"
+                  value={selectedColor}
+                  onChange={e => setCustomColor(e.target.value)}
+                  disabled={isLoading}
+                  style={{ position: 'absolute', inset: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer' }}
+                />
+              </label>
+            </div>
+            {customColor === null ? (
+              <p style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 6 }}>
+                {getBankById(bankId) ? `Cor padrão do ${getBankById(bankId)!.name}.` : 'Automática, de acordo com a bandeira.'}
+              </p>
+            ) : (
+              <button
+                type="button"
+                className="btn-ghost"
+                onClick={() => setCustomColor(null)}
+                disabled={isLoading}
+                style={{ fontSize: 12, padding: '4px 0', marginTop: 6 }}
+              >
+                {getBankById(bankId) ? `Voltar à cor padrão do ${getBankById(bankId)!.name}` : 'Voltar à cor automática'}
+              </button>
+            )}
           </div>
 
           <DetailedOnly>

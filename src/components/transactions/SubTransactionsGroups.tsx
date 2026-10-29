@@ -18,8 +18,14 @@ export default function SubTransactionsGroups({ transaction: tx }: SubTransactio
   const subs = tx.subTransactions ?? [];
   if (subs.length === 0) return null;
 
+  // pai pago: mesmo fundo verde da linha da transação, cobrindo a largura toda
+  const wrapperStyle = tx.isPaid
+    ? { margin: '0 -12px 6px', padding: '0 12px 6px', borderRadius: '0 0 8px 8px', background: 'var(--green-light)', filter: 'opacity(0.7)' }
+    : undefined;
+
   return (
-    <div style={{ margin: '0 0 6px 14px', paddingLeft: 12, borderLeft: '2px solid var(--separator)' }}>
+    <div style={wrapperStyle}>
+    <div style={{ margin: tx.isPaid ? '0 0 0 14px' : '0 0 6px 14px', paddingLeft: 12, borderLeft: '2px solid var(--separator)' }}>
       {subs.map((st, idx) => {
         // sub sem categoria própria segue a da transação
         const view = taxonomy.normalize({
@@ -63,6 +69,7 @@ export default function SubTransactionsGroups({ transaction: tx }: SubTransactio
           </div>
         );
       })}
+    </div>
     </div>
   );
 }

@@ -6,7 +6,7 @@ import SegmentedTabs from '@/components/ui/SegmentedTabs';
 import { CategoryDistribution, CategoryRanking, MacroMicroGroups } from '@/components/charts/CategoryBreakdown';
 import { isLightCardColor } from '@/components/cards/WalletCardFace';
 import { formatCurrency } from '@/lib/currency';
-import { getBankById } from '@/lib/banks';
+import { resolveCardColor } from '@/lib/banks';
 import { splitBySubCategory, useCategoryTaxonomy } from '@/lib/taxonomy';
 import {
   Wallet,
@@ -225,7 +225,7 @@ export default function CreditAnalytics({
           const cardLimitUsedPct = card.limit > 0 ? (card.realUsed / card.limit) * 100 : 0;
           // sem salário no mês, a barra compara com a maior fatura
           const barPct = salary > 0 ? cardInvoicePct : (card.currentInvoiceAmount / maxInvoice) * 100;
-          const cardColor = getBankById(card.bankId)?.color || card.color || 'var(--blue)';
+          const cardColor = resolveCardColor(card) || 'var(--blue)';
           const isLight = isLightCardColor(cardColor);
           const isLast = index === cardsByInvoice.length - 1;
 

@@ -2,7 +2,7 @@
 
 import { useState, type CSSProperties } from 'react';
 import { ChevronLeft, ChevronRight, Minus } from 'lucide-react';
-import { formatCurrency, formatMask, parseMask } from '@/lib/currency';
+import { formatCurrency, formatMask, isCredit, typedAmount, toggledCredit } from '@/lib/currency';
 import { EXPENSE_MACROS, getMicrosForMacro, isValidMicroForMacro } from '@/lib/detailedCategories';
 import { useCategoryTaxonomy, type CategoryTaxonomy } from '@/lib/taxonomy';
 import type { SubTransaction, Transaction } from '@/lib/types';
@@ -42,21 +42,6 @@ export function draftCategoryFields(sub: Pick<SubTransactionDraft, 'category' | 
 }
 
 const isBlank = (s: SubTransactionDraft) => !s.name.trim() && !parseInt(s.rawAmount || '0', 10) && !s.installments.trim();
-
-const isCredit = (rawAmount: string) => rawAmount.startsWith('-');
-
-/** Digita o valor mantendo o sinal do item: o crédito só muda pelo botão */
-function typedAmount(typed: string, current: string): string {
-  const digits = parseMask(typed).replace(/^0+/, '');
-  if (digits) return isCredit(current) ? `-${digits}` : digits;
-  return isCredit(current) ? '-0' : '';
-}
-
-/** Alterna o item entre despesa e crédito, sem perder o valor digitado */
-function toggledCredit(current: string): string {
-  if (isCredit(current)) return current.slice(1).replace(/^0+$/, '');
-  return `-${current || '0'}`;
-}
 
 /** Número de parcelas aparece como "6x" */
 const displayInstallments = (value: string) => (/^\d+$/.test(value) ? `${value}x` : value);

@@ -1,4 +1,5 @@
 'use client';
+import AmountInput from './AmountInput';
 import { useState } from 'react';
 import { CheckCircle2 } from 'lucide-react';
 import { useFinanceStore } from '@/lib/store';
@@ -9,7 +10,7 @@ import {
   INVESTMENT_CATEGORIES, 
 } from '@/lib/detailedCategories';
 import { DETAILED_TAXONOMY } from '@/lib/taxonomy';
-import { formatMask, parseMask, addMonths, parseMonthKey, formatCurrency, splitInstallments } from '@/lib/currency';
+import { addMonths, parseMonthKey, splitInstallments } from '@/lib/currency';
 import { useSwipeToClose } from '@/hooks/useSwipeToClose';
 import { triggerSuccessConfetti } from '@/lib/confetti';
 import { isFixedTransaction, hasRepeatingInstallments } from '@/lib/fixedTransactions';
@@ -34,7 +35,7 @@ interface TransactionEditModalProps {
 export default function TransactionEditModalDetailed({ transaction, onClose }: TransactionEditModalProps) {
   const { updateTransaction, addEntriesBatch, setTransactionsCard, transactions, cards, goals, addAvailableMonth } = useFinanceStore();
   const [name, setName] = useState(transaction.name);
-  const [rawAmount, setRawAmount] = useState(String(Math.round(Math.abs(transaction.amount) * 100)));
+  const [rawAmount, setRawAmount] = useState(String(Math.round(transaction.amount * 100)));
 
   // Data da Transação: mês e ano num único seletor ("Out 2026")
   const [monthKey, setMonthKey] = useState(() => {
@@ -90,7 +91,7 @@ export default function TransactionEditModalDetailed({ transaction, onClose }: T
     if (!name.trim()) return;
     
     const numAmount = hasSubTxs ? monthSubAmount : (parseInt(rawAmount || '0', 10) / 100);
-    if (isNaN(numAmount) || numAmount <= 0) return;
+    if (isNaN(numAmount) || numAmount === 0) return;
     
     const validSubs = subInputs.filter(s => s.name && s.amount !== 0);
     const hasValidSubTxs = validSubs.length > 0;
@@ -255,16 +256,13 @@ export default function TransactionEditModalDetailed({ transaction, onClose }: T
                 <div className={!hasSubTxs ? 'tx-form-row' : undefined}>
                   <div className="form-group">
                     <label className="form-label">Valor</label>
-                    <input
-                      className="form-input"
-                      type="text"
-                      inputMode="numeric"
-                      value={hasSubTxs ? formatCurrency(monthSubAmount) : formatMask(rawAmount)}
-                      onChange={(e) => {
-                        if (!hasSubTxs) setRawAmount(parseMask(e.target.value));
-                      }}
-                      disabled={hasSubTxs || isSubmitting}
-                    />
+                    <AmountInput
+                        rawAmount={hasSubTxs ? String(Math.round(monthSubAmount * 100)) : rawAmount}
+                        onChange={setRawAmount}
+                        disabled={isSubmitting || hasSubTxs}
+                        
+                        allowCredit={!hasSubTxs}
+                      />
                   </div>
 
                   {!hasSubTxs && (

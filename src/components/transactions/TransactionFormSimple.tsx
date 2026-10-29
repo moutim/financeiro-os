@@ -1,11 +1,12 @@
 'use client';
 
+import AmountInput from './AmountInput';
 import { useState } from 'react';
 import { Banknote, CheckCircle2, Sparkles } from 'lucide-react';
 import type { Category, Income, Transaction } from '@/lib/types';
 import { useFinanceStore } from '@/lib/store';
 import { CATEGORY_NAMES } from '@/lib/categories';
-import { formatMask, parseMask, formatCurrency, splitInstallments } from '@/lib/currency';
+import { splitInstallments } from '@/lib/currency';
 import { useSwipeToClose } from '@/hooks/useSwipeToClose';
 import { hasRepeatingInstallments } from '@/lib/fixedTransactions';
 import FixedToggle from './FixedToggle';
@@ -54,7 +55,6 @@ export default function TransactionFormSimple({ onClose }: TransactionFormProps)
     const amt = parseInt(sub.rawAmount || '0', 10) / 100;
     return acc + splitInstallments(amt, getSubInstallments(sub)).first;
   }, 0);
-  const displayAmount = hasSubTxs ? formatCurrency(monthSubAmount) : formatMask(rawDigits);
 
   // Helper: adiciona N meses a uma chave 'YYYY-MM'
   function addMonths(monthKey: string, add: number): string {
@@ -329,19 +329,12 @@ export default function TransactionFormSimple({ onClose }: TransactionFormProps)
                   <div className={showInstallments ? 'tx-form-row' : undefined}>
                     <div className="form-group">
                       <label className="form-label">Valor</label>
-                      <input
-                        className="form-input"
-                        type="text"
-                        inputMode="numeric"
-                        placeholder="R$ 0,00"
-                        value={displayAmount}
-                        onChange={(e) => {
-                          if (hasSubTxs) return;
-                          const digits = parseMask(e.target.value);
-                          setRawDigits(digits);
-                        }}
+                      <AmountInput
+                        rawAmount={hasSubTxs ? String(Math.round(monthSubAmount * 100)) : rawDigits}
+                        onChange={setRawDigits}
                         disabled={isSubmitting || hasSubTxs}
                         required={!hasSubTxs}
+                        allowCredit={!hasSubTxs && type === 'expense'}
                       />
                     </div>
 

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { CheckCheck } from 'lucide-react';
 import { useFinanceStore } from '@/lib/store';
+import { triggerSuccessConfetti } from '@/lib/confetti';
 import type { Transaction } from '@/lib/types';
 
 /** Quanto tempo o pedido de confirmação fica no botão antes de voltar ao normal */
@@ -36,6 +37,7 @@ export default function MarkAllPaidButton({ transactions }: { transactions: Tran
     setIsSaving(true);
     try {
       await markTransactionsPaid(unpaidIds);
+      triggerSuccessConfetti();
     } catch (err) {
       console.error(err);
       alert('Erro ao marcar as transações como pagas.');
