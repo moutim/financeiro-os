@@ -1,13 +1,67 @@
 'use client';
 
 import { signIn } from 'next-auth/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Wallet, Cloud, Lock, Zap } from 'lucide-react';
 import Link from 'next/link';
 import InstallAppSheet from '@/components/ui/InstallAppSheet';
+import LoginErrorSheet, { type LoginErrorInfo } from '@/components/ui/LoginErrorSheet';
+
+const LOGIN_ERRORS: Record<string, LoginErrorInfo> = {
+  drive_permission: {
+    title: 'Faltou a permissão do Google Drive',
+    cause: 'O Financeiro OS precisa dessa permissão para criar a sua planilha, e ela não foi concedida no login.',
+    steps: [
+      'Toque em "Continuar com Google" novamente.',
+      'Na tela do Google, deixe marcada a opção de acesso ao Drive e continue.',
+      'Se o erro voltar, acesse myaccount.google.com/connections, remova o acesso do Financeiro OS e entre de novo.',
+    ],
+  },
+  drive_quota: {
+    title: 'O seu Google Drive está cheio',
+    cause: 'Não há espaço livre para criar a planilha do Financeiro OS na sua conta.',
+    steps: [
+      'Libere espaço no Google Drive (o Gmail e o Google Fotos dividem a mesma cota).',
+      'Volte aqui e toque em "Continuar com Google".',
+    ],
+  },
+  setup_failed: {
+    title: 'Não foi possível preparar a sua planilha',
+    cause: 'Houve uma falha ao criar a planilha no seu Google Drive.',
+    steps: [
+      'Aguarde um instante e tente entrar novamente.',
+      'Se estiver usando uma conta de trabalho ou escola, tente com uma conta pessoal (@gmail.com): o administrador pode bloquear apps externos.',
+      'Se continuar, fale com o suporte informando o horário da tentativa.',
+    ],
+  },
+  AccessDenied: {
+    title: 'Acesso negado',
+    cause: 'O login foi cancelado ou não foi autorizado.',
+    steps: ['Toque em "Continuar com Google" e aceite as permissões solicitadas.'],
+  },
+};
+
+const GENERIC_LOGIN_ERROR: LoginErrorInfo = {
+  title: 'Não foi possível entrar',
+  cause: 'Ocorreu um erro inesperado durante o login.',
+  steps: ['Aguarde um instante e tente novamente.', 'Se continuar, fale com o suporte informando o horário da tentativa.'],
+};
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
+
+  useEffect(() => {
+    setErrorCode(new URLSearchParams(window.location.search).get('error'));
+  }, []);
+
+  const loginError = errorCode ? LOGIN_ERRORS[errorCode] ?? GENERIC_LOGIN_ERROR : null;
+
+  // tira o ?error= da URL para a gaveta não reabrir ao recarregar a página
+  const closeError = () => {
+    setErrorCode(null);
+    window.history.replaceState(null, '', window.location.pathname);
+  };
 
   const handleLogin = async () => {
     setLoading(true);
@@ -94,7 +148,9 @@ export default function LoginPage() {
       </div>
 
       {/* some ao clicar em entrar, para não cobrir o redirecionamento do Google */}
-      <InstallAppSheet placement="login" enabled={!loading} />
+      <InstallAppSheet placement="login" enabled={!loading && !loginError} />
+
+      {loginError && <LoginErrorSheet error={loginError} onClose={closeError} />}
 
       <style>{`
         .login-root {

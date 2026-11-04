@@ -115,6 +115,23 @@ async function refreshAccessToken(refreshToken: string) {
 
 import { authConfig } from './auth.config';
 
+// ─── Traduz a falha da preparação da planilha num código que a tela de login entende ──
+function classifySetupError(err: unknown, grantedScope?: string): string {
+  if (grantedScope !== undefined && !grantedScope.includes('drive.file')) return 'drive_permission';
+
+  const e = err as {
+    code?: number | string;
+    status?: number;
+    response?: { status?: number; data?: { error?: { errors?: { reason?: string }[]; status?: string } } };
+  };
+  const status = Number(e?.response?.status ?? e?.status ?? e?.code);
+  const reasons = (e?.response?.data?.error?.errors ?? []).map(r => r.reason);
+
+  if (reasons.includes('storageQuotaExceeded')) return 'drive_quota';
+  if (status === 401 || status === 403) return 'drive_permission';
+  return 'setup_failed';
+}
+
 // ─── NextAuth config ──────────────────────────────────────────────────────────
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -138,10 +155,30 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
 
   callbacks: {
+    // Prepara a planilha antes de criar a sessão: exceção no callback jwt vira o erro genérico
+    // "Configuration" do Auth.js, já aqui dá pra mandar a pessoa de volta ao /login com o motivo
+    async signIn({ account }) {
+      if (!account?.access_token) return true;
+
+      if (!account.scope?.includes('drive.file')) {
+        console.error('[auth] Login sem a permissão drive.file. Escopos concedidos:', account.scope);
+        return '/login?error=drive_permission';
+      }
+
+      try {
+        account.spreadsheetId = await findOrCreateSpreadsheet(account.access_token);
+        return true;
+      } catch (err) {
+        console.error('[auth] Falha ao preparar a planilha:', err);
+        return `/login?error=${classifySetupError(err, account.scope)}`;
+      }
+    },
+
     async jwt({ token, account }) {
-      // Primeiro login — guarda tokens e cria/busca a planilha
+      // Primeiro login — guarda tokens e a planilha preparada no signIn
       if (account) {
-        const spreadsheetId = await findOrCreateSpreadsheet(account.access_token!);
+        const spreadsheetId =
+          (account.spreadsheetId as string | undefined) ?? (await findOrCreateSpreadsheet(account.access_token!));
         return {
           ...token,
           accessToken: account.access_token,
@@ -180,5 +217,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
   pages: {
     signIn: '/login',
+    error: '/login', // erros do Auth.js caem na tela de login, que mostra a mensagem tratada
   },
 });

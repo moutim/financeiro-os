@@ -19,3 +19,9 @@ declare module 'next-auth/jwt' {
     error?: string;
   }
 }
+
+declare module '@auth/core/types' {
+  interface Account {
+    spreadsheetId?: string;
+  }
+}
