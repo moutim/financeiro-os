@@ -6,6 +6,7 @@ import GlassCard from '@/components/ui/GlassCard';
 import SectionCard from '@/components/ui/SectionCard';
 import StatCard from '@/components/ui/StatCard';
 import CategoryCharts from '@/components/categories/CategoryCharts';
+import BudgetPanel from '@/components/categories/BudgetPanel';
 import { useFinanceStore } from '@/lib/store';
 import { formatCurrency } from '@/lib/currency';
 import { groupByCategory } from '@/lib/taxonomy';
@@ -70,6 +71,13 @@ export default function CategoriesDetailedView() {
 
   return (
     <>
+      {/* Orçamento mensal por categoria: planejamento e controle do mês */}
+      <BudgetPanel />
+
+      <div className="budget-section-divider">
+        <span>Análise de gastos</span>
+      </div>
+
       {/* KPIs */}
       <div className="stat-grid stagger" style={{ marginBottom: 24 }}>
         <StatCard

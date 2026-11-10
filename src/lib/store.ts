@@ -1,7 +1,8 @@
 'use client';
 
 import { create } from 'zustand';
-import type { Transaction, Income, Pending, SavingsGoal, Category, CreditCard } from '@/lib/types';
+import type { Transaction, Income, Pending, SavingsGoal, Category, CreditCard, CategoryBudget } from '@/lib/types';
+import { planDeactivateBudget, planSetBudget, type BudgetChangePlan } from '@/lib/budgets';
 import { isFixedTransaction } from '@/lib/fixedTransactions';
 import { splitBySubCategory } from '@/lib/taxonomy';
 import { requestSpreadsheetAccess } from '@/lib/googlePicker';
@@ -26,6 +27,8 @@ interface FinanceStore {
   pending: Pending[];
   goals: SavingsGoal[];
   cards: CreditCard[];
+  /** Versões dos orçamentos por categoria (ver src/lib/budgets.ts) */
+  budgets: CategoryBudget[];
 
   // UI State
   selectedMonth: string;
@@ -71,6 +74,13 @@ interface FinanceStore {
   addCard: (card: Omit<CreditCard, 'id'>) => Promise<CreditCard>;
   updateCard: (id: string, updates: Partial<Omit<CreditCard, 'id'>>) => Promise<void>;
   deleteCard: (id: string) => Promise<void>;
+
+  /** Define o limite mensal da categoria a partir do mês (meses anteriores não mudam) */
+  setCategoryBudget: (category: string, limit: number, monthKey: string) => Promise<void>;
+  /** Desliga o orçamento da categoria a partir do mês (meses anteriores mantêm o limite) */
+  deactivateCategoryBudget: (category: string, monthKey: string) => Promise<void>;
+  /** Apaga todo o histórico de orçamento da categoria */
+  deleteCategoryBudgetHistory: (category: string) => Promise<void>;
 
   // Computed
   getMonthTransactions: (monthKey: string) => Transaction[];
@@ -122,6 +132,56 @@ async function syncSharedGoalCopy(get: () => FinanceStore, before: Transaction, 
   await get().refreshGoals();
 }
 
+type StoreSet = (partial: Partial<FinanceStore> | ((state: FinanceStore) => Partial<FinanceStore>)) => void;
+
+/**
+ * Grava uma mudança de orçamento: atualiza a tela na hora (as versões atualizadas e
+ * removidas) e, se alguma gravação falhar, recarrega da planilha para não ficar diferente.
+ */
+async function applyBudgetPlan(set: StoreSet, get: () => FinanceStore, plan: BudgetChangePlan) {
+  if (plan.create.length === 0 && plan.update.length === 0 && plan.remove.length === 0) return;
+
+  const removed = new Set(plan.remove);
+  const updated = new Map(plan.update.map((b) => [b.id, b]));
+  set((state) => ({
+    budgets: state.budgets.filter((b) => !removed.has(b.id)).map((b) => updated.get(b.id) ?? b),
+  }));
+
+  try {
+    const failIfNotOk = async (res: Response) => {
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? 'Erro ao salvar o orçamento');
+      return res;
+    };
+    // em sequência: gravações paralelas na mesma aba podem se sobrescrever
+    for (const budget of plan.update) {
+      await failIfNotOk(await fetch(`/api/orcamentos/${budget.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(budget),
+      }));
+    }
+    if (plan.remove.length > 0) {
+      await failIfNotOk(await fetch('/api/orcamentos', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: plan.remove }),
+      }));
+    }
+    for (const budget of plan.create) {
+      const res = await failIfNotOk(await fetch('/api/orcamentos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(budget),
+      }));
+      const created = await res.json() as CategoryBudget;
+      set((state) => ({ budgets: [...state.budgets, created] }));
+    }
+  } catch (err) {
+    await get().loadAll();
+    throw err;
+  }
+}
+
 export const useFinanceStore = create<FinanceStore>()((set, get) => ({
   transactions: [],
   sharedGoalCopies: [],
@@ -129,6 +189,7 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
   pending: [],
   goals: [],
   cards: [],
+  budgets: [],
   availableMonths: INITIAL_MONTHS,
   selectedMonth: CURRENT_MONTH_KEY,
   filterCategory: null,
@@ -140,12 +201,14 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
     const isInitialLoad = get().loadingState === 'idle';
     set({ loadingState: 'loading', error: null });
     try {
-      const [txRes, incRes, pendRes, goalsRes, cardsRes] = await Promise.all([
+      const [txRes, incRes, pendRes, goalsRes, cardsRes, budgetsRes] = await Promise.all([
         fetch('/api/transacoes', { cache: 'no-store' }),
         fetch('/api/receitas', { cache: 'no-store' }),
         fetch('/api/pendencias', { cache: 'no-store' }),
         fetch('/api/metas', { cache: 'no-store' }),
         fetch('/api/cartoes', { cache: 'no-store' }),
+        // orçamentos são opcionais: uma falha aqui não impede o app de abrir
+        fetch('/api/orcamentos', { cache: 'no-store' }).catch(() => null),
       ]);
 
       if (!txRes.ok || !incRes.ok || !pendRes.ok || !goalsRes.ok || !cardsRes.ok) {
@@ -160,6 +223,9 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
         goalsRes.json() as Promise<SavingsGoal[]>,
         cardsRes.json() as Promise<CreditCard[]>,
       ]);
+      const budgets: CategoryBudget[] = budgetsRes?.ok
+        ? await budgetsRes.json().catch(() => get().budgets)
+        : get().budgets;
 
       // A planilha também guarda os aportes de convidados nas minhas metas: ficam separados
       // para não aparecerem como lançamentos meus (nem em meses que só eles ocupam)
@@ -194,6 +260,7 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
         pending, 
         goals, 
         cards,
+        budgets,
         availableMonths: finalMonths,
         selectedMonth: newSelectedMonth,
         loadingState: 'success' 
@@ -561,6 +628,20 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
       const err = await res.json();
       throw new Error(err.error ?? 'Erro ao deletar cartão');
     }
+  },
+
+  // ─── Orçamentos ─────────────────────────────────────────────────────────────
+  setCategoryBudget: async (category, limit, monthKey) => {
+    await applyBudgetPlan(set, get, planSetBudget(get().budgets, category, limit, monthKey));
+  },
+
+  deactivateCategoryBudget: async (category, monthKey) => {
+    await applyBudgetPlan(set, get, planDeactivateBudget(get().budgets, category, monthKey));
+  },
+
+  deleteCategoryBudgetHistory: async (category) => {
+    const ids = get().budgets.filter((b) => b.category === category).map((b) => b.id);
+    await applyBudgetPlan(set, get, { create: [], update: [], remove: ids });
   },
 
   deleteMonth: async (monthKey) => {

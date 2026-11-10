@@ -111,9 +111,10 @@ export default function TransactionFormSimple({ onClose }: TransactionFormProps)
           let amountPerInstallment = 0;
           let firstInstallmentAmount = 0;
           if (!hasValidSubTxs) {
-            amountPerInstallment = Math.floor((numAmount / maxMonths) * 100) / 100;
-            const remainder = numAmount - (amountPerInstallment * maxMonths);
-            firstInstallmentAmount = Math.round((amountPerInstallment + remainder) * 100) / 100;
+            // a 1ª parcela absorve a sobra do arredondamento: a soma bate com o total
+            const split = splitInstallments(numAmount, maxMonths);
+            amountPerInstallment = split.rest;
+            firstInstallmentAmount = split.first;
           }
           
           for (let i = 0; i < maxMonths; i++) {
