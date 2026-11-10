@@ -33,6 +33,9 @@
   --red-light: rgba(255, 59, 48, 0.12);
   --orange: #FF9500;
   --orange-light: rgba(255, 149, 0, 0.12);
+  /* âmbar: amarelo legível sobre fundo claro (faixa "atenção" dos orçamentos) */
+  --yellow: #D9A400;
+  --yellow-light: rgba(255, 204, 0, 0.16);
   --purple: #AF52DE;
   --purple-light: rgba(175, 82, 222, 0.12);
   --pink: #FF2D55;
@@ -77,6 +80,7 @@
 }
 
 .dark {
+  --yellow: #FFD60A;
   --bg: #000000;
   --bg-2: #2C2C2E;
   --surface: #1C1C1E;
@@ -1960,6 +1964,284 @@ body {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+/* ─── Categorias: orçamento mensal (modo detalhado) ───────────────────────── */
+.budget-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(290px, 100%), 1fr));
+  gap: 16px;
+}
+
+.budget-card {
+  position: relative;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--separator-subtle);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.budget-card:hover {
+  box-shadow: var(--shadow-sm, 0 2px 10px rgba(0, 0, 0, 0.06));
+}
+
+.budget-card:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.budget-card-edit {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  color: var(--text-tertiary);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.budget-card:hover .budget-card-edit,
+.budget-card:focus-visible .budget-card-edit {
+  opacity: 1;
+}
+
+.budget-card-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--separator);
+}
+
+.budget-metric-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.budget-metric-value {
+  font-size: 14px;
+  font-weight: 600;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.budget-bar {
+  position: relative;
+  border-radius: var(--radius-full);
+  background: var(--bg-2);
+  overflow: hidden;
+}
+
+.budget-bar-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.3s ease;
+}
+
+/* marcas das faixas de alerta (50/75/90%) */
+.budget-bar-mark {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--surface);
+  opacity: 0.8;
+}
+
+.budget-badge {
+  flex-shrink: 0;
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.budget-kpi-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.budget-kpi-head span {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+.budget-kpi-value {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.budget-kpi-sub {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-top: 4px;
+}
+
+.budget-alert {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 12px;
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.budget-alert-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.budget-empty {
+  text-align: center;
+  padding: 32px 8px;
+}
+
+.budget-empty-icon {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 12px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--blue);
+  background: var(--blue-light);
+}
+
+.budget-subtitle {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 10px;
+}
+
+.budget-unbudgeted {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
+  gap: 8px;
+}
+
+.budget-unbudgeted-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: var(--bg-2);
+}
+
+.budget-history-scroll {
+  overflow-x: auto;
+  margin: 0 -4px;
+}
+
+.budget-history {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.budget-history th,
+.budget-history td {
+  padding: 8px 6px;
+  text-align: center;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--separator-subtle);
+}
+
+.budget-history th[scope="row"],
+.budget-history thead th:first-child {
+  text-align: left;
+  font-weight: 600;
+  position: sticky;
+  left: 0;
+  background: var(--surface, var(--bg));
+}
+
+.budget-history thead button {
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: capitalize;
+  padding: 4px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.budget-history thead button.is-selected {
+  color: var(--blue);
+  background: var(--blue-light);
+}
+
+.budget-history td.is-selected {
+  background: var(--separator-subtle);
+}
+
+.budget-history-cell {
+  display: inline-block;
+  min-width: 48px;
+  padding: 3px 8px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.budget-section-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0 20px;
+  color: var(--text-tertiary);
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.budget-section-divider::before,
+.budget-section-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--separator);
+}
+
+@media (max-width: 768px) {
+  .budget-kpi-value {
+    font-size: 18px;
+  }
+
+  .budget-card-edit {
+    opacity: 1;
+  }
 }
 
 /* ─── Cartões › Seus Cartões: ordenação e setas do carrossel ──────────────── */

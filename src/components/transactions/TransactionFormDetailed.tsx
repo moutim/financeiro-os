@@ -137,9 +137,8 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
           // Só as parcelas vão para os outros meses: fixas e salário entram pelo "Iniciar mês"
           const newTransactions: Omit<Transaction, 'id'>[] = [];
 
-          const amountPerInstallment = Math.floor((numAmount / total) * 100) / 100;
-          const remainder = numAmount - (amountPerInstallment * total);
-          const firstInstallmentAmount = Math.round((amountPerInstallment + remainder) * 100) / 100;
+          // a 1ª parcela absorve a sobra do arredondamento: a soma bate com o total
+          const { first: firstInstallmentAmount, rest: amountPerInstallment } = splitInstallments(numAmount, total);
 
           for (let k = 1; k <= total; k++) {
             const offset = k - current; // Ex: se digitou 3/3, k=1 é -2 meses, k=2 é -1 mês, k=3 é 0 meses

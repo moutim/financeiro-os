@@ -1,9 +1,10 @@
 import type {
   Transaction, Income, Pending, SavingsGoal,
-  CreditCard, CardStatement, AppConfig,
+  CreditCard, CardStatement, AppConfig, CategoryBudget,
   Category, CardBrand,
   TransactionType, TransactionNature, TransactionRecurrency, PaymentMethod,
 } from '@/lib/types';
+import { toCanonicalMonthKey } from '@/lib/currency';
 
 export function parseSheetNumber(val: string | number | undefined | null): number {
   if (val === undefined || val === null || val === '') return 0;
@@ -154,6 +155,32 @@ export function rowToCard(row: string[]): CreditCard {
 
 export function cardToRow(c: CreditCard): (string | number | null)[] {
   return [c.id, c.name, c.limit, c.used, c.color, c.colorLight, c.brand, c.dueDay ?? '', c.closeDay ?? '', c.notes ?? '', c.freedMonthKey ?? '', c.lastDigits ?? '', c.bankId ?? '', c.priority ?? ''];
+}
+
+// ─── Orçamentos ───────────────────────────────────────────────────────────────
+// Columns: ID | Categoria | Limite | DesdeMes | Ativo
+
+/** "YYYY-MM" mesmo se o Sheets tiver lido o mês como data (ex: 01/11/2026) */
+function budgetMonthKey(raw: string | undefined): string {
+  const value = String(raw ?? '').trim();
+  const asDate = value.match(/^\d{1,2}\/(\d{1,2})\/(\d{4})$/);
+  if (asDate) return `${asDate[2]}-${asDate[1].padStart(2, '0')}`;
+  return toCanonicalMonthKey(value);
+}
+
+export function rowToBudget(row: string[]): CategoryBudget {
+  return {
+    id:        row[0] ?? '',
+    category:  row[1] ?? '',
+    limit:     parseSheetNumber(row[2]),
+    fromMonth: budgetMonthKey(row[3]),
+    // vazio conta como ativo: só "false" (ou FALSO, planilha em português) desliga
+    active:    !['false', 'falso'].includes(String(row[4] ?? '').trim().toLowerCase()),
+  };
+}
+
+export function budgetToRow(b: CategoryBudget): (string | number | null)[] {
+  return [b.id, b.category, b.limit, b.fromMonth, b.active ? 'true' : 'false'];
 }
 
 // ─── Faturas de Cartão ────────────────────────────────────────────────────────

@@ -135,6 +135,21 @@ export interface CardStatement {
   paidAt?: string | null; // ISO date string de quando foi pago
 }
 
+// ─── Orçamentos por categoria (modo detalhado) ───────────────────────────────
+/**
+ * Uma versão do orçamento mensal de uma categoria macro, válida de `fromMonth` em
+ * diante até a próxima versão da mesma categoria. Assim mudar o limite num mês não
+ * altera os meses anteriores. `active: false` desliga o orçamento a partir daquele mês.
+ * Ver src/lib/budgets.ts.
+ */
+export interface CategoryBudget {
+  id: string;
+  category: string;   // macro do modo detalhado (ex: "Alimentação")
+  limit: number;      // limite mensal em R$
+  fromMonth: string;  // "YYYY-MM" a partir do qual a versão vale
+  active: boolean;
+}
+
 // ─── Config Global ────────────────────────────────────────────────────────────
 export interface AppConfig {
   key: string;   // chave única, ex: "user_name", "currency"
