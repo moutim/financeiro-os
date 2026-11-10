@@ -57,6 +57,105 @@ function StatusBadge({ status }: { status: BudgetStatus }) {
   );
 }
 
+type SortOption = 'limit-desc' | 'pct-desc' | 'name-asc';
+
+const SORT_OPTIONS: { id: SortOption; label: string; title: string }[] = [
+  { id: 'limit-desc', label: 'Maior valor', title: 'Maior orçamento primeiro' },
+  { id: 'pct-desc', label: 'Mais consumido', title: 'Maior % do orçamento usado primeiro' },
+  { id: 'name-asc', label: 'A-Z', title: 'Ordem alfabética' },
+];
+
+const MAX_TREE_ITEMS = 5;
+
+/** Árvore das subcategorias (como na Abertura por Categoria), com "+ N outras" no fim */
+function SubcategoryTree({ items, total }: { items: { name: string; spent: number }[]; total: number }) {
+  const shown = items.slice(0, MAX_TREE_ITEMS);
+  const hidden = items.slice(MAX_TREE_ITEMS);
+  const hiddenTotal = hidden.reduce((sum, i) => sum + i.spent, 0);
+  const lines = hidden.length > 0 ? [...shown, { name: `+ ${hidden.length} ${hidden.length === 1 ? 'outra' : 'outras'}`, spent: hiddenTotal }] : shown;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 6 }}>
+      {lines.map((item, idx) => (
+        <div key={item.name} className="budget-tree-line">
+          <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1, overflow: 'hidden' }}>
+            <span className="budget-tree-branch" aria-hidden>{idx === lines.length - 1 ? '└──' : '├──'}</span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</span>
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+            <span style={{ fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>{formatCurrency(item.spent)}</span>
+            {total > 0 && (
+              <span style={{ fontSize: 10, color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>({Math.round((item.spent / total) * 100)}%)</span>
+            )}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Composição do limite da categoria: sub-limites + o restante para as demais subcategorias */
+function BudgetComposition({ row, onEditMicro, onAddMicro }: { row: BudgetRow; onEditMicro: (micro: BudgetRow) => void; onAddMicro?: () => void }) {
+  const c = row.composition;
+  if (!c) return null;
+  const hasMicros = row.micros.length > 0;
+  if (!hasMicros && c.restItems.length === 0 && !onAddMicro) return null;
+  const restInfo = BUDGET_STATUS[c.restStatus];
+
+  return (
+    <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--separator)' }}>
+      <div className="budget-subtitle" style={{ marginBottom: 6 }}>
+        {hasMicros ? 'Composição do orçamento' : 'Gasto por subcategoria'}
+      </div>
+
+      {hasMicros ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {row.micros.map((micro) => (
+            <MicroBudgetLine key={micro.key} row={micro} onEdit={() => onEditMicro(micro)} />
+          ))}
+
+          {/* O que sobra do limite da categoria para as outras subcategorias */}
+          <div className="budget-micro-line budget-rest-line">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', columnGap: 8, rowGap: 2, marginBottom: 5 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>Demais subcategorias</span>
+              <span style={{ fontSize: 12, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                {formatCurrency(c.restSpent)}
+                {c.restLimit > 0 ? (
+                  <>
+                    <span style={{ color: 'var(--text-tertiary)' }}> / {formatCurrency(c.restLimit)}</span>
+                    <strong style={{ color: restInfo.color, marginLeft: 6 }}>{c.restPct}%</strong>
+                  </>
+                ) : (
+                  <span style={{ color: 'var(--text-tertiary)' }}> · sem limite reservado</span>
+                )}
+              </span>
+            </div>
+            {c.restLimit > 0 && <BudgetBar pct={c.restRawPct} status={c.restStatus} height={5} />}
+            {c.overAllocated && (
+              <p style={{ fontSize: 11, color: 'var(--orange)', marginTop: 4, lineHeight: 1.4 }}>
+                Os sub-limites somam {formatCurrency(c.microLimitTotal)}, acima do limite de {row.category} ({formatCurrency(row.limit)}).
+              </p>
+            )}
+            {c.restItems.length > 0 && <SubcategoryTree items={c.restItems} total={c.restSpent} />}
+          </div>
+        </div>
+      ) : (
+        c.restItems.length > 0 && <SubcategoryTree items={c.restItems} total={row.spent} />
+      )}
+
+      {onAddMicro && (
+        <button
+          type="button"
+          className="btn-ghost budget-add-micro"
+          onClick={(e) => { e.stopPropagation(); onAddMicro(); }}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
+          <Plus size={13} strokeWidth={2.5} /> Limite para subcategoria
+        </button>
+      )}
+    </div>
+  );
+}
+
 /** Sub-limite de uma subcategoria dentro do card da categoria */
 function MicroBudgetLine({ row, onEdit }: { row: BudgetRow; onEdit: () => void }) {
   const info = BUDGET_STATUS[row.status];
@@ -83,11 +182,10 @@ function MicroBudgetLine({ row, onEdit }: { row: BudgetRow; onEdit: () => void }
 }
 
 function BudgetCard({
-  row, index, isPast, onEdit, onEditMicro, onAddMicro,
+  row, index, onEdit, onEditMicro, onAddMicro,
 }: {
   row: BudgetRow;
   index: number;
-  isPast: boolean;
   onEdit: () => void;
   onEditMicro: (micro: BudgetRow) => void;
   onAddMicro?: () => void;
@@ -95,7 +193,6 @@ function BudgetCard({
   const cfg = getCategoryConfig(row.category);
   const Icon = cfg.icon;
   const info = BUDGET_STATUS[row.status];
-  const over = row.remaining < 0;
 
   return (
     <div
@@ -140,52 +237,8 @@ function BudgetCard({
 
       <BudgetBar pct={row.rawPct} status={row.status} />
 
-      <div className="budget-card-metrics">
-        <div>
-          <div className="budget-metric-label">{over ? 'Excedido' : isPast ? 'Sobrou' : 'Disponível'}</div>
-          <div className="budget-metric-value" style={{ color: over ? 'var(--red)' : 'var(--text-primary)' }}>
-            {formatCurrency(Math.abs(row.remaining))}
-          </div>
-        </div>
-        <div>
-          <div className="budget-metric-label">Orçamento</div>
-          <div className="budget-metric-value">{formatCurrency(row.limit)}</div>
-        </div>
-        <div>
-          <div className="budget-metric-label">Consumo</div>
-          <div className="budget-metric-value" style={{ color: info.color }}>{row.pct}%</div>
-        </div>
-      </div>
-
-      <p style={{ fontSize: 12, lineHeight: 1.45, color: row.status === 'normal' ? 'var(--text-secondary)' : info.color, marginTop: 12 }}>
-        {budgetMessage(budgetMessageLabel(row), row.spent, row.limit, isPast)}
-      </p>
-
-      {/* Sub-limites das subcategorias */}
-      {(row.micros.length > 0 || onAddMicro) && (
-        <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--separator)' }}>
-          {row.micros.length > 0 && (
-            <>
-              <div className="budget-subtitle" style={{ marginBottom: 6 }}>Limites por subcategoria</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {row.micros.map((micro) => (
-                  <MicroBudgetLine key={micro.key} row={micro} onEdit={() => onEditMicro(micro)} />
-                ))}
-              </div>
-            </>
-          )}
-          {onAddMicro && (
-            <button
-              type="button"
-              className="btn-ghost budget-add-micro"
-              onClick={(e) => { e.stopPropagation(); onAddMicro(); }}
-              onKeyDown={(e) => e.stopPropagation()}
-            >
-              <Plus size={13} strokeWidth={2.5} /> Limite para subcategoria
-            </button>
-          )}
-        </div>
-      )}
+      {/* Composição: sub-limites + demais subcategorias (só em cards de categoria) */}
+      <BudgetComposition row={row} onEditMicro={onEditMicro} onAddMicro={onAddMicro} />
 
       <span className="budget-card-edit" aria-hidden><Pencil size={13} /></span>
     </div>
@@ -204,6 +257,13 @@ export default function BudgetPanel() {
     historyMonths, history, availableCategories, takenKeys, spending,
   } = useBudgetTracking();
   const [modal, setModal] = useState<ModalState>(null);
+  const [sortBy, setSortBy] = useState<SortOption>('limit-desc');
+
+  const sortedRows = [...rows].sort((a, b) => {
+    if (sortBy === 'pct-desc') return b.rawPct - a.rawPct || b.limit - a.limit;
+    if (sortBy === 'name-asc') return a.label.localeCompare(b.label);
+    return b.limit - a.limit || b.spent - a.spent;
+  });
 
   const monthLabel = monthKeyToLabel(selectedMonth);
   const hasBudgets = rows.length > 0;
@@ -301,20 +361,39 @@ export default function BudgetPanel() {
         description={hasBudgets
           ? `Quanto você já gastou de cada limite em ${monthLabel}. Toque num card para ajustar.`
           : undefined}
-        actions={canAdd && (
-          <button type="button" className="btn-primary" onClick={() => setModal({ mode: 'new' })} style={{ padding: '8px 14px', fontSize: 14 }}>
-            <Plus size={16} strokeWidth={2.5} /> Novo orçamento
-          </button>
+        actions={(hasBudgets || canAdd) && (
+          <div className="category-filter-bar">
+            {rows.length > 1 && (
+              <div className="category-sort-group">
+                {SORT_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setSortBy(opt.id)}
+                    title={opt.title}
+                    aria-pressed={sortBy === opt.id}
+                    className={`segmented-tab ${sortBy === opt.id ? 'active' : ''}`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            {canAdd && (
+              <button type="button" className="btn-primary" onClick={() => setModal({ mode: 'new' })} style={{ padding: '8px 14px', fontSize: 14 }}>
+                <Plus size={16} strokeWidth={2.5} /> Novo orçamento
+              </button>
+            )}
+          </div>
         )}
       >
         {hasBudgets ? (
           <div className="budget-grid">
-            {rows.map((row, i) => (
+            {sortedRows.map((row, i) => (
               <BudgetCard
                 key={row.key}
                 row={row}
                 index={i}
-                isPast={isPastMonth}
                 onEdit={() => setModal(editState(row))}
                 onEditMicro={(micro) => setModal(editState(micro))}
                 onAddMicro={!row.subcategory && hasFreeMicros(row.category)

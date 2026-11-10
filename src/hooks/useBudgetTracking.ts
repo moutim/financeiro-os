@@ -33,6 +33,27 @@ export interface BudgetRow {
   status: BudgetStatus;
   /** Limites de subcategorias dentro desta categoria (só em linhas de categoria) */
   micros: BudgetRow[];
+  /** Só em linhas de categoria: o que sobra do limite fora dos sub-limites */
+  composition: BudgetComposition | null;
+}
+
+/**
+ * Exemplo: Saúde com limite de R$ 232 e sub-limite de R$ 132 em Atividade física →
+ * os R$ 100 restantes ficam para as demais subcategorias, com o gasto delas.
+ */
+export interface BudgetComposition {
+  /** Limite da categoria menos a soma dos sub-limites (≤ 0: sub-limites passam do limite) */
+  restLimit: number;
+  /** Gasto da categoria fora das subcategorias com sub-limite */
+  restSpent: number;
+  restPct: number;
+  restRawPct: number;
+  restStatus: BudgetStatus;
+  /** Gasto por subcategoria sem sub-limite, do maior para o menor */
+  restItems: { name: string; spent: number }[];
+  /** Soma dos sub-limites maior que o limite da categoria */
+  overAllocated: boolean;
+  microLimitTotal: number;
 }
 
 export interface UnbudgetedRow {
@@ -92,8 +113,19 @@ export function useBudgetTracking() {
         count: s?.count ?? 0,
         status: budgetStatus(spent, b.limit),
         micros: [],
+        composition: null,
       };
     };
+
+    // Gasto de cada subcategoria, agrupado pela categoria (chaves "Macro › Micro")
+    const microSpending = new Map<string, Map<string, number>>();
+    for (const [key, value] of spending) {
+      const sep = key.indexOf(' › ');
+      if (sep === -1) continue;
+      const macro = key.slice(0, sep);
+      if (!microSpending.has(macro)) microSpending.set(macro, new Map());
+      microSpending.get(macro)!.set(key.slice(sep + 3), value.total);
+    }
 
     const allRows = [...limits.entries()].map(([key, b]) => toRow(key, b));
     const macroRows = new Map(allRows.filter((r) => !r.subcategory).map((r) => [r.category, r]));
@@ -104,10 +136,33 @@ export function useBudgetTracking() {
       if (parent) parent.micros.push(row);
       else standaloneMicros.push(row);
     }
-    for (const row of macroRows.values()) row.micros.sort((a, b) => b.rawPct - a.rawPct);
+    for (const row of macroRows.values()) {
+      row.micros.sort((a, b) => b.limit - a.limit || b.spent - a.spent);
+      const microLimitTotal = round(row.micros.reduce((sum, m) => sum + m.limit, 0));
+      const restLimit = round(row.limit - microLimitTotal);
+      const restSpent = round(row.spent - row.micros.reduce((sum, m) => sum + m.spent, 0));
+      const budgeted = new Set(row.micros.map((m) => m.subcategory));
+      const restItems = [...(microSpending.get(row.category) ?? new Map<string, number>())]
+        .filter(([name, spent]) => !budgeted.has(name) && spent > 0)
+        .map(([name, spent]) => ({ name, spent: round(spent) }));
+      // gasto lançado sem subcategoria também fica no restante
+      const withoutSub = round(restSpent - restItems.reduce((sum, i) => sum + i.spent, 0));
+      if (withoutSub > 0) restItems.push({ name: 'Sem subcategoria', spent: withoutSub });
+      restItems.sort((a, b) => b.spent - a.spent);
+      row.composition = {
+        restLimit,
+        restSpent,
+        restPct: displayPct(restSpent, restLimit),
+        restRawPct: restLimit > 0 ? (restSpent / restLimit) * 100 : 0,
+        restStatus: budgetStatus(restSpent, restLimit),
+        restItems,
+        overAllocated: restLimit < 0,
+        microLimitTotal,
+      };
+    }
 
-    // Cards de topo: categorias e subcategorias soltas, de quem consome mais para menos
-    const rows = [...macroRows.values(), ...standaloneMicros].sort((a, b) => b.rawPct - a.rawPct);
+    // Cards de topo: categorias e subcategorias soltas (a ordem é escolhida no painel)
+    const rows = [...macroRows.values(), ...standaloneMicros].sort((a, b) => b.limit - a.limit);
 
     const macroSpending = spendingByMacro(transactions, selectedMonth);
     const unbudgeted: UnbudgetedRow[] = [...macroSpending.entries()]
