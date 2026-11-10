@@ -14,17 +14,19 @@ import {
 } from 'lucide-react';
 import GlassCard from '@/components/ui/GlassCard';
 import SectionCard from '@/components/ui/SectionCard';
-import BudgetFormModal from '@/components/categories/BudgetFormModal';
+import BudgetFormModal, { type BudgetFormTarget } from '@/components/categories/BudgetFormModal';
 import { useFinanceStore } from '@/lib/store';
 import { formatCurrency, monthKeyToLabel, monthKeyToShortLabel } from '@/lib/currency';
-import { getCategoryConfig } from '@/lib/detailedCategories';
-import { BUDGET_STATUS, budgetMessage, type BudgetStatus } from '@/lib/budgets';
-import { useBudgetTracking, type BudgetRow } from '@/hooks/useBudgetTracking';
+import { getCategoryConfig, getMicrosForMacro } from '@/lib/detailedCategories';
+import { BUDGET_STATUS, budgetKey, budgetMessage, type BudgetStatus } from '@/lib/budgets';
+import { budgetMessageLabel, useBudgetTracking, type BudgetRow } from '@/hooks/useBudgetTracking';
 
 type ModalState =
-  | { mode: 'new'; preset?: string | null }
-  | { mode: 'edit'; category: string; limit: number }
+  | { mode: 'new'; category?: string | null; scope?: 'macro' | 'micro' }
+  | { mode: 'edit'; category: string; subcategory: string | null; limit: number }
   | null;
+
+const editState = (row: BudgetRow): ModalState => ({ mode: 'edit', category: row.category, subcategory: row.subcategory, limit: row.limit });
 
 /** Barra de consumo com marcas nas faixas de alerta (50/75/90%) */
 function BudgetBar({ pct, status, height = 10 }: { pct: number; status: BudgetStatus; height?: number }) {
@@ -39,7 +41,7 @@ function BudgetBar({ pct, status, height = 10 }: { pct: number; status: BudgetSt
       style={{ height }}
     >
       <div className="budget-bar-fill" style={{ width: `${Math.min(pct, 100)}%`, background: color }} />
-      {[50, 75, 90].map((mark) => (
+      {height >= 8 && [50, 75, 90].map((mark) => (
         <span key={mark} className="budget-bar-mark" style={{ left: `${mark}%` }} aria-hidden />
       ))}
     </div>
@@ -55,7 +57,41 @@ function StatusBadge({ status }: { status: BudgetStatus }) {
   );
 }
 
-function BudgetCard({ row, index, isPast, onEdit }: { row: BudgetRow; index: number; isPast: boolean; onEdit: () => void }) {
+/** Sub-limite de uma subcategoria dentro do card da categoria */
+function MicroBudgetLine({ row, onEdit }: { row: BudgetRow; onEdit: () => void }) {
+  const info = BUDGET_STATUS[row.status];
+  return (
+    <button
+      type="button"
+      className="budget-micro-line"
+      onClick={(e) => { e.stopPropagation(); onEdit(); }}
+      onKeyDown={(e) => e.stopPropagation()}
+      aria-label={`Editar limite de ${row.label}`}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, marginBottom: 5 }}>
+        <span style={{ fontSize: 13, fontWeight: 600, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {row.label}
+        </span>
+        <span style={{ fontSize: 12, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+          {formatCurrency(row.spent)} <span style={{ color: 'var(--text-tertiary)' }}>/ {formatCurrency(row.limit)}</span>
+          <strong style={{ color: info.color, marginLeft: 6 }}>{row.pct}%</strong>
+        </span>
+      </div>
+      <BudgetBar pct={row.rawPct} status={row.status} height={5} />
+    </button>
+  );
+}
+
+function BudgetCard({
+  row, index, isPast, onEdit, onEditMicro, onAddMicro,
+}: {
+  row: BudgetRow;
+  index: number;
+  isPast: boolean;
+  onEdit: () => void;
+  onEditMicro: (micro: BudgetRow) => void;
+  onAddMicro?: () => void;
+}) {
   const cfg = getCategoryConfig(row.category);
   const Icon = cfg.icon;
   const info = BUDGET_STATUS[row.status];
@@ -69,7 +105,7 @@ function BudgetCard({ row, index, isPast, onEdit }: { row: BudgetRow; index: num
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onEdit(); } }}
       className="budget-card animate-fade-in-up"
       style={{ animationDelay: `${index * 40}ms`, borderColor: row.status === 'normal' ? undefined : info.bg }}
-      aria-label={`Editar orçamento de ${row.category}`}
+      aria-label={`Editar orçamento de ${budgetMessageLabel(row)}`}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, minWidth: 0 }}>
         <div style={{
@@ -79,8 +115,13 @@ function BudgetCard({ row, index, isPast, onEdit }: { row: BudgetRow; index: num
           <Icon size={20} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
+          {row.subcategory && (
+            <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {row.category} ›
+            </div>
+          )}
           <div style={{ fontWeight: 600, fontSize: 15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {row.category}
+            {row.label}
           </div>
           <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
             {row.count} {row.count === 1 ? 'transação' : 'transações'}
@@ -117,8 +158,34 @@ function BudgetCard({ row, index, isPast, onEdit }: { row: BudgetRow; index: num
       </div>
 
       <p style={{ fontSize: 12, lineHeight: 1.45, color: row.status === 'normal' ? 'var(--text-secondary)' : info.color, marginTop: 12 }}>
-        {budgetMessage(row.category, row.spent, row.limit, isPast)}
+        {budgetMessage(budgetMessageLabel(row), row.spent, row.limit, isPast)}
       </p>
+
+      {/* Sub-limites das subcategorias */}
+      {(row.micros.length > 0 || onAddMicro) && (
+        <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--separator)' }}>
+          {row.micros.length > 0 && (
+            <>
+              <div className="budget-subtitle" style={{ marginBottom: 6 }}>Limites por subcategoria</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {row.micros.map((micro) => (
+                  <MicroBudgetLine key={micro.key} row={micro} onEdit={() => onEditMicro(micro)} />
+                ))}
+              </div>
+            </>
+          )}
+          {onAddMicro && (
+            <button
+              type="button"
+              className="btn-ghost budget-add-micro"
+              onClick={(e) => { e.stopPropagation(); onAddMicro(); }}
+              onKeyDown={(e) => e.stopPropagation()}
+            >
+              <Plus size={13} strokeWidth={2.5} /> Limite para subcategoria
+            </button>
+          )}
+        </div>
+      )}
 
       <span className="budget-card-edit" aria-hidden><Pencil size={13} /></span>
     </div>
@@ -126,23 +193,28 @@ function BudgetCard({ row, index, isPast, onEdit }: { row: BudgetRow; index: num
 }
 
 /**
- * Painel de orçamento mensal por categoria macro (modo detalhado): consolidado no topo,
- * alertas, um card por categoria com orçamento e as categorias com gasto sem limite.
+ * Painel de orçamento mensal (modo detalhado): consolidado no topo, alertas, um card por
+ * categoria (com os limites das subcategorias dentro) e as categorias com gasto sem limite.
  * Tudo calculado das transações do mês selecionado (ver src/lib/budgets.ts).
  */
 export default function BudgetPanel() {
   const { setCategoryBudget, deactivateCategoryBudget, deleteCategoryBudgetHistory, setSelectedMonth } = useFinanceStore();
   const {
     selectedMonth, isPastMonth, rows, unbudgeted, overview, alerts,
-    historyMonths, history, availableCategories, spending,
+    historyMonths, history, availableCategories, takenKeys, spending,
   } = useBudgetTracking();
   const [modal, setModal] = useState<ModalState>(null);
 
   const monthLabel = monthKeyToLabel(selectedMonth);
   const hasBudgets = rows.length > 0;
   const overallInfo = BUDGET_STATUS[overview.status];
-  const canAdd = availableCategories.length > 0;
-  const openNew = (preset?: string | null) => setModal({ mode: 'new', preset });
+  const hasFreeMicros = (category: string) => getMicrosForMacro(category).some((m) => !takenKeys.has(budgetKey(category, m)));
+  const canAdd = availableCategories.length > 0 || rows.some((r) => hasFreeMicros(r.category));
+
+  const controlled = [
+    overview.macroCount > 0 && `${overview.macroCount} ${overview.macroCount === 1 ? 'categoria' : 'categorias'}`,
+    overview.microCount > 0 && `${overview.microCount} ${overview.microCount === 1 ? 'subcategoria' : 'subcategorias'}`,
+  ].filter(Boolean).join(' e ');
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, marginBottom: 32 }}>
@@ -154,7 +226,7 @@ export default function BudgetPanel() {
               <Target size={18} /><span>Orçamento total</span>
             </div>
             <div className="budget-kpi-value">{formatCurrency(overview.totalLimit)}</div>
-            <div className="budget-kpi-sub">{rows.length} {rows.length === 1 ? 'categoria controlada' : 'categorias controladas'}</div>
+            <div className="budget-kpi-sub">{controlled} sob controle</div>
           </GlassCard>
 
           <GlassCard className="stat-card animate-fade-in-up" style={{ minWidth: 0 }}>
@@ -162,7 +234,7 @@ export default function BudgetPanel() {
               <Receipt size={18} /><span>Total gasto</span>
             </div>
             <div className="budget-kpi-value">{formatCurrency(overview.totalSpent)}</div>
-            <div className="budget-kpi-sub">nas categorias com orçamento</div>
+            <div className="budget-kpi-sub">no que tem orçamento</div>
           </GlassCard>
 
           <GlassCard className="stat-card animate-fade-in-up" style={{ minWidth: 0 }}>
@@ -174,8 +246,8 @@ export default function BudgetPanel() {
             </div>
             <div className="budget-kpi-sub">
               {overview.overCount > 0
-                ? `${overview.overCount} ${overview.overCount === 1 ? 'categoria no limite ou acima' : 'categorias no limite ou acima'}`
-                : 'nenhuma categoria estourada'}
+                ? `${overview.overCount} ${overview.overCount === 1 ? 'orçamento no limite ou acima' : 'orçamentos no limite ou acima'}`
+                : 'nenhum orçamento estourado'}
             </div>
           </GlassCard>
 
@@ -202,16 +274,16 @@ export default function BudgetPanel() {
             {alerts.map((row) => {
               const info = BUDGET_STATUS[row.status];
               return (
-                <li key={row.category}>
+                <li key={row.key}>
                   <button
                     type="button"
                     className="budget-alert"
-                    onClick={() => setModal({ mode: 'edit', category: row.category, limit: row.limit })}
+                    onClick={() => setModal(editState(row))}
                     style={{ background: info.bg }}
                   >
                     <span className="budget-alert-dot" style={{ background: info.color }} aria-hidden />
                     <span style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-                      {budgetMessage(row.category, row.spent, row.limit, isPastMonth)}
+                      {budgetMessage(budgetMessageLabel(row), row.spent, row.limit, isPastMonth)}
                     </span>
                     <StatusBadge status={row.status} />
                   </button>
@@ -230,7 +302,7 @@ export default function BudgetPanel() {
           ? `Quanto você já gastou de cada limite em ${monthLabel}. Toque num card para ajustar.`
           : undefined}
         actions={canAdd && (
-          <button type="button" className="btn-primary" onClick={() => openNew()} style={{ padding: '8px 14px', fontSize: 14 }}>
+          <button type="button" className="btn-primary" onClick={() => setModal({ mode: 'new' })} style={{ padding: '8px 14px', fontSize: 14 }}>
             <Plus size={16} strokeWidth={2.5} /> Novo orçamento
           </button>
         )}
@@ -239,11 +311,15 @@ export default function BudgetPanel() {
           <div className="budget-grid">
             {rows.map((row, i) => (
               <BudgetCard
-                key={row.category}
+                key={row.key}
                 row={row}
                 index={i}
                 isPast={isPastMonth}
-                onEdit={() => setModal({ mode: 'edit', category: row.category, limit: row.limit })}
+                onEdit={() => setModal(editState(row))}
+                onEditMicro={(micro) => setModal(editState(micro))}
+                onAddMicro={!row.subcategory && hasFreeMicros(row.category)
+                  ? () => setModal({ mode: 'new', category: row.category, scope: 'micro' })
+                  : undefined}
               />
             ))}
           </div>
@@ -252,16 +328,17 @@ export default function BudgetPanel() {
             <div className="budget-empty-icon"><PiggyBank size={28} /></div>
             <div style={{ fontSize: 17, fontWeight: 600 }}>Defina quanto pode gastar em cada categoria</div>
             <p style={{ fontSize: 14, color: 'var(--text-secondary)', maxWidth: 440, lineHeight: 1.5, margin: '6px auto 16px' }}>
-              Escolha só as categorias que quer controlar. O app soma as transações do mês
-              (parcelas incluídas pelo valor de cada mês) e avisa quando você chegar perto do limite.
+              Escolha só o que quer controlar: uma categoria inteira ou uma subcategoria específica.
+              O app soma as transações do mês (parcelas incluídas pelo valor de cada mês) e avisa
+              quando você chegar perto do limite.
             </p>
-            <button type="button" className="btn-primary" onClick={() => openNew(unbudgeted[0]?.category)}>
+            <button type="button" className="btn-primary" onClick={() => setModal({ mode: 'new', category: unbudgeted[0]?.category })}>
               <Plus size={16} strokeWidth={2.5} /> Criar primeiro orçamento
             </button>
           </div>
         )}
 
-        {/* Categorias com gasto e sem orçamento */}
+        {/* Categorias com gasto e sem orçamento da categoria inteira */}
         {unbudgeted.length > 0 && (
           <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--separator)' }}>
             <div className="budget-subtitle">Sem orçamento definido</div>
@@ -269,7 +346,7 @@ export default function BudgetPanel() {
               {unbudgeted.map((u) => {
                 const cfg = getCategoryConfig(u.category);
                 const Icon = cfg.icon;
-                const isExpenseMacro = availableCategories.includes(u.category as (typeof availableCategories)[number]);
+                const isExpenseMacro = (availableCategories as readonly string[]).includes(u.category);
                 return (
                   <div key={u.category} className="budget-unbudgeted-item">
                     <div style={{
@@ -285,7 +362,12 @@ export default function BudgetPanel() {
                       </div>
                     </div>
                     {isExpenseMacro && (
-                      <button type="button" className="btn-ghost" onClick={() => openNew(u.category)} style={{ fontSize: 12, padding: '6px 10px', color: 'var(--blue)' }}>
+                      <button
+                        type="button"
+                        className="btn-ghost"
+                        onClick={() => setModal({ mode: 'new', category: u.category, scope: 'macro' })}
+                        style={{ fontSize: 12, padding: '6px 10px', color: 'var(--blue)' }}
+                      >
                         Definir limite
                       </button>
                     )}
@@ -308,7 +390,7 @@ export default function BudgetPanel() {
             <table className="budget-history">
               <thead>
                 <tr>
-                  <th scope="col">Categoria</th>
+                  <th scope="col">Orçamento</th>
                   {historyMonths.map((m) => (
                     <th key={m} scope="col">
                       <button
@@ -324,9 +406,13 @@ export default function BudgetPanel() {
                 </tr>
               </thead>
               <tbody>
-                {history.map(({ category, cells }) => (
-                  <tr key={category}>
-                    <th scope="row">{category}</th>
+                {history.map(({ key, category, subcategory, cells }) => (
+                  <tr key={key}>
+                    <th scope="row" className={subcategory ? 'is-micro' : undefined}>
+                      {subcategory ? (
+                        <><span className="budget-history-branch" aria-hidden>└ </span>{subcategory}<span className="sr-only"> ({category})</span></>
+                      ) : category}
+                    </th>
                     {cells.map((cell, i) => (
                       <td key={historyMonths[i]} className={historyMonths[i] === selectedMonth ? 'is-selected' : undefined}>
                         {cell ? (
@@ -352,21 +438,21 @@ export default function BudgetPanel() {
 
       {modal && (
         <BudgetFormModal
-          initial={modal.mode === 'edit' ? { category: modal.category, limit: modal.limit } : null}
-          presetCategory={modal.mode === 'new' ? modal.preset : null}
-          categories={availableCategories}
+          initial={modal.mode === 'edit' ? { category: modal.category, subcategory: modal.subcategory, limit: modal.limit } : null}
+          preset={modal.mode === 'new' ? { category: modal.category, scope: modal.scope } : null}
+          takenKeys={takenKeys}
           monthKey={selectedMonth}
-          spentOf={(c) => spending.get(c)?.total ?? 0}
-          onSave={async (category, limit) => {
-            await setCategoryBudget(category, limit, selectedMonth);
+          spentOf={(key) => spending.get(key)?.total ?? 0}
+          onSave={async ({ category, subcategory }: BudgetFormTarget, limit) => {
+            await setCategoryBudget(category, subcategory, limit, selectedMonth);
             setModal(null);
           }}
-          onDeactivate={async (category) => {
-            await deactivateCategoryBudget(category, selectedMonth);
+          onDeactivate={async ({ category, subcategory }) => {
+            await deactivateCategoryBudget(category, subcategory, selectedMonth);
             setModal(null);
           }}
-          onDeleteHistory={async (category) => {
-            await deleteCategoryBudgetHistory(category);
+          onDeleteHistory={async ({ category, subcategory }) => {
+            await deleteCategoryBudgetHistory(category, subcategory);
             setModal(null);
           }}
           onClose={() => setModal(null)}

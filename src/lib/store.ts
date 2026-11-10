@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import type { Transaction, Income, Pending, SavingsGoal, Category, CreditCard, CategoryBudget } from '@/lib/types';
-import { planDeactivateBudget, planSetBudget, type BudgetChangePlan } from '@/lib/budgets';
+import { budgetHistoryIds, planDeactivateBudget, planSetBudget, type BudgetChangePlan } from '@/lib/budgets';
 import { isFixedTransaction } from '@/lib/fixedTransactions';
 import { splitBySubCategory } from '@/lib/taxonomy';
 import { requestSpreadsheetAccess } from '@/lib/googlePicker';
@@ -75,12 +75,15 @@ interface FinanceStore {
   updateCard: (id: string, updates: Partial<Omit<CreditCard, 'id'>>) => Promise<void>;
   deleteCard: (id: string) => Promise<void>;
 
-  /** Define o limite mensal da categoria a partir do mês (meses anteriores não mudam) */
-  setCategoryBudget: (category: string, limit: number, monthKey: string) => Promise<void>;
-  /** Desliga o orçamento da categoria a partir do mês (meses anteriores mantêm o limite) */
-  deactivateCategoryBudget: (category: string, monthKey: string) => Promise<void>;
-  /** Apaga todo o histórico de orçamento da categoria */
-  deleteCategoryBudgetHistory: (category: string) => Promise<void>;
+  /**
+   * Define o limite mensal a partir do mês (meses anteriores não mudam). Com subcategoria,
+   * o limite é só dela; sem, da categoria inteira.
+   */
+  setCategoryBudget: (category: string, subcategory: string | null, limit: number, monthKey: string) => Promise<void>;
+  /** Desliga o orçamento a partir do mês (meses anteriores mantêm o limite) */
+  deactivateCategoryBudget: (category: string, subcategory: string | null, monthKey: string) => Promise<void>;
+  /** Apaga todo o histórico do orçamento */
+  deleteCategoryBudgetHistory: (category: string, subcategory: string | null) => Promise<void>;
 
   // Computed
   getMonthTransactions: (monthKey: string) => Transaction[];
@@ -631,16 +634,16 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
   },
 
   // ─── Orçamentos ─────────────────────────────────────────────────────────────
-  setCategoryBudget: async (category, limit, monthKey) => {
-    await applyBudgetPlan(set, get, planSetBudget(get().budgets, category, limit, monthKey));
+  setCategoryBudget: async (category, subcategory, limit, monthKey) => {
+    await applyBudgetPlan(set, get, planSetBudget(get().budgets, category, subcategory, limit, monthKey));
   },
 
-  deactivateCategoryBudget: async (category, monthKey) => {
-    await applyBudgetPlan(set, get, planDeactivateBudget(get().budgets, category, monthKey));
+  deactivateCategoryBudget: async (category, subcategory, monthKey) => {
+    await applyBudgetPlan(set, get, planDeactivateBudget(get().budgets, category, subcategory, monthKey));
   },
 
-  deleteCategoryBudgetHistory: async (category) => {
-    const ids = get().budgets.filter((b) => b.category === category).map((b) => b.id);
+  deleteCategoryBudgetHistory: async (category, subcategory) => {
+    const ids = budgetHistoryIds(get().budgets, category, subcategory);
     await applyBudgetPlan(set, get, { create: [], update: [], remove: ids });
   },
 

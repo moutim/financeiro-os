@@ -16,22 +16,42 @@ import { DETAILED_TAXONOMY, groupByCategory, isSpending, splitBySubCategory } fr
 
 // ─── Versões ──────────────────────────────────────────────────────────────────
 
-/** Versão em vigor da categoria no mês (null se nunca teve orçamento até lá) */
-export function versionForMonth(budgets: CategoryBudget[], category: string, monthKey: string): CategoryBudget | null {
+/**
+ * Identifica o orçamento: a categoria inteira ("Alimentação") ou uma subcategoria
+ * dela ("Alimentação › Delivery"). Cada chave tem as próprias versões.
+ */
+export function budgetKey(category: string, subcategory?: string | null): string {
+  return subcategory ? `${category} › ${subcategory}` : category;
+}
+
+export const keyOfBudget = (b: Pick<CategoryBudget, 'category' | 'subcategory'>) => budgetKey(b.category, b.subcategory);
+
+/** Versão em vigor no mês (null se nunca teve orçamento até lá) */
+export function versionForMonth(
+  budgets: CategoryBudget[],
+  category: string,
+  monthKey: string,
+  subcategory: string | null = null,
+): CategoryBudget | null {
+  const key = budgetKey(category, subcategory);
   let current: CategoryBudget | null = null;
   for (const b of budgets) {
-    if (b.category !== category || b.fromMonth > monthKey) continue;
+    if (keyOfBudget(b) !== key || b.fromMonth > monthKey) continue;
     if (!current || b.fromMonth > current.fromMonth) current = b;
   }
   return current;
 }
 
-/** Limite de cada categoria com orçamento ativo no mês */
+/** Orçamentos ativos no mês, pela chave (ver budgetKey) */
 export function budgetsForMonth(budgets: CategoryBudget[], monthKey: string): Map<string, CategoryBudget> {
   const result = new Map<string, CategoryBudget>();
-  for (const category of new Set(budgets.map((b) => b.category))) {
-    const version = versionForMonth(budgets, category, monthKey);
-    if (version?.active && version.limit > 0) result.set(category, version);
+  const seen = new Set<string>();
+  for (const b of budgets) {
+    const key = keyOfBudget(b);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const version = versionForMonth(budgets, b.category, monthKey, b.subcategory ?? null);
+    if (version?.active && version.limit > 0) result.set(key, version);
   }
   return result;
 }
@@ -44,28 +64,42 @@ export interface BudgetChangePlan {
 }
 
 /**
- * Definir o limite de `category` a partir de `monthKey`. Se já existe versão nesse mês,
- * ela é atualizada; senão entra uma versão nova (os meses anteriores ficam como estavam).
+ * Definir o limite (da categoria ou de uma subcategoria) a partir de `monthKey`. Se já
+ * existe versão nesse mês, ela é atualizada; senão entra uma versão nova (os meses
+ * anteriores ficam como estavam).
  */
-export function planSetBudget(budgets: CategoryBudget[], category: string, limit: number, monthKey: string): BudgetChangePlan {
-  const exact = budgets.find((b) => b.category === category && b.fromMonth === monthKey);
+export function planSetBudget(
+  budgets: CategoryBudget[],
+  category: string,
+  subcategory: string | null,
+  limit: number,
+  monthKey: string,
+): BudgetChangePlan {
+  const key = budgetKey(category, subcategory);
+  const exact = budgets.find((b) => keyOfBudget(b) === key && b.fromMonth === monthKey);
   if (exact) return { create: [], update: [{ ...exact, limit, active: true }], remove: [] };
 
-  const current = versionForMonth(budgets, category, monthKey);
+  const current = versionForMonth(budgets, category, monthKey, subcategory);
   if (current?.active && current.limit === limit) return { create: [], update: [], remove: [] };
-  return { create: [{ category, limit, fromMonth: monthKey, active: true }], update: [], remove: [] };
+  return { create: [{ category, subcategory, limit, fromMonth: monthKey, active: true }], update: [], remove: [] };
 }
 
 /**
- * Desativar o orçamento de `category` a partir de `monthKey`: os meses anteriores
- * continuam com o limite que tinham. Versões futuras (agendadas depois desse mês) saem,
- * senão o orçamento voltaria sozinho mais adiante.
+ * Desativar o orçamento a partir de `monthKey`: os meses anteriores continuam com o
+ * limite que tinham. Versões futuras (agendadas depois desse mês) saem, senão o
+ * orçamento voltaria sozinho mais adiante.
  */
-export function planDeactivateBudget(budgets: CategoryBudget[], category: string, monthKey: string): BudgetChangePlan {
-  const ofCategory = budgets.filter((b) => b.category === category);
-  const remove = ofCategory.filter((b) => b.fromMonth > monthKey).map((b) => b.id);
-  const exact = ofCategory.find((b) => b.fromMonth === monthKey);
-  const previous = versionForMonth(ofCategory.filter((b) => b.fromMonth < monthKey), category, monthKey);
+export function planDeactivateBudget(
+  budgets: CategoryBudget[],
+  category: string,
+  subcategory: string | null,
+  monthKey: string,
+): BudgetChangePlan {
+  const key = budgetKey(category, subcategory);
+  const ofKey = budgets.filter((b) => keyOfBudget(b) === key);
+  const remove = ofKey.filter((b) => b.fromMonth > monthKey).map((b) => b.id);
+  const exact = ofKey.find((b) => b.fromMonth === monthKey);
+  const previous = versionForMonth(ofKey.filter((b) => b.fromMonth < monthKey), category, monthKey, subcategory);
   const activeBefore = !!previous?.active;
 
   if (exact) {
@@ -74,7 +108,13 @@ export function planDeactivateBudget(budgets: CategoryBudget[], category: string
     return { create: [], update: [{ ...exact, limit: 0, active: false }], remove };
   }
   if (!activeBefore) return { create: [], update: [], remove };
-  return { create: [{ category, limit: 0, fromMonth: monthKey, active: false }], update: [], remove };
+  return { create: [{ category, subcategory, limit: 0, fromMonth: monthKey, active: false }], update: [], remove };
+}
+
+/** IDs de todas as versões do orçamento (para apagar o histórico dele) */
+export function budgetHistoryIds(budgets: CategoryBudget[], category: string, subcategory: string | null): string[] {
+  const key = budgetKey(category, subcategory);
+  return budgets.filter((b) => keyOfBudget(b) === key).map((b) => b.id);
 }
 
 // ─── Gastos ───────────────────────────────────────────────────────────────────
@@ -85,10 +125,10 @@ export interface CategorySpending {
 }
 
 /**
- * Gasto por categoria macro no mês, pelas transações reais. Mesmo caminho do Analytics
- * (sub-transações divididas pela categoria delas, categorias legadas convertidas para
- * macro), então cada real entra uma única vez. Receitas, transferências e aportes em
- * investimentos ficam de fora: não consomem orçamento de despesa.
+ * Gastos do mês que consomem orçamento, pelas transações reais. Mesmo caminho do
+ * Analytics (sub-transações divididas pela categoria delas, categorias legadas
+ * convertidas para macro › micro), então cada real entra uma única vez. Receitas,
+ * transferências e aportes em investimentos ficam de fora: não consomem orçamento de despesa.
  *
  * Compras parceladas: cada parcela já é uma linha própria na planilha, com o valor da
  * parcela, o mês dela e a categoria da compra (ver TransactionForm* e splitInstallments).
@@ -96,14 +136,39 @@ export interface CategorySpending {
  * parcelas futuras. Pagar a fatura do cartão só marca as parcelas como pagas (isPaid), sem
  * lançamento novo, então o gasto não entra duas vezes.
  */
-export function spendingByMacro(transactions: Transaction[], monthKey: string): Map<string, CategorySpending> {
-  const spending = transactions
+function budgetSpending(transactions: Transaction[], monthKey: string): Transaction[] {
+  return transactions
     .filter((t) => t.monthKey === monthKey)
     .flatMap(splitBySubCategory)
     .map(DETAILED_TAXONOMY.normalize)
     .filter((t) => isSpending(t) && t.transactionType !== 'investment' && t.category !== 'Investimentos');
+}
 
-  return new Map(groupByCategory(spending).map((g) => [g.category, { total: g.total, count: g.count }]));
+/** Gasto por categoria macro no mês */
+export function spendingByMacro(transactions: Transaction[], monthKey: string): Map<string, CategorySpending> {
+  return new Map(groupByCategory(budgetSpending(transactions, monthKey)).map((g) => [g.category, { total: g.total, count: g.count }]));
+}
+
+/**
+ * Gasto no mês por chave de orçamento: cada transação soma na macro e, se tiver
+ * micro, também em "Macro › Micro". Os dois níveis são lidos separadamente (nunca
+ * somados entre si), então isso não duplica nada.
+ */
+export function spendingByBudgetKey(transactions: Transaction[], monthKey: string): Map<string, CategorySpending> {
+  const result = new Map<string, CategorySpending>();
+  const bump = (key: string, amount: number) => {
+    const entry = result.get(key) ?? { total: 0, count: 0 };
+    entry.total += amount;
+    entry.count += 1;
+    result.set(key, entry);
+  };
+  for (const t of budgetSpending(transactions, monthKey)) {
+    const category = t.category || 'Outros';
+    bump(category, t.amount);
+    const sub = t.subcategory?.trim();
+    if (sub && sub !== category) bump(budgetKey(category, sub), t.amount);
+  }
+  return result;
 }
 
 // ─── Situação ─────────────────────────────────────────────────────────────────
