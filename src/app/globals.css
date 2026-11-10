@@ -2202,7 +2202,7 @@ body {
 }
 
 .budget-history td.is-selected {
-  background: var(--bg-2);
+  background: var(--separator-subtle);
 }
 
 .budget-history-cell {
