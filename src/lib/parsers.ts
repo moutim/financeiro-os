@@ -158,7 +158,7 @@ export function cardToRow(c: CreditCard): (string | number | null)[] {
 }
 
 // ─── Orçamentos ───────────────────────────────────────────────────────────────
-// Columns: ID | Categoria | Limite | DesdeMes | Ativo
+// Columns: ID | Categoria | Limite | DesdeMes | Ativo | Subcategoria
 
 /** "YYYY-MM" mesmo se o Sheets tiver lido o mês como data (ex: 01/11/2026) */
 function budgetMonthKey(raw: string | undefined): string {
@@ -176,11 +176,12 @@ export function rowToBudget(row: string[]): CategoryBudget {
     fromMonth: budgetMonthKey(row[3]),
     // vazio conta como ativo: só "false" (ou FALSO, planilha em português) desliga
     active:    !['false', 'falso'].includes(String(row[4] ?? '').trim().toLowerCase()),
+    subcategory: row[5]?.trim() || null,
   };
 }
 
 export function budgetToRow(b: CategoryBudget): (string | number | null)[] {
-  return [b.id, b.category, b.limit, b.fromMonth, b.active ? 'true' : 'false'];
+  return [b.id, b.category, b.limit, b.fromMonth, b.active ? 'true' : 'false', b.subcategory ?? ''];
 }
 
 // ─── Faturas de Cartão ────────────────────────────────────────────────────────

@@ -48,8 +48,9 @@ export const SHEET_HEADERS: Record<SheetTab, string[]> = {
   // ID | CardId | MesKey | Valor | IsPaid | PaidAt
   [SHEET_TABS.FATURAS_CARTAO]: ['ID', 'CardId', 'MesKey', 'Valor', 'IsPaid', 'PaidAt'],
 
-  // ID | Categoria | Limite | DesdeMes | Ativo  (uma linha por versão do limite)
-  [SHEET_TABS.ORCAMENTOS]:     ['ID', 'Categoria', 'Limite', 'DesdeMes', 'Ativo'],
+  // ID | Categoria | Limite | DesdeMes | Ativo | Subcategoria  (uma linha por versão do limite;
+  // Subcategoria vazia = limite da categoria inteira)
+  [SHEET_TABS.ORCAMENTOS]:     ['ID', 'Categoria', 'Limite', 'DesdeMes', 'Ativo', 'Subcategoria'],
 
   // Key | Value
   [SHEET_TABS.CONFIG]:         ['Key', 'Value'],

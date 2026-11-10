@@ -145,6 +145,8 @@ export interface CardStatement {
 export interface CategoryBudget {
   id: string;
   category: string;   // macro do modo detalhado (ex: "Alimentação")
+  /** Micro (ex: "Delivery"): limite só dessa subcategoria. Vazio = a categoria inteira */
+  subcategory?: string | null;
   limit: number;      // limite mensal em R$
   fromMonth: string;  // "YYYY-MM" a partir do qual a versão vale
   active: boolean;
