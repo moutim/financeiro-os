@@ -2232,6 +2232,30 @@ body {
   background: var(--separator-subtle);
 }
 
+.budget-rest-line {
+  cursor: default;
+}
+
+.budget-rest-line:hover {
+  background: transparent;
+}
+
+.budget-tree-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 12px;
+}
+
+.budget-tree-branch {
+  color: var(--text-quaternary);
+  font-family: monospace;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
 .budget-add-micro {
   font-size: 12px;
   padding: 6px 0;
