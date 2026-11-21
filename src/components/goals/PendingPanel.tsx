@@ -25,6 +25,7 @@ export default function PendingPanel({ pending, goals, summary, onAdd, onEdit }:
   const [showDone, setShowDone] = useState(false);
   const today = new Date().toISOString().slice(0, 10);
 
+  const openCount = pending.filter((p) => p.status !== 'done').length;
   const visible = pending.filter((p) => showDone || p.status !== 'done');
   const toReceive = visible.filter((p) => p.amount > 0).sort(byDue);
   const toPay = visible.filter((p) => p.amount <= 0).sort(byDue);
@@ -70,10 +71,10 @@ export default function PendingPanel({ pending, goals, summary, onAdd, onEdit }:
   );
 
   return (
-    <section className="gb-panel" aria-label="A resolver">
+    <section className={`gb-panel gb-resolve${openCount > 0 ? ' has-open' : ''}${summary.overdueCount > 0 ? ' has-overdue' : ''}`} aria-label="A resolver">
       <header className="gb-panel-head">
         <div>
-          <h2>A Resolver</h2>
+          <h2>A Resolver{openCount > 0 && <span className="gb-resolve-badge">{openCount}</span>}</h2>
           <p>O que falta receber ou pagar. Não conta como dinheiro guardado nas metas.</p>
         </div>
         <button type="button" className="btn-secondary gb-add" onClick={onAdd}><Plus size={15} /> Adicionar</button>
@@ -91,7 +92,7 @@ export default function PendingPanel({ pending, goals, summary, onAdd, onEdit }:
             {summary.doneCount > 0 && (
               <label className="gx-inline-check"><input type="checkbox" checked={showDone} onChange={(e) => setShowDone(e.target.checked)} /> Mostrar concluídas ({summary.doneCount})</label>
             )}
-            {summary.overdueCount > 0 && <span className="cx-muted" style={{ fontSize: 12 }}>{summary.overdueCount} {summary.overdueCount === 1 ? 'vencida' : 'vencidas'}</span>}
+            {summary.overdueCount > 0 && <span style={{ fontSize: 12, color: 'var(--red)', fontWeight: 600 }}>{summary.overdueCount} {summary.overdueCount === 1 ? 'vencida' : 'vencidas'}</span>}
           </div>
         </>
       )}

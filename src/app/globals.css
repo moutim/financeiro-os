@@ -3359,7 +3359,7 @@ button.cx-comp-line:hover { background: var(--separator-subtle); }
 .gb-more summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-secondary); padding: 6px 0; }
 
 /* painéis secundários */
-.gb-secondary { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.gb-secondary { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 20px; margin-top: 20px; align-items: start; }
 .gb-col-main, .gb-col-side { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 .gb-panel { padding: 18px 20px; border-radius: var(--radius-xl); background: var(--surface); }
 .gb-panel-head { container-type: inline-size; display: flex; justify-content: space-between; align-items: flex-start; gap: 10px 14px; flex-wrap: wrap; margin-bottom: 12px; }
@@ -3403,3 +3403,11 @@ button.cx-comp-line:hover { background: var(--separator-subtle); }
   .gx-plan-when { grid-column: 1 / -1; grid-row: 2; }
   .gx-pending { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* A Resolver em destaque: largura total logo abaixo das caixinhas */
+.gb-resolve { margin-top: 20px; }
+.gb-resolve.has-open { border: 1px solid color-mix(in srgb, var(--orange) 40%, transparent); background: color-mix(in srgb, var(--orange) 5%, var(--surface)); }
+.gb-resolve.has-overdue { border-color: color-mix(in srgb, var(--red) 45%, transparent); background: color-mix(in srgb, var(--red) 5%, var(--surface)); }
+.gb-resolve .gb-panel-head h2 { display: flex; align-items: center; gap: 8px; font-size: 18px; }
+.gb-resolve-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 7px; border-radius: var(--radius-full); background: var(--orange); color: #fff; font-size: 12px; font-weight: 700; }
+.gb-resolve.has-overdue .gb-resolve-badge { background: var(--red); }

@@ -128,6 +128,14 @@ export default function MetasPage() {
           </button>
         </section>
 
+        <PendingPanel
+          pending={pending}
+          goals={goals}
+          summary={analysis.pendingSummary}
+          onAdd={() => { setPendingToEdit(null); setShowPendingModal(true); }}
+          onEdit={(p) => { setPendingToEdit(p); setShowPendingModal(true); }}
+        />
+
         {hasSecondary && (
           <div className="gb-secondary">
             <div className="gb-col-main">
@@ -135,13 +143,6 @@ export default function MetasPage() {
             </div>
             <div className="gb-col-side">
               {hasGoals && <UpcomingContributions calendar={analysis.calendar} rows={analysis.rows} />}
-              <PendingPanel
-                pending={pending}
-                goals={goals}
-                summary={analysis.pendingSummary}
-                onAdd={() => { setPendingToEdit(null); setShowPendingModal(true); }}
-                onEdit={(p) => { setPendingToEdit(p); setShowPendingModal(true); }}
-              />
             </div>
           </div>
         )}

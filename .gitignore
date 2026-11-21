@@ -48,3 +48,9 @@ next-env.d.ts
 credentials.json
 token.json
 client_secret*.json
+
+# mock/demo local (dados fictícios para visualizar o app sem login)
+/.demo/
+/src/lib/demoMock.ts
+/src/components/demo/
+/src/app/demo-metas/
