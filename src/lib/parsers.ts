@@ -1,7 +1,7 @@
 import type {
   Transaction, Income, Pending, SavingsGoal,
   CreditCard, CardStatement, AppConfig, CategoryBudget,
-  Category, CardBrand,
+  Category, CardBrand, ContributionPlan, InvestmentOperation,
   TransactionType, TransactionNature, TransactionRecurrency, PaymentMethod,
 } from '@/lib/types';
 import { toCanonicalMonthKey } from '@/lib/currency';
@@ -28,7 +28,7 @@ export function parseSheetNumber(val: string | number | undefined | null): numbe
 
 // ─── Transacoes ───────────────────────────────────────────────────────────────
 // Columns: ID | Nome | Valor | Categoria | MesKey | Parcelas | Data | GoalId | CardId | ParentId | IsPaid
-//        | Subcategoria | Natureza | Recorrencia | MeioPagamento | TipoMovimentacao | Autor
+//        | Subcategoria | Natureza | Recorrencia | MeioPagamento | TipoMovimentacao | Autor | Operacao
 // As colunas a partir de "Subcategoria" são preenchidas pelo modo detalhado. A categoria é
 // gravada como veio (legada ou macro); a conversão entre modos acontece só na exibição
 // (ver src/lib/taxonomy.ts), então a planilha nunca é reescrita ao trocar de modo.
@@ -51,6 +51,7 @@ export function rowToTransaction(row: string[]): Transaction {
     paymentMethod:   (row[14] || null) as PaymentMethod | null,
     transactionType: (row[15] || undefined) as TransactionType | undefined,
     author:          row[16] || null,
+    operation:       (row[17] || null) as InvestmentOperation | null,
   };
 }
 
@@ -73,6 +74,7 @@ export function transactionToRow(t: Transaction): (string | number | null)[] {
     t.paymentMethod ?? '',
     t.transactionType ?? '',
     t.author ?? '',
+    t.operation ?? '',
   ];
 }
 
@@ -96,7 +98,7 @@ export function incomeToRow(i: Income): (string | number | null)[] {
 }
 
 // ─── Pendencias ───────────────────────────────────────────────────────────────
-// Columns: ID | Nome | Valor | DueDate | Notes
+// Columns: ID | Nome | Valor | DueDate | Notes | Status | Responsavel | MetaId
 export function rowToPending(row: string[]): Pending {
   return {
     id:      row[0] ?? '',
@@ -104,15 +106,18 @@ export function rowToPending(row: string[]): Pending {
     amount:  parseSheetNumber(row[2]),
     dueDate: row[3] || null,
     notes:   row[4] || null,
+    status:  row[5] === 'done' ? 'done' : 'open',
+    person:  row[6] || null,
+    goalId:  row[7] || null,
   };
 }
 
 export function pendingToRow(p: Pending): (string | number | null)[] {
-  return [p.id, p.name, p.amount, p.dueDate ?? '', p.notes ?? ''];
+  return [p.id, p.name, p.amount, p.dueDate ?? '', p.notes ?? '', p.status === 'done' ? 'done' : 'open', p.person ?? '', p.goalId ?? ''];
 }
 
 // ─── Metas ────────────────────────────────────────────────────────────────────
-// Columns: ID | Nome | Atual | Meta | Previsao | Deadline | Notes | IsShared | OwnerSpreadsheetId | Icon
+// Columns: ID | Nome | Atual | Meta | Previsao | Deadline | Notes | IsShared | OwnerSpreadsheetId | Icon | CriadaEm | TaxaMensal | Cor | Categoria | Pausada | InicioPlano
 export function rowToGoal(row: string[]): SavingsGoal {
   return {
     id:                row[0] || `g-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -120,16 +125,22 @@ export function rowToGoal(row: string[]): SavingsGoal {
     current:           parseSheetNumber(row[2]),
     target:            parseSheetNumber(row[3]),
     monthlyPrediction: parseSheetNumber(row[4]),
-    deadline:          row[5] || null,
+    deadline:          row[5]?.trim() ? budgetMonthKey(row[5]) : null,
     notes:             row[6] || null,
     isShared:          String(row[7]).toLowerCase() === 'true',
     ownerSpreadsheetId: row[8] || null,
     icon:              row[9] || null,
+    createdAt:         row[10] || null,
+    monthlyRate:       row[11] ? parseSheetNumber(row[11]) : null,
+    color:             row[12]?.trim() || null,
+    category:          row[13]?.trim() || null,
+    paused:            String(row[14]).toLowerCase() === 'true',
+    planStartMonth:    row[15]?.trim() ? budgetMonthKey(row[15]) : null,
   };
 }
 
 export function goalToRow(g: SavingsGoal): (string | number | null)[] {
-  return [g.id, g.name, g.current, g.target, g.monthlyPrediction, g.deadline ?? '', g.notes ?? '', g.isShared ? 'true' : 'false', g.ownerSpreadsheetId ?? '', g.icon ?? ''];
+  return [g.id, g.name, g.current, g.target, g.monthlyPrediction, g.deadline ?? '', g.notes ?? '', g.isShared ? 'true' : 'false', g.ownerSpreadsheetId ?? '', g.icon ?? '', g.createdAt ?? '', g.monthlyRate ?? '', g.color ?? '', g.category ?? '', g.paused ? 'true' : 'false', g.planStartMonth ?? ''];
 }
 
 // ─── Cartões ──────────────────────────────────────────────────────────────────
@@ -182,6 +193,25 @@ export function rowToBudget(row: string[]): CategoryBudget {
 
 export function budgetToRow(b: CategoryBudget): (string | number | null)[] {
   return [b.id, b.category, b.limit, b.fromMonth, b.active ? 'true' : 'false', b.subcategory ?? ''];
+}
+
+// ─── PlanosAporte ─────────────────────────────────────────────────────────────
+// Columns: ID | MetaId | Pessoa | Valor | DesdeMes | AteMes | Tipo
+export function rowToPlan(row: string[]): ContributionPlan {
+  const toMonth = row[5]?.trim();
+  return {
+    id:        row[0] ?? '',
+    goalId:    row[1] ?? '',
+    person:    row[2]?.trim() ?? '',
+    amount:    parseSheetNumber(row[3]),
+    fromMonth: budgetMonthKey(row[4]),
+    toMonth:   toMonth ? budgetMonthKey(toMonth) : null,
+    kind:      String(row[6] ?? '').trim().toLowerCase() === 'extraordinario' ? 'extraordinario' : 'recorrente',
+  };
+}
+
+export function planToRow(p: ContributionPlan): (string | number | null)[] {
+  return [p.id, p.goalId, p.person, p.amount, p.fromMonth, p.toMonth ?? '', p.kind];
 }
 
 // ─── Faturas de Cartão ────────────────────────────────────────────────────────

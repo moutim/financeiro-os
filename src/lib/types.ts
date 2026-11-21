@@ -22,6 +22,8 @@ export type Category = string;
 export type TransactionType = 'expense' | 'income' | 'investment' | 'transfer';
 export type TransactionNature = 'Essencial' | 'Discricionário';
 export type TransactionRecurrency = 'Fixo' | 'Variável' | 'Pontual';
+/** Tipo de movimentação de um lançamento de investimento (só em transações vinculadas a metas) */
+export type InvestmentOperation = 'Aporte' | 'Resgate' | 'Rendimento';
 export type PaymentMethod = 'Crédito' | 'Débito' | 'Pix' | 'Dinheiro' | 'Boleto' | 'Outro';
 
 export interface SubTransaction {
@@ -54,6 +56,8 @@ export interface Transaction {
   subTransactions?: SubTransaction[] | null;
   isPaid?: boolean;
   author?: string | null; // nome de quem fez o aporte — gravado nas cópias para a meta compartilhada
+  /** Aporte (padrão), Resgate (valor gravado negativo) ou Rendimento. Linhas antigas não têm: contam como aporte */
+  operation?: InvestmentOperation | null;
 }
 
 export interface MonthSummary {
@@ -83,9 +87,15 @@ export interface Income {
 export interface Pending {
   id: string;
   name: string;
-  amount: number;
-  dueDate?: string | null; // data de vencimento opcional
+  amount: number;          // negativo = a pagar, positivo = a receber
+  dueDate?: string | null; // data prevista (opcional)
   notes?: string | null;   // observações
+  /** 'done' = já pago/recebido. Não altera o saldo de nenhuma meta: o saldo só muda quando a movimentação é lançada */
+  status?: 'open' | 'done' | null;
+  /** Quem deve pagar ou receber */
+  person?: string | null;
+  /** Meta a que o valor se relaciona (opcional) */
+  goalId?: string | null;
 }
 
 export interface SavingsGoal {
@@ -99,6 +109,18 @@ export interface SavingsGoal {
   isShared?: boolean;
   ownerSpreadsheetId?: string | null;
   icon?: string | null; // chave de ícone (ver src/lib/goalIcons.ts)
+  /** Data de criação da meta (ISO yyyy-mm-dd); metas antigas não têm */
+  createdAt?: string | null;
+  /** Rendimento estimado em % ao mês (ex.: 0,8). Vazio = projeção sem rendimentos */
+  monthlyRate?: number | null;
+  /** Cor da caixinha (hex) */
+  color?: string | null;
+  /** Categoria livre (ex.: Viagem, Reserva) */
+  category?: string | null;
+  /** Meta pausada: não entra nos aportes planejados nem na previsão */
+  paused?: boolean;
+  /** Primeiro mês do aporte mensal planejado ("YYYY-MM"); vazio = já vale */
+  planStartMonth?: string | null;
   // Meta de outra conta: aportes lidos da planilha do dono (só na resposta da API, não é gravado)
   sharedContributions?: Transaction[] | null;
   // Meta de outra conta sem acesso à planilha do dono: a pessoa precisa escolhê-la no seletor do Google (só na resposta da API)
@@ -133,6 +155,23 @@ export interface CardStatement {
   amount: number;    // valor total da fatura
   isPaid: boolean;
   paidAt?: string | null; // ISO date string de quando foi pago
+}
+
+// ─── Plano de aportes de uma meta ────────────────────────────────────────────
+/**
+ * Quanto cada pessoa pretende aportar. 'recorrente' vale todo mês de `fromMonth` até `toMonth`
+ * (vazio = sem fim); a versão mais recente que cobre o mês é a que vale, então mudar o valor
+ * é criar uma linha nova. 'extraordinario' é um aporte único no mês `fromMonth`.
+ * Ver src/lib/goalPlanning.ts.
+ */
+export interface ContributionPlan {
+  id: string;
+  goalId: string;
+  person: string;
+  amount: number;
+  fromMonth: string;       // "YYYY-MM"
+  toMonth?: string | null; // "YYYY-MM" (recorrente) ou o mesmo mês (extraordinário)
+  kind: 'recorrente' | 'extraordinario';
 }
 
 // ─── Orçamentos por categoria (modo detalhado) ───────────────────────────────

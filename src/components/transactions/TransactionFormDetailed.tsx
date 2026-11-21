@@ -3,7 +3,7 @@
 import AmountInput from './AmountInput';
 import { useState } from 'react';
 import { Banknote, CheckCircle2, Sparkles } from 'lucide-react';
-import type { 
+import type { InvestmentOperation, 
   ExpenseMacro, 
   TransactionType,
   PaymentMethod,
@@ -271,9 +271,12 @@ export default function TransactionFormDetailed({ onClose, initial }: Transactio
       } else if (movementType === 'investment') {
         // Investimentos: Não contabilizado como despesa de consumo
         state.addAvailableMonth(monthKey);
+        // Resgate é gravado negativo: todas as somas de investimento já o tratam como saída
+        const operation = investmentOp as InvestmentOperation;
         const transactionData = {
           name: name.trim(),
-          amount: numAmount,
+          amount: operation === 'Resgate' ? -Math.abs(numAmount) : numAmount,
+          operation,
           category: 'Investimentos',
           subcategory: investmentAsset,
           transactionType: 'investment' as const,

@@ -11,13 +11,17 @@ interface PendingEditModalProps {
 }
 
 export default function PendingEditModal({ pending, onClose }: PendingEditModalProps) {
-  const { addPending, updatePending } = useFinanceStore();
+  const { addPending, updatePending, goals } = useFinanceStore();
   const [name, setName] = useState(pending?.name ?? '');
   
   const [type, setType] = useState<'payable' | 'receivable'>(
     pending ? (pending.amount >= 0 ? 'receivable' : 'payable') : 'payable'
   );
   const [rawAmount, setRawAmount] = useState(pending ? String(Math.round(Math.abs(pending.amount) * 100)) : '');
+  const [person, setPerson] = useState(pending?.person ?? '');
+  const [dueDate, setDueDate] = useState(pending?.dueDate?.slice(0, 10) ?? '');
+  const [goalId, setGoalId] = useState(pending?.goalId ?? '');
+  const [notes, setNotes] = useState(pending?.notes ?? '');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -31,10 +35,11 @@ export default function PendingEditModal({ pending, onClose }: PendingEditModalP
 
     setIsSubmitting(true);
     try {
+      const details = { person: person.trim() || null, dueDate: dueDate || null, goalId: goalId || null, notes: notes.trim() || null };
       if (pending) {
-        await updatePending(pending.id, { name: name.trim(), amount: numAmount });
+        await updatePending(pending.id, { name: name.trim(), amount: numAmount, ...details });
       } else {
-        await addPending({ name: name.trim(), amount: numAmount });
+        await addPending({ name: name.trim(), amount: numAmount, status: 'open', ...details });
       }
       onClose();
     } catch (err) {
@@ -132,6 +137,35 @@ export default function PendingEditModal({ pending, onClose }: PendingEditModalP
               disabled={isSubmitting}
               required
             />
+          </div>
+
+          <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
+            <div className="form-group" style={{ flex: 1, minWidth: 0 }}>
+              <label className="form-label">{type === 'payable' ? 'Pagar para' : 'Receber de'}</label>
+              <input className="form-input" type="text" placeholder="Opcional" value={person} onChange={(e) => setPerson(e.target.value)} disabled={isSubmitting} />
+            </div>
+            <div className="form-group" style={{ flex: 1, minWidth: 0 }}>
+              <label className="form-label">Data prevista</label>
+              <input className="form-input" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} disabled={isSubmitting} />
+            </div>
+          </div>
+
+          {goals.length > 0 && (
+            <div className="form-group" style={{ marginBottom: 16 }}>
+              <label className="form-label">Meta relacionada</label>
+              <select className="form-input" value={goalId} onChange={(e) => setGoalId(e.target.value)} disabled={isSubmitting}>
+                <option value="">Nenhuma</option>
+                {goals.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+              </select>
+              <p style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 4 }}>
+                Só organiza a pendência: o saldo da meta muda quando você lança o aporte ou o resgate.
+              </p>
+            </div>
+          )}
+
+          <div className="form-group" style={{ marginBottom: 16 }}>
+            <label className="form-label">Observações</label>
+            <input className="form-input" type="text" placeholder="Opcional" value={notes} onChange={(e) => setNotes(e.target.value)} disabled={isSubmitting} />
           </div>
 
           {/* mesmo padrão dos botões da Nova Transação */}
