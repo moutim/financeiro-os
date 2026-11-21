@@ -13,24 +13,27 @@ import FixedToggle from './FixedToggle';
 import MonthKeySelect from './MonthKeySelect';
 import SubTransactionsPanel, { SubTransactionsSummary, draftCategoryFields, useSubTransactionsView, type SubTransactionDraft } from './SubTransactionsPanel';
 import SwitchField from '@/components/ui/SwitchField';
+import { prefillDigits, type TransactionFormPrefill } from './formPrefill';
 
 const CATEGORIES = CATEGORY_NAMES as Category[];
 
 interface TransactionFormProps {
   onClose: () => void;
+  /** Valores iniciais (ex.: compra confirmada no simulador do dashboard) */
+  initial?: TransactionFormPrefill;
 }
 
-export default function TransactionFormSimple({ onClose }: TransactionFormProps) {
+export default function TransactionFormSimple({ onClose, initial }: TransactionFormProps) {
   const { addTransaction, addIncome, addEntriesBatch, contributeToSharedGoal, selectedMonth, goals, availableMonths, cards } = useFinanceStore();
-  const [name, setName] = useState('');
-  const [rawDigits, setRawDigits] = useState(''); // apenas dígitos, ex: "123456" = R$ 1.234,56
+  const [name, setName] = useState(initial?.name ?? '');
+  const [rawDigits, setRawDigits] = useState(prefillDigits(initial?.amount)); // apenas dígitos, ex: "123456" = R$ 1.234,56
   const [category, setCategory] = useState<Category>('Compras');
-  const [monthKey, setMonthKey] = useState(selectedMonth);
-  const [installments, setInstallments] = useState('');
+  const [monthKey, setMonthKey] = useState(initial?.monthKey ?? selectedMonth);
+  const [installments, setInstallments] = useState(initial?.installments && initial.installments > 1 ? String(initial.installments) : '');
   const [type, setType] = useState<'expense' | 'income'>('expense');
   const [incomeType, setIncomeType] = useState<'salary' | 'extra'>('salary');
   const [goalId, setGoalId] = useState('');
-  const [cardId, setCardId] = useState('');
+  const [cardId, setCardId] = useState(initial?.cardId ?? '');
   const [subTransactions, setSubTransactions] = useState<SubTransactionDraft[]>([]);
   const subsView = useSubTransactionsView(subTransactions, setSubTransactions);
   const [isSubmitting, setIsSubmitting] = useState(false);

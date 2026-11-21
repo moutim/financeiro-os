@@ -30,22 +30,25 @@ import FixedToggle from './FixedToggle';
 import MonthKeySelect from './MonthKeySelect';
 import SubTransactionsPanel, { SubTransactionsSummary, draftCategoryFields, useSubTransactionsView, type SubTransactionDraft } from './SubTransactionsPanel';
 import SwitchField from '@/components/ui/SwitchField';
+import { prefillDigits, type TransactionFormPrefill } from './formPrefill';
 
 const CURRENT_YEAR = new Date().getFullYear();
 
 interface TransactionFormProps {
   onClose: () => void;
+  /** Valores iniciais (ex.: compra confirmada no simulador do dashboard) */
+  initial?: TransactionFormPrefill;
 }
 
-export default function TransactionFormDetailed({ onClose }: TransactionFormProps) {
+export default function TransactionFormDetailed({ onClose, initial }: TransactionFormProps) {
   const { addTransaction, addIncome, addEntriesBatch, contributeToSharedGoal, selectedMonth, goals, cards } = useFinanceStore();
   
   // Tipo de movimentação: Despesa, Receita, Investimento
   const [movementType, setMovementType] = useState<TransactionType>('expense');
 
   // Campos gerais
-  const [name, setName] = useState('');
-  const [rawDigits, setRawDigits] = useState(''); // apenas dígitos, ex: "123456" = R$ 1.234,56
+  const [name, setName] = useState(initial?.name ?? '');
+  const [rawDigits, setRawDigits] = useState(prefillDigits(initial?.amount)); // apenas dígitos, ex: "123456" = R$ 1.234,56
 
   // Categoria Macro e Micro para Despesas (Micro opcional)
   const [macro, setMacro] = useState<ExpenseMacro>('Alimentação');
@@ -61,13 +64,13 @@ export default function TransactionFormDetailed({ onClose }: TransactionFormProp
 
   // Mês e ano num único seletor ("Out 2026")
   const [monthKey, setMonthKey] = useState(() => {
-    const initialDate = parseMonthKey(selectedMonth) || { year: CURRENT_YEAR, month: new Date().getMonth() + 1 };
+    const initialDate = parseMonthKey(initial?.monthKey ?? selectedMonth) || { year: CURRENT_YEAR, month: new Date().getMonth() + 1 };
     return `${initialDate.year}-${String(initialDate.month).padStart(2, '0')}`;
   });
 
-  const [installments, setInstallments] = useState('');
+  const [installments, setInstallments] = useState(initial?.installments && initial.installments > 1 ? String(initial.installments) : '');
   const [goalId, setGoalId] = useState('');
-  const [cardId, setCardId] = useState('');
+  const [cardId, setCardId] = useState(initial?.cardId ?? '');
   const [subTransactions, setSubTransactions] = useState<SubTransactionDraft[]>([]);
   const subsView = useSubTransactionsView(subTransactions, setSubTransactions);
   const [isSubmitting, setIsSubmitting] = useState(false);
