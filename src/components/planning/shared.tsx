@@ -25,9 +25,10 @@ export const PAST_CONTEXT = 3;
 
 /** Cores semânticas: a mesma categoria tem a mesma cor em todos os gráficos */
 export const KIND_COLOR: Record<CommitmentKind | 'free', string> = {
-  installments: 'var(--orange)',
-  fixed: 'var(--indigo)',
-  other: 'var(--teal)',
+  // vermelho = parcelado, azul = fixas, amarelo = outros, verde = sobra
+  installments: 'var(--red)',
+  fixed: 'var(--blue)',
+  other: 'var(--yellow)',
   free: 'var(--green)',
 };
 
@@ -63,7 +64,7 @@ export const pct = (v: number, digits = 1) => `${v.toFixed(digits).replace('.', 
 
 /** Opacidade da barra: realizado e lançado são sólidos, estimado fica mais claro */
 export const basisOpacity = (basis: MonthProjection['basis']) =>
-  basis === 'estimated' ? 0.55 : basis === 'insufficient' ? 0.2 : 0.95;
+  basis === 'insufficient' ? 0.2 : 0.95; // estimativa não clareia a cor: o tom é sempre o mesmo
 
 export function bandOf(m: MonthProjection, bands: CommitmentBands): BandLevel | null {
   return m.committedPct === null ? null : classifyCommitment(m.committedPct, bands);
@@ -150,36 +151,53 @@ export function HorizonTabs({ value, onChange }: { value: Horizon; onChange: (h:
   );
 }
 
+/**
+ * Props comuns dos <Tooltip> dos gráficos: sem animação de deslize (acompanha o mouse sem atraso),
+ * sem capturar o mouse (não pisca por cima das barras) e livre para sair do gráfico na vertical,
+ * mas nunca da largura da tela.
+ */
+export const TOOLTIP_PROPS = {
+  isAnimationActive: false,
+  offset: 14,
+  allowEscapeViewBox: { x: false, y: true },
+  wrapperStyle: { zIndex: 30, outline: 'none', pointerEvents: 'none' as const },
+};
+
 export function ChartTooltipBox({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div style={{
       background: 'var(--surface)', border: '1px solid var(--separator)', borderRadius: 12,
-      padding: '12px 16px', boxShadow: 'var(--shadow-md)', minWidth: 200, maxWidth: 280,
+      padding: '12px 14px', boxShadow: 'var(--shadow-lg)', width: 'max-content',
+      minWidth: 210, maxWidth: 'min(300px, calc(100vw - 48px))',
     }}>
-      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8 }}>{title}</div>
+      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8, whiteSpace: 'nowrap' }}>{title}</div>
       {children}
     </div>
   );
 }
 
-export function TooltipRow({ color, label, value, strong }: { color?: string; label: string; value: string; strong?: boolean }) {
+/** Linha do tooltip em colunas: rótulo | valor | percentual. Valor e % nunca quebram nem se misturam */
+export function TooltipRow({ color, label, value, pct: share, strong }: { color?: string; label: string; value: string; pct?: string; strong?: boolean }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, fontSize: 13, marginBottom: 4 }}>
-      <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto 52px', alignItems: 'baseline', columnGap: 12, fontSize: 13, marginBottom: 4, lineHeight: 1.35 }}>
+      <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
         {color && <span style={{ width: 8, height: 8, borderRadius: 2, background: color, flexShrink: 0 }} />}
-        {label}
+        <span>{label}</span>
       </span>
-      <span style={{ fontWeight: strong ? 800 : 600 }}>{value}</span>
+      <span style={{ fontWeight: strong ? 800 : 600, whiteSpace: 'nowrap', textAlign: 'right', fontVariantNumeric: 'tabular-nums', gridColumn: share === undefined ? '2 / 4' : undefined }}>{value}</span>
+      {share !== undefined && (
+        <span style={{ whiteSpace: 'nowrap', textAlign: 'right', fontSize: 12, color: 'var(--text-tertiary)', fontVariantNumeric: 'tabular-nums' }}>{share}</span>
+      )}
     </div>
   );
 }
 
-export function Legend({ items }: { items: { color: string; label: string; faded?: boolean }[] }) {
+export function Legend({ items }: { items: { color: string; label: string; faded?: boolean; dashed?: boolean }[] }) {
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 16px', fontSize: 12, color: 'var(--text-tertiary)' }}>
       {items.map((i) => (
         <span key={i.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ width: 10, height: 10, borderRadius: 3, background: i.color, opacity: i.faded ? 0.5 : 1 }} />
+          <span style={{ width: 10, height: 10, borderRadius: 3, background: i.dashed ? 'transparent' : i.color, border: i.dashed ? `1.5px dashed ${i.color}` : undefined, opacity: i.faded ? 0.5 : 1 }} />
           {i.label}
         </span>
       ))}

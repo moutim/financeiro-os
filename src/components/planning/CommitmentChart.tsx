@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList, ReferenceLine } from 'recharts';
 import { Layers } from 'lucide-react';
 import SectionCard from '@/components/ui/SectionCard';
 import { formatCurrency } from '@/lib/currency';
@@ -9,8 +9,8 @@ import type { CommitmentBands, MonthProjection } from '@/lib/projection/engine';
 import type { CreditCard } from '@/lib/types';
 import MonthDetail from './MonthDetail';
 import {
-  BAND_COLOR, BAND_LABEL, bandOf, basisOpacity, ChartTooltipBox, EmptyNote, Horizon, HorizonTabs, KIND_COLOR, KIND_LABEL,
-  Legend, pct, shortMonth, sliceHorizon, TooltipRow,
+  basisOpacity, ChartTooltipBox, EmptyNote, Horizon, HorizonTabs, KIND_COLOR, KIND_LABEL,
+  Legend, shortMonth, sliceHorizon, TooltipRow, TOOLTIP_PROPS,
 } from './shared';
 
 interface Props {
@@ -39,7 +39,7 @@ interface Row {
  * Cada barra é a renda líquida do mês (100%). Os segmentos são % da renda; se o
  * comprometimento passa de 100%, a barra ultrapassa a linha e o mês é marcado como acima da renda.
  */
-export default function CommitmentChart({ months, currentMonthKey, horizon, onHorizon, selected, onSelect, bands, cards, simulating }: Props) {
+export default function CommitmentChart({ months, currentMonthKey, horizon, onHorizon, selected, onSelect, cards, simulating }: Props) {
   const visible = useMemo(() => sliceHorizon(months, currentMonthKey, horizon), [months, currentMonthKey, horizon]);
   const rows: Row[] = useMemo(
     () => visible
@@ -89,20 +89,19 @@ export default function CommitmentChart({ months, currentMonthKey, horizon, onHo
                 />
                 <ReferenceLine y={100} stroke="var(--text-tertiary)" strokeDasharray="4 4" />
                 <Tooltip
+                  {...TOOLTIP_PROPS}
                   cursor={{ fill: 'var(--separator-subtle)' }}
                   content={({ active, payload }) => {
                     const row = active ? (payload?.[0]?.payload as Row | undefined) : undefined;
                     if (!row) return null;
                     const m = row.month;
-                    const band = bandOf(m, bands);
                     return (
                       <ChartTooltipBox title={`${row.label}${m.phase === 'current' ? ' · mês atual' : m.phase === 'past' ? ' · realizado' : ' · previsto'}`}>
                         <TooltipRow label="Salário líquido" value={formatCurrency(m.income)} strong />
                         {(['installments', 'fixed', 'other'] as const).map((k) => (
-                          <TooltipRow key={k} color={KIND_COLOR[k]} label={KIND_LABEL[k]} value={`${formatCurrency(m[k])} · ${pct((m[k] / m.income) * 100)}`} />
+                          <TooltipRow key={k} color={KIND_COLOR[k]} label={KIND_LABEL[k]} value={formatCurrency(m[k])} />
                         ))}
-                        <TooltipRow color={KIND_COLOR.free} label="Renda livre" value={`${formatCurrency(m.free ?? 0)} · ${pct(m.freePct ?? 0)}`} strong />
-                        {band && <TooltipRow color={BAND_COLOR[band]} label="Comprometimento" value={`${pct(m.committedPct ?? 0)} · ${BAND_LABEL[band]}`} />}
+                        <TooltipRow color={KIND_COLOR.free} label="Renda livre" value={formatCurrency(m.free ?? 0)} strong />
                         {m.hasEstimate && <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 6 }}>Inclui valores estimados por recorrência</div>}
                       </ChartTooltipBox>
                     );
@@ -115,18 +114,30 @@ export default function CommitmentChart({ months, currentMonthKey, horizon, onHo
                     cursor="pointer" onClick={select} isAnimationActive={false}
                   >
                     {rows.map((r) => {
-                      const band = bandOf(r.month, bands);
                       const isSelected = r.monthKey === selected;
-                      const isCurrent = r.month.phase === 'current';
                       return (
                         <Cell
                           key={`${key}-${r.monthKey}`}
                           fillOpacity={isSelected || !selected ? basisOpacity(r.month.basis) : basisOpacity(r.month.basis) * 0.55}
-                          stroke={isSelected ? 'var(--text-primary)' : key === 'free' && (band === 'critical' || band === 'high') ? BAND_COLOR[band] : isCurrent ? 'var(--blue)' : 'none'}
-                          strokeWidth={isSelected || isCurrent || (key === 'free' && (band === 'critical' || band === 'high')) ? 2 : 0}
                         />
                       );
                     })}
+                    <LabelList
+                      dataKey={key}
+                      content={(props) => {
+                        const { x, y, width, height, value } = props as { x: number; y: number; width: number; height: number; value: number };
+                        // só rotula blocos com espaço para o texto
+                        if (!(height >= 18) || !(width >= 30) || !(value > 0)) return null;
+                        return (
+                          <text x={x + width / 2} y={y + height / 2} textAnchor="middle" dominantBaseline="central"
+                            fontSize={11} fontWeight={700} fill={key === 'other' || key === 'free' ? '#3D3200' : '#fff'}
+                            stroke={key === 'other' || key === 'free' ? 'none' : 'rgba(0,0,0,0.25)'} strokeWidth={key === 'other' || key === 'free' ? 0 : 2.5} paintOrder="stroke"
+                            style={{ pointerEvents: 'none' }}>
+                            {Math.round(value)}%
+                          </text>
+                        );
+                      }}
+                    />
                   </Bar>
                 ))}
               </BarChart>
@@ -139,10 +150,9 @@ export default function CommitmentChart({ months, currentMonthKey, horizon, onHo
               { color: KIND_COLOR.fixed, label: KIND_LABEL.fixed },
               { color: KIND_COLOR.other, label: KIND_LABEL.other },
               { color: KIND_COLOR.free, label: KIND_LABEL.free },
-              { color: 'var(--text-tertiary)', label: 'Barra clara: estimado por recorrência', faded: true },
             ]} />
             <p style={{ fontSize: 12, color: 'var(--text-tertiary)', margin: '8px 0 0' }}>
-              Meses passados são realizados; o contorno azul marca o mês atual. Contorno laranja/vermelho: comprometimento {BAND_LABEL.high.toLowerCase()} ou {BAND_LABEL.critical.toLowerCase()} (faixas configuráveis no calendário).
+              Meses passados são realizados; os futuros incluem valores estimados por recorrência.
               Gastos variáveis ainda não lançados não estão incluídos nos meses futuros.
               {skipped > 0 && ` ${skipped} ${skipped === 1 ? 'mês' : 'meses'} sem salário de referência ${skipped === 1 ? 'foi omitido' : 'foram omitidos'}.`}
             </p>
