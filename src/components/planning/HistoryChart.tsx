@@ -6,7 +6,7 @@ import { History } from 'lucide-react';
 import SectionCard from '@/components/ui/SectionCard';
 import { formatCurrency } from '@/lib/currency';
 import { summarizeHistory, type MonthProjection } from '@/lib/projection/engine';
-import { ChartTooltipBox, EmptyNote, pct, shortMonth, TooltipRow } from './shared';
+import { ChartTooltipBox, EmptyNote, pct, shortMonth, TooltipRow, TOOLTIP_PROPS } from './shared';
 
 type Window = 3 | 6 | 12;
 const WINDOWS: Window[] = [3, 6, 12];
@@ -90,6 +90,7 @@ export default function HistoryChart({ months }: { months: MonthProjection[] }) 
                 <YAxis tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} width={44} domain={[0, (max: number) => Math.max(50, Math.ceil(max / 10) * 10)]} tickFormatter={(v: number) => `${v}%`} />
                 {avgOf(windowSize) !== null && <ReferenceLine y={avgOf(windowSize) ?? 0} stroke="var(--text-tertiary)" strokeDasharray="4 4" label={{ value: `média ${windowSize}m`, position: 'insideTopRight', fontSize: 11, fill: 'var(--text-tertiary)' }} />}
                 <Tooltip
+                  {...TOOLTIP_PROPS}
                   content={({ active, payload }) => {
                     const p = active ? (payload?.[0]?.payload as Point | undefined) : undefined;
                     if (!p) return null;

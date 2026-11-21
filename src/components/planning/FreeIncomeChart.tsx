@@ -7,7 +7,7 @@ import SectionCard from '@/components/ui/SectionCard';
 import { formatCompact, formatCurrency } from '@/lib/currency';
 import { summarizeProjection, type InstallmentPlan, type MonthProjection } from '@/lib/projection/engine';
 import {
-  basisOpacity, ChartTooltipBox, EmptyNote, Horizon, HorizonTabs, KIND_COLOR, KIND_LABEL, Legend, pct, shortMonth, sliceHorizon, TooltipRow,
+  basisOpacity, ChartTooltipBox, EmptyNote, Horizon, HorizonTabs, KIND_COLOR, KIND_LABEL, Legend, pct, shortMonth, sliceHorizon, TooltipRow, TOOLTIP_PROPS,
 } from './shared';
 
 interface Props {
@@ -84,14 +84,14 @@ export default function FreeIncomeChart({ months, baseMonths, plans, currentMont
                 <YAxis tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} width={56} tickFormatter={formatCompact} />
                 <ReferenceLine y={0} stroke="var(--text-tertiary)" />
                 <Tooltip
+                  {...TOOLTIP_PROPS}
                   cursor={{ fill: 'var(--separator-subtle)' }}
                   content={({ active, payload }) => {
                     const r = active ? (payload?.[0]?.payload as Row | undefined) : undefined;
                     if (!r) return null;
                     return (
                       <ChartTooltipBox title={`${r.label}${r.month.phase === 'current' ? ' · mês atual' : ' · previsto'}`}>
-                        <TooltipRow color={KIND_COLOR.free} label="Renda livre" value={formatCurrency(r.free)} strong />
-                        <TooltipRow label="% da renda" value={pct(r.month.freePct ?? 0)} />
+                        <TooltipRow color={KIND_COLOR.free} label="Renda livre" value={formatCurrency(r.free)} pct={pct(r.month.freePct ?? 0)} strong />
                         <TooltipRow label="Comprometido" value={formatCurrency(r.month.committed)} />
                         {r.baseFree !== null && r.baseFree !== r.free && <TooltipRow label="Sem a compra" value={`${formatCurrency(r.baseFree)} (−${formatCurrency(r.baseFree - r.free)})`} />}
                         {r.month.hasEstimate && <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 6 }}>Inclui valores estimados por recorrência</div>}

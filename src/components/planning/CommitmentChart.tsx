@@ -10,7 +10,7 @@ import type { CreditCard } from '@/lib/types';
 import MonthDetail from './MonthDetail';
 import {
   BAND_COLOR, BAND_LABEL, bandOf, basisOpacity, ChartTooltipBox, EmptyNote, Horizon, HorizonTabs, KIND_COLOR, KIND_LABEL,
-  Legend, pct, shortMonth, sliceHorizon, TooltipRow,
+  Legend, pct, shortMonth, sliceHorizon, TooltipRow, TOOLTIP_PROPS,
 } from './shared';
 
 interface Props {
@@ -89,6 +89,7 @@ export default function CommitmentChart({ months, currentMonthKey, horizon, onHo
                 />
                 <ReferenceLine y={100} stroke="var(--text-tertiary)" strokeDasharray="4 4" />
                 <Tooltip
+                  {...TOOLTIP_PROPS}
                   cursor={{ fill: 'var(--separator-subtle)' }}
                   content={({ active, payload }) => {
                     const row = active ? (payload?.[0]?.payload as Row | undefined) : undefined;
@@ -99,10 +100,10 @@ export default function CommitmentChart({ months, currentMonthKey, horizon, onHo
                       <ChartTooltipBox title={`${row.label}${m.phase === 'current' ? ' · mês atual' : m.phase === 'past' ? ' · realizado' : ' · previsto'}`}>
                         <TooltipRow label="Salário líquido" value={formatCurrency(m.income)} strong />
                         {(['installments', 'fixed', 'other'] as const).map((k) => (
-                          <TooltipRow key={k} color={KIND_COLOR[k]} label={KIND_LABEL[k]} value={`${formatCurrency(m[k])} · ${pct((m[k] / m.income) * 100)}`} />
+                          <TooltipRow key={k} color={KIND_COLOR[k]} label={KIND_LABEL[k]} value={formatCurrency(m[k])} pct={pct((m[k] / m.income) * 100)} />
                         ))}
-                        <TooltipRow color={KIND_COLOR.free} label="Renda livre" value={`${formatCurrency(m.free ?? 0)} · ${pct(m.freePct ?? 0)}`} strong />
-                        {band && <TooltipRow color={BAND_COLOR[band]} label="Comprometimento" value={`${pct(m.committedPct ?? 0)} · ${BAND_LABEL[band]}`} />}
+                        <TooltipRow color={KIND_COLOR.free} label="Renda livre" value={formatCurrency(m.free ?? 0)} pct={pct(m.freePct ?? 0)} strong />
+                        {band && <TooltipRow color={BAND_COLOR[band]} label="Comprometimento" value={BAND_LABEL[band]} pct={pct(m.committedPct ?? 0)} />}
                         {m.hasEstimate && <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 6 }}>Inclui valores estimados por recorrência</div>}
                       </ChartTooltipBox>
                     );
