@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import type { ContributionPlan } from './types.ts';
 import {
-  effectivePlans, analyzeGoal, buildLedger, buildSeries, contributionCalendar, contributionsByPerson, goalInsights, plannedForMonth,
+  effectivePlans, nextPlannedContribution, analyzeGoal, buildLedger, buildSeries, contributionCalendar, contributionsByPerson, goalInsights, plannedForMonth,
   projectGoal, requiredMonthly, runScenario, simulateGoal, summarizeGoals, summarizePending, DEFAULT_SCENARIOS,
   type GoalInput, type MovementLike,
 } from './goalPlanning.ts';
@@ -327,5 +327,23 @@ describe('pausa, data de início e aportes extraordinários realizados', () => {
       tx({ amount: 50, monthKey: '2026-10' }),
     ], solo).entries)[0];
     assert.deepEqual([p.recurring, p.extraordinary, p.eventual], [300, 1000, 50]);
+  });
+});
+
+describe('próximo aporte previsto', () => {
+  const plans = [plan({ person: 'Você', amount: 1500, fromMonth: '2026-01' })];
+  it('no mês atual vale só o que falta do planejado', () => {
+    assert.deepEqual(nextPlannedContribution(plans, NOW, 500), { monthKey: NOW, amount: 1000 });
+  });
+  it('mês atual já cumprido: passa para o seguinte', () => {
+    assert.deepEqual(nextPlannedContribution(plans, NOW, 1500), { monthKey: '2026-12', amount: 1500 });
+    assert.deepEqual(nextPlannedContribution(plans, NOW, 2000), { monthKey: '2026-12', amount: 1500 });
+  });
+  it('sem plano não há próximo aporte', () => {
+    assert.equal(nextPlannedContribution([], NOW, 0), null);
+  });
+  it('aporte extraordinário aparece no seu mês', () => {
+    const extra = [plan({ person: 'Você', amount: 3000, fromMonth: '2027-01', toMonth: '2027-01', kind: 'extraordinario' })];
+    assert.deepEqual(nextPlannedContribution(extra, NOW, 0), { monthKey: '2027-01', amount: 3000 });
   });
 });

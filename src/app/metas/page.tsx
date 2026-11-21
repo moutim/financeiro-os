@@ -1,35 +1,39 @@
 'use client';
 
 import { useState } from 'react';
-import { useSession } from 'next-auth/react';
-import { Target, AlertTriangle, Plus, Pencil, Trash2, CalendarClock, Users, TrendingUp } from 'lucide-react';
+import { Plus, Target, Users } from 'lucide-react';
 
 import Sidebar from '@/components/layout/Sidebar';
-import GlassCard from '@/components/ui/GlassCard';
-import SectionCard from '@/components/ui/SectionCard';
-import ScrollArea from '@/components/ui/ScrollArea';
-import ToolbarSelect from '@/components/ui/ToolbarSelect';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import PendingEditModal from '@/components/transactions/PendingEditModal';
-import GoalFormModal, { GoalData } from '@/components/goals/GoalFormModal';
+import GoalFormModal, { GoalData, type GoalParticipant } from '@/components/goals/GoalFormModal';
 import ShareGoalModal from '@/components/goals/ShareGoalModal';
 import JoinGoalModal from '@/components/goals/JoinGoalModal';
+import GoalBox from '@/components/goals/GoalBox';
+import GoalsSummaryStrip from '@/components/goals/GoalsSummaryStrip';
+import GoalDetailModal from '@/components/goals/GoalDetailModal';
+import UpcomingContributions from '@/components/goals/UpcomingContributions';
+import MovementsFeed from '@/components/goals/MovementsFeed';
+import PendingPanel from '@/components/goals/PendingPanel';
 import { useFinanceStore } from '@/lib/store';
-import { useAppConfigStore } from '@/lib/appConfigStore';
-import { formatCurrency, monthKeyToShortLabel, toCanonicalMonthKey } from '@/lib/currency';
-import { getGoalIconDef } from '@/lib/goalIcons';
-import type { Pending, SavingsGoal, Transaction } from '@/lib/types';
+import { useGoalsAnalysis } from '@/hooks/useGoalsAnalysis';
+import type { Pending, SavingsGoal } from '@/lib/types';
 
+/**
+ * Metas como caixinhas: cada objetivo é um card com sua cor, o quanto já foi guardado e o plano.
+ * Clicar numa caixinha abre o detalhamento (evolução, aportes, planejamento e simulador). Histórico,
+ * próximos aportes e pendências ficam abaixo, em painéis menores. Os cálculos vivem em
+ * lib/goalPlanning e chegam por useGoalsAnalysis.
+ */
 export default function MetasPage() {
-  const { pending, transactions, sharedGoalCopies, goals, deletePending, addGoal, updateGoal, deleteGoal, reconnectSharedGoal, loadingState } = useFinanceStore();
-  const { data: session } = useSession();
+  const { pending, goals, addGoal, updateGoal, deleteGoal, addPlan, reconnectSharedGoal, loadingState } = useFinanceStore();
+  const analysis = useGoalsAnalysis();
+
+  const [openGoalId, setOpenGoalId] = useState<string | null>(null);
   const [showPendingModal, setShowPendingModal] = useState(false);
-  // Pendências com valor negativo são a pagar; positivas, a receber
-  const totalToPay = pending.reduce((sum, p) => (p.amount < 0 ? sum + Math.abs(p.amount) : sum), 0);
-  const totalToReceive = pending.reduce((sum, p) => (p.amount > 0 ? sum + p.amount : sum), 0);
   const [pendingToEdit, setPendingToEdit] = useState<Pending | null>(null);
   const [showFabMenu, setShowFabMenu] = useState(false);
-  
+
   // Goals Modals
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [goalToEdit, setGoalToEdit] = useState<GoalData | null>(null);
@@ -37,67 +41,6 @@ export default function MetasPage() {
   const [goalToShare, setGoalToShare] = useState<SavingsGoal | null>(null);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [reconnectingGoalId, setReconnectingGoalId] = useState<string | null>(null);
-
-  // Mês inicial do Histórico de Investimentos: salvo na planilha, acompanha o usuário entre dispositivos
-  const startMonth = useAppConfigStore((s) => s.goalsHistoryStartMonth);
-  const setStartMonth = useAppConfigStore((s) => s.setGoalsHistoryStartMonth);
-
-  const handleMonthChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setStartMonth(e.target.value);
-  };
-  
-  // Metas de outra conta: os aportes vêm da planilha do dono (que já recebe a cópia dos feitos aqui),
-  // então os lançamentos locais vinculados a elas saem da lista para não contar duas vezes.
-  // Sem sincronização (sem acesso à planilha do dono), ficam os lançamentos locais.
-  // Nas minhas metas, os aportes de convidados (sharedGoalCopies) somam junto com os meus.
-  const syncedSharedGoalIds = new Set(goals.filter(g => g.isShared && g.sharedContributions).map(g => g.id));
-  const investmentTxs = [
-    ...[...transactions, ...sharedGoalCopies]
-      .filter(t => t.category === 'Investimentos' && !(t.goalId && syncedSharedGoalIds.has(t.goalId))),
-    ...goals.flatMap(g => (syncedSharedGoalIds.has(g.id) ? g.sharedContributions ?? [] : [])),
-  ];
-
-  // Metas com mais de uma pessoa: as compartilhadas comigo e as minhas que já receberam aporte de convidado
-  const collaborativeGoalIds = new Set([
-    ...syncedSharedGoalIds,
-    ...investmentTxs.flatMap(t => (t.parentId === 'SHARED' && t.goalId ? [t.goalId] : [])),
-  ]);
-
-  // Quem fez o aporte (só nas metas com mais de uma pessoa). Sem autor gravado, o lançamento da minha planilha
-  // é meu; cópia de convidado anterior à coluna Autor fica como "Convidado"
-  const myName = session?.user?.name || session?.user?.email;
-  const getContributor = (tx: Transaction) => {
-    if (!tx.goalId || !collaborativeGoalIds.has(tx.goalId)) return null;
-    const author = tx.author || (tx.parentId === 'SHARED' ? 'Convidado' : myName);
-    if (author === myName) return 'Você';
-    // Só o primeiro nome, para caber no mobile; autor gravado como e-mail mostra a parte antes do @
-    return author?.trim().split(/\s+/)[0].split('@')[0] || author;
-  };
-
-  // Data do aporte (dd/mm); sem data gravada, mostra só o mês
-  const formatContributionDate = (tx: Transaction) => {
-    const d = tx.date ? new Date(tx.date) : null;
-    if (d && !isNaN(d.getTime())) return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-    return monthKeyToShortLabel(tx.monthKey);
-  };
-
-  // Extrair todos os meses disponíveis nas transações para o dropdown
-  const allAvailableMonths = Array.from(new Set([...transactions, ...investmentTxs].map(t => t.monthKey))).sort((a, b) => a.localeCompare(b));
-
-  const totalInvestedGlobal = investmentTxs.reduce((sum, tx) => sum + tx.amount, 0);
-
-  // If no goals exist, we can render an empty state or a default one
-  // For safety, the render below iterates over `goals`.
-
-  async function handleDeletePending(id: string) {
-    if (confirm('Tem certeza que deseja remover esta pendência?')) {
-      try {
-        await deletePending(id);
-      } catch (e) {
-        alert('Erro ao deletar');
-      }
-    }
-  }
 
   // Meta de outra conta sem acesso à planilha do dono: a pessoa a escolhe no seletor do Google
   const handleReconnectGoal = async (goalId: string) => {
@@ -113,12 +56,16 @@ export default function MetasPage() {
     }
   };
 
-  const handleSaveGoal = async (goal: GoalData) => {
+  const handleSaveGoal = async (goal: GoalData, participants: GoalParticipant[]) => {
     try {
       if (goalToEdit || goals.find(g => g.id === goal.id)) {
         await updateGoal(goal.id, goal);
       } else {
         await addGoal(goal);
+        // cada participante entra no plano com o aporte mensal que informou
+        for (const p of participants) {
+          await addPlan({ goalId: goal.id, person: p.person, kind: 'recorrente', amount: p.amount, fromMonth: goal.planStartMonth || analysis.currentMonth, toMonth: null });
+        }
       }
       setShowGoalModal(false);
     } catch (err) {
@@ -130,27 +77,13 @@ export default function MetasPage() {
     try {
       await deleteGoal(id);
       setShowGoalModal(false);
+      setOpenGoalId((current) => (current === id ? null : current));
     } catch (err) {
       alert(String(err));
     }
   };
 
-  const historyTxs = startMonth ? investmentTxs.filter(t => t.monthKey >= startMonth) : investmentTxs;
-
-  const byMonth = historyTxs.reduce((acc, tx) => {
-    acc[tx.monthKey] = (acc[tx.monthKey] || 0) + tx.amount;
-    return acc;
-  }, {} as Record<string, number>);
-  const dynamicMonths = Object.keys(byMonth).sort((a, b) => b.localeCompare(a));
-  
-  const totalHistoryFiltered = historyTxs.reduce((sum, tx) => sum + tx.amount, 0);
-
-  // Função para calcular o total de uma meta (nas compartilhadas, investmentTxs já traz os aportes do dono)
-  const getGoalCurrent = (goalId: string, initialCurrent: number) => {
-    const linkedTxs = investmentTxs.filter(t => t.goalId === goalId);
-    const linkedSum = linkedTxs.reduce((sum, tx) => sum + tx.amount, 0);
-    return initialCurrent + linkedSum;
-  };
+  const openNewGoal = () => { setGoalToEdit(null); setShowGoalModal(true); };
 
   if (loadingState === 'idle' || loadingState === 'loading') {
     return (
@@ -163,12 +96,16 @@ export default function MetasPage() {
     );
   }
 
+  const hasGoals = analysis.rows.length > 0;
+  const openRow = analysis.rows.find((r) => r.goal.id === openGoalId) ?? null;
+  const hasSecondary = hasGoals || analysis.unlinked.length > 0 || pending.length > 0;
+
   return (
     <>
       <Sidebar />
       <main className="main-content">
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
           <div>
             <p style={{ fontSize: 13, color: 'var(--text-tertiary)', fontWeight: 500, marginBottom: 2 }}>
               Objetivos e Pendências
@@ -177,433 +114,51 @@ export default function MetasPage() {
           </div>
         </div>
 
-        {/* Goals List */}
-        <div className="goals-grid">
-          {goals.length === 0 && (
-            <div style={{ padding: '20px', color: 'var(--text-tertiary)', background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--separator)' }}>
-              Nenhuma meta cadastrada.
+        {hasGoals && <GoalsSummaryStrip summary={analysis.summary} />}
+
+        {/* As caixinhas: o centro da página */}
+        <section className="gb-grid" aria-label="Caixinhas de objetivos">
+          {analysis.rows.map((row) => (
+            <GoalBox key={row.goal.id} row={row} currentMonth={analysis.currentMonth} onOpen={() => setOpenGoalId(row.goal.id)} />
+          ))}
+          <button type="button" className={`gb-new${hasGoals ? '' : ' is-first'}`} onClick={openNewGoal}>
+            <span><Plus size={22} strokeWidth={2.5} /></span>
+            <b>{hasGoals ? 'Nova caixinha' : 'Crie sua primeira caixinha'}</b>
+            {!hasGoals && <small>Uma viagem, uma reserva, a troca de carro… cada objetivo ganha o seu espaço para você acompanhar o quanto já guardou.</small>}
+          </button>
+        </section>
+
+        {hasSecondary && (
+          <div className="gb-secondary">
+            <div className="gb-col-main">
+              <MovementsFeed rows={analysis.rows} unlinked={analysis.unlinked} />
             </div>
-          )}
-          {goals.map((goal, index) => {
-            const actualCurrent = getGoalCurrent(goal.id, goal.current);
-            const goalPct = goal.target > 0 ? Math.min((actualCurrent / goal.target) * 100, 100) : 0;
-            const remaining = goal.target - actualCurrent;
-            const contributions = investmentTxs
-              .filter(tx => tx.goalId === goal.id)
-              .sort((a, b) => (b.date ?? b.monthKey).localeCompare(a.date ?? a.monthKey));
-            // Total por pessoa (só nas metas com mais de uma pessoa), do maior para o menor
-            const totalsByPerson = new Map<string, number>();
-            contributions.forEach(tx => {
-              const who = getContributor(tx);
-              if (who) totalsByPerson.set(who, (totalsByPerson.get(who) ?? 0) + tx.amount);
-            });
-            const contributionMonths = [...contributions.reduce((map, tx) => {
-              map.set(tx.monthKey, [...(map.get(tx.monthKey) ?? []), tx]);
-              return map;
-            }, new Map<string, Transaction[]>())];
-            const personTotals = [...totalsByPerson.entries()].sort((a, b) => b[1] - a[1]);
-            
-            // Predição de meses faltantes
-            let predictionText = 'Sem previsão';
-            if (remaining <= 0) {
-              predictionText = 'Meta Concluída!';
-            } else if (goal.monthlyPrediction > 0) {
-              const monthsLeft = Math.ceil(remaining / goal.monthlyPrediction);
-              predictionText = `Faltam ~${monthsLeft} meses guardando ${formatCurrency(goal.monthlyPrediction)}/mês`;
-            }
-
-            return (
-              <GlassCard key={goal.id} className="stagger" style={{ animationDelay: `${index * 60}ms` }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
-                  {(() => {
-                    const iconDef = getGoalIconDef(goal.icon, goal.name);
-                    const GoalIcon = iconDef.icon;
-                    return (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <div style={{
-                          width: 48,
-                          height: 48,
-                          borderRadius: 14,
-                          background: iconDef.color,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: '#FFF',
-                          boxShadow: `0 4px 12px ${iconDef.bgColor}`,
-                          flexShrink: 0,
-                        }}>
-                          <GoalIcon size={24} />
-                        </div>
-                        <div>
-                          <h2 style={{ fontWeight: 700, fontSize: 18 }}>{goal.name}</h2>
-                          <p style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>{iconDef.label}</p>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    {!goal.isShared && (
-                      <button 
-                        onClick={() => { setGoalToShare(goal); setShowShareModal(true); }}
-                        style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: 4, fontSize: 13, fontWeight: 500 }}
-                        title="Compartilhar Meta"
-                      >
-                        Compartilhar
-                      </button>
-                    )}
-                    <button 
-                      onClick={() => { setGoalToEdit(goal); setShowGoalModal(true); }}
-                      style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: 4 }}
-                      title="Editar Meta"
-                    >
-                      <Pencil size={16} />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Sem acesso à planilha do dono: valores podem estar desatualizados até liberar */}
-                {goal.ownerAccessDenied && (
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    padding: '10px 12px',
-                    marginBottom: 16,
-                    borderRadius: 12,
-                    background: 'var(--orange-light)',
-                  }}>
-                    <AlertTriangle size={18} color="var(--orange)" style={{ flexShrink: 0 }} />
-                    <span style={{ flex: 1, fontSize: 13, color: 'var(--text-secondary)', minWidth: 0 }}>
-                      Sem acesso à planilha de quem criou a meta. Os valores podem estar desatualizados.
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleReconnectGoal(goal.id)}
-                      disabled={reconnectingGoalId === goal.id}
-                      style={{ background: 'none', border: 'none', color: 'var(--orange)', cursor: 'pointer', padding: 4, fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}
-                    >
-                      {reconnectingGoalId === goal.id ? 'Abrindo…' : 'Liberar acesso'}
-                    </button>
-                  </div>
-                )}
-
-                <div className="goal-card-body">
-                <div className="goal-card-main">
-                {/* Big Numbers */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 16 }}>
-                  <div>
-                    <p style={{ fontSize: 12, color: 'var(--text-tertiary)', fontWeight: 500 }}>Guardado</p>
-                    <p style={{ fontSize: 24, fontWeight: 700, color: 'var(--blue)', letterSpacing: '-0.02em' }}>
-                      {formatCurrency(actualCurrent)}
-                    </p>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <p style={{ fontSize: 12, color: 'var(--text-tertiary)', fontWeight: 500 }}>Meta</p>
-                    <p style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.015em' }}>
-                      {formatCurrency(goal.target)}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Progress */}
-                <div style={{ marginBottom: 12 }}>
-                  <div className="progress-bar-track" style={{ height: 12 }}>
-                    <div
-                      className="progress-bar-fill"
-                      style={{
-                        width: `${goalPct}%`,
-                        background: 'linear-gradient(90deg, var(--blue), var(--blue))',
-                      }}
-                    />
-                  </div>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 16 }}>
-                  <span style={{ color: 'var(--blue)', fontWeight: 700 }}>{goalPct.toFixed(1)}% concluído</span>
-                  <span style={{ color: 'var(--text-tertiary)' }}>Faltam {formatCurrency(remaining)}</span>
-                </div>
-
-                {/* Prediction Box */}
-                <div style={{ 
-                  background: 'var(--surface)', 
-                  border: '1px solid var(--separator)', 
-                  borderRadius: 12, 
-                  padding: '12px 16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12
-                }}>
-                  <CalendarClock size={20} color="var(--blue)" />
-                  <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)' }}>
-                    {predictionText}
-                  </span>
-                </div>
-
-                </div>
-
-                {/* Aportes: total de cada pessoa e o histórico */}
-                <div className="goal-card-aportes">
-                  <p style={{ fontSize: 12, color: 'var(--text-tertiary)', fontWeight: 500, marginBottom: 8 }}>
-                    Aportes{contributions.length > 0 && ` · ${contributions.length}`}
-                  </p>
-
-                  {personTotals.length > 0 && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 24px', paddingBottom: 12, marginBottom: 4, borderBottom: '1px solid var(--separator)' }}>
-                      {personTotals.map(([who, total]) => (
-                        <div
-                          key={who}
-                          style={{
-                            flex: '1 1 120px',
-                            minWidth: 0,
-                          }}
-                        >
-                          <p style={{ fontSize: 12, color: 'var(--text-tertiary)', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{who}</p>
-                          <p style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.015em', color: 'var(--green)', whiteSpace: 'nowrap' }}>{formatCurrency(total)}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {contributions.length === 0 && goal.current <= 0 ? (
-                    <p style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>Nenhum aporte ainda.</p>
-                  ) : (
-                    <ScrollArea maxHeight={220}>
-                      {contributionMonths.map(([mk, monthTxs]) => (
-                        <div key={mk} style={{ padding: '12px 0', borderBottom: '1px solid var(--separator)' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                            <span style={{ fontSize: 14, fontWeight: 700, textTransform: 'capitalize' }}>
-                              {`${monthKeyToShortLabel(mk)}/${toCanonicalMonthKey(mk).slice(2, 4)}`}
-                            </span>
-                            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--green)' }}>
-                              {formatCurrency(monthTxs.reduce((sum, tx) => sum + tx.amount, 0))}
-                            </span>
-                          </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                            {monthTxs.map(tx => {
-                              const contributor = getContributor(tx);
-                              const ItemIcon = contributor ? Users : Target;
-                              return (
-                                <div key={tx.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, color: 'var(--text-secondary)' }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                                    <ItemIcon size={12} style={{ opacity: 0.5, flexShrink: 0 }} />
-                                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{contributor ?? tx.name}</span>
-                                    <span style={{ color: 'var(--text-tertiary)', whiteSpace: 'nowrap', flexShrink: 0 }}>· {formatContributionDate(tx)}</span>
-                                  </div>
-                                  <span style={{ flexShrink: 0 }}>+{formatCurrency(tx.amount)}</span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ))}
-                      {goal.current > 0 && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', fontSize: 13, color: 'var(--text-tertiary)' }}>
-                          <span>Saldo inicial</span>
-                          <span>{formatCurrency(goal.current)}</span>
-                        </div>
-                      )}
-                    </ScrollArea>
-                  )}
-                </div>
-                </div>
-              </GlassCard>
-            );
-          })}
-        </div>
-
-
-        <div className="metas-grid stagger">
-          {/* Pending "A Resolver" */}
-          {/* height 100%: o card preenche a linha da grade, mesma altura do Histórico ao lado */}
-          {/* metas-pending: no mobile (1 coluna) fica por último, abaixo do Histórico */}
-          <SectionCard icon={AlertTriangle} iconColor="var(--red)" title="A Resolver" className="animate-fade-in-up metas-pending" style={{ height: '100%' }}>
-            <ScrollArea maxHeight={320}>
-              {pending.length === 0 && (
-                <p style={{ fontSize: 14, color: 'var(--text-tertiary)' }}>Nenhuma pendência.</p>
-              )}
-              {pending.map((p) => {
-                const isPositive = p.amount > 0;
-                const amountColor = isPositive ? 'var(--green)' : 'var(--red)';
-
-                return (
-                  <div
-                    key={p.id}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      gap: 12,
-                      padding: '12px 0',
-                      borderBottom: '1px solid var(--separator)',
-                    }}
-                  >
-                    {/* Linha única no mobile: o nome encurta com reticências, valor e ações não quebram */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div title={p.name} style={{ fontWeight: 600, fontSize: 15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-                      <div style={{ fontWeight: 700, color: amountColor, fontSize: 16, whiteSpace: 'nowrap' }}>
-                        {isPositive ? '+' : ''}{formatCurrency(p.amount)}
-                      </div>
-                      <div style={{ display: 'flex', gap: 4 }}>
-                        <button
-                          onClick={() => {
-                            setPendingToEdit(p);
-                            setShowPendingModal(true);
-                          }}
-                          style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: 4 }}
-                        >
-                          <Pencil size={14} />
-                        </button>
-                        <button
-                          onClick={() => handleDeletePending(p.id)}
-                          style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', padding: 4 }}
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </ScrollArea>
-
-            <div style={{ paddingTop: 16 }}>
-                <button
-                  onClick={() => {
-                    setPendingToEdit(null);
-                    setShowPendingModal(true);
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--blue)',
-                    fontWeight: 600,
-                    fontSize: 14,
-                    cursor: 'pointer',
-                    padding: 0
-                  }}
-                >
-                  <Plus size={16} />
-                  Adicionar item
-                </button>
+            <div className="gb-col-side">
+              {hasGoals && <UpcomingContributions calendar={analysis.calendar} rows={analysis.rows} />}
+              <PendingPanel
+                pending={pending}
+                goals={goals}
+                summary={analysis.pendingSummary}
+                onAdd={() => { setPendingToEdit(null); setShowPendingModal(true); }}
+                onEdit={(p) => { setPendingToEdit(p); setShowPendingModal(true); }}
+              />
             </div>
-
-            {pending.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '16px 0 0 0', marginTop: 16, borderTop: '1px solid var(--separator)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontWeight: 700, fontSize: 15 }}>Total a Pagar</span>
-                  <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--red)' }}>{formatCurrency(totalToPay)}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontWeight: 700, fontSize: 15 }}>Total a Receber</span>
-                  <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--green)' }}>{formatCurrency(totalToReceive)}</span>
-                </div>
-              </div>
-            )}
-          </SectionCard>
-
-          {/* Histórico Geral de Investimentos do App */}
-          <SectionCard
-            icon={TrendingUp}
-            iconColor="var(--green)"
-            title="Histórico de Investimentos"
-            description="Aportes registrados nas transações"
-            className="animate-fade-in-up"
-            style={{ height: '100%' }}
-            actions={
-              <ToolbarSelect
-                value={startMonth}
-                onChange={handleMonthChange}
-                style={{ maxWidth: 240 }}
-                aria-label="Período do histórico"
-              >
-                <option value="">Desde o primeiro aporte</option>
-                {allAvailableMonths.map(mk => {
-                  const [year, month] = mk.split('-').map(Number);
-                  const label = new Date(year, month - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-                  return <option key={mk} value={mk}>A partir de {label.charAt(0).toUpperCase() + label.slice(1)}</option>;
-                })}
-              </ToolbarSelect>
-            }
-          >
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              {dynamicMonths.length === 0 && (
-                <div style={{ padding: '16px 0', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 14 }}>
-                  Nenhum investimento registrado.
-                </div>
-              )}
-
-              <ScrollArea maxHeight={320}>
-                {dynamicMonths.map((mk) => {
-                // "nov/26" (o cabeçalho capitaliza: "Nov/26"), para não confundir o mesmo mês de anos diferentes
-                const monthLabel = `${monthKeyToShortLabel(mk)}/${toCanonicalMonthKey(mk).slice(2, 4)}`;
-                const monthTxs = investmentTxs.filter(t => t.monthKey === mk);
-                const monthTotal = byMonth[mk];
-
-                return (
-                  <div key={mk} style={{ 
-                    padding: '16px 0', 
-                    borderBottom: '1px solid var(--separator)' 
-                  }}>
-                    {/* Month Header */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                      <span style={{ fontSize: 14, fontWeight: 700, textTransform: 'capitalize' }}>
-                        {monthLabel}
-                      </span>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--green)' }}>
-                        {formatCurrency(monthTotal)}
-                      </span>
-                    </div>
-
-                    {/* Transactions List */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      {monthTxs.map(tx => {
-                        const goalName = tx.goalId ? goals.find(g => g.id === tx.goalId)?.name : null;
-                        const itemLabel = goalName || tx.name;
-                        const contributor = getContributor(tx);
-                        const ItemIcon = contributor ? Users : Target;
-                        return (
-                          <div key={tx.id} style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            fontSize: 13,
-                            color: 'var(--text-secondary)'
-                          }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                              <ItemIcon size={12} style={{ opacity: 0.5, flexShrink: 0 }} />
-                              <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>
-                                {itemLabel}
-                              </span>
-                              {contributor && (
-                                <span style={{ color: 'var(--text-tertiary)', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                                  · {contributor}
-                                </span>
-                              )}
-                            </div>
-                            <span style={{ flexShrink: 0 }}>+{formatCurrency(tx.amount)}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-              </ScrollArea>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 0 8px 0', marginTop: 8 }}>
-                <span style={{ fontWeight: 700, fontSize: 15 }}>Total Exibido</span>
-                <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--green)' }}>{formatCurrency(totalHistoryFiltered)}</span>
-              </div>
-            </div>
-          </SectionCard>
-        </div>
-
+          </div>
+        )}
       </main>
-      
+
+      {openRow && (
+        <GoalDetailModal
+          row={openRow}
+          currentMonth={analysis.currentMonth}
+          onClose={() => setOpenGoalId(null)}
+          onEditGoal={(goal) => { setGoalToEdit(goal); setShowGoalModal(true); }}
+          onShareGoal={(goal) => { setGoalToShare(goal); setShowShareModal(true); }}
+          onReconnect={handleReconnectGoal}
+          reconnecting={reconnectingGoalId === openRow.goal.id}
+        />
+      )}
+
       {/* Overlay invisível para fechar o menu */}
       {showFabMenu && (
         <div 

@@ -545,6 +545,28 @@ export function runScenario(base: GoalAnalysis, currentMonth: string, spec: Scen
   });
 }
 
+// ─── Próximo aporte previsto ────────────────────────────────────────────────────────────
+
+export interface NextContribution {
+  monthKey: string;
+  /** Quanto ainda falta aportar no mês (no mês atual, já descontado o que foi aportado) */
+  amount: number;
+}
+
+/**
+ * Primeiro mês, do atual em diante, em que ainda há aporte planejado a fazer. No mês atual vale só
+ * o que falta do planejado; sem plano nos próximos 24 meses, devolve null.
+ */
+export function nextPlannedContribution(plans: ContributionPlan[], currentMonth: string, realizedThisMonth: number): NextContribution | null {
+  for (let i = 0; i < 24; i++) {
+    const monthKey = addMonthsToKey(currentMonth, i);
+    const planned = plannedForMonth(plans, monthKey).total;
+    const remaining = round2(i === 0 ? planned - Math.max(0, realizedThisMonth) : planned);
+    if (remaining > 0.005) return { monthKey, amount: remaining };
+  }
+  return null;
+}
+
 // ─── Calendário de aportes ──────────────────────────────────────────────────────────────
 
 export interface CalendarMonth {

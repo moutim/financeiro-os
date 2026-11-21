@@ -70,24 +70,24 @@ export default function PendingPanel({ pending, goals, summary, onAdd, onEdit }:
   );
 
   return (
-    <section className="cx-section" aria-label="Pendências financeiras">
-      <header className="cx-head">
+    <section className="gb-panel" aria-label="A resolver">
+      <header className="gb-panel-head">
         <div>
-          <h2>Pendências</h2>
-          <p>Valores a receber e a pagar. Não contam como dinheiro acumulado nas metas.</p>
+          <h2>A Resolver</h2>
+          <p>O que falta receber ou pagar. Não conta como dinheiro guardado nas metas.</p>
         </div>
-        <button type="button" className="btn-secondary cx-new" onClick={onAdd}><Plus size={15} /> Adicionar</button>
+        <button type="button" className="btn-secondary gb-add" onClick={onAdd}><Plus size={15} /> Adicionar</button>
       </header>
 
       {pending.length === 0 ? (
-        <p className="cx-empty-line" style={{ padding: '10px 0' }}>Nenhuma pendência.</p>
+        <p className="gb-empty-line">Nada a resolver por aqui.</p>
       ) : (
         <>
           <div className="gx-pending">
             {renderGroup('A receber', 'var(--green)', summary.toReceive, toReceive, 'recebido')}
             {renderGroup('A pagar', 'var(--red)', summary.toPay, toPay, 'pago')}
           </div>
-          <div className="cx-toolbar" style={{ marginTop: 10, marginBottom: 0 }}>
+          <div className="gb-panel-foot">
             {summary.doneCount > 0 && (
               <label className="gx-inline-check"><input type="checkbox" checked={showDone} onChange={(e) => setShowDone(e.target.checked)} /> Mostrar concluídas ({summary.doneCount})</label>
             )}
