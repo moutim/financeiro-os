@@ -11,6 +11,7 @@ export const SHEET_TABS = {
 
   // ── Metas ────────────────────────────────────────────────────────────────────
   METAS:           'Metas',           // /metas
+  PLANOS_APORTE:   'PlanosAporte',    // /metas — plano de aportes por pessoa (recorrente e extraordinário)
 
   // ── Cartões ──────────────────────────────────────────────────────────────────
   CARTOES:         'Cartoes',         // /cartoes  — cadastro dos cartões
@@ -31,16 +32,20 @@ export const SHEET_HEADERS: Record<SheetTab, string[]> = {
   // ID | Nome | Valor | Categoria | MesKey | Parcelas | Data | GoalId | CardId | ParentId | IsPaid
   // | Subcategoria | Natureza | Recorrencia | MeioPagamento | TipoMovimentacao  (modo detalhado)
   // | Autor  (aportes de convidados em meta compartilhada)
-  [SHEET_TABS.TRANSACOES]:     ['ID', 'Nome', 'Valor', 'Categoria', 'MesKey', 'Parcelas', 'Data', 'GoalId', 'CardId', 'ParentId', 'IsPaid', 'Subcategoria', 'Natureza', 'Recorrencia', 'MeioPagamento', 'TipoMovimentacao', 'Autor'],
+  // | Operacao  (Aporte, Resgate ou Rendimento — investimentos ligados a metas; vazio = aporte)
+  [SHEET_TABS.TRANSACOES]:     ['ID', 'Nome', 'Valor', 'Categoria', 'MesKey', 'Parcelas', 'Data', 'GoalId', 'CardId', 'ParentId', 'IsPaid', 'Subcategoria', 'Natureza', 'Recorrencia', 'MeioPagamento', 'TipoMovimentacao', 'Autor', 'Operacao'],
 
   // ID | Nome | Valor | MesKey | IsRecurring | ParentId | Parcelas | IsPaid
   [SHEET_TABS.RECEITAS]:       ['ID', 'Nome', 'Valor', 'MesKey', 'IsRecurring', 'ParentId', 'Parcelas', 'IsPaid'],
 
-  // ID | Nome | Valor | DueDate | Notes
-  [SHEET_TABS.PENDENCIAS]:     ['ID', 'Nome', 'Valor', 'DueDate', 'Notes'],
+  // ID | Nome | Valor | DueDate | Notes | Status | Responsavel | MetaId
+  [SHEET_TABS.PENDENCIAS]:     ['ID', 'Nome', 'Valor', 'DueDate', 'Notes', 'Status', 'Responsavel', 'MetaId'],
 
-  // ID | Nome | Atual | Meta | Previsao | Deadline | Notes | IsShared | OwnerSpreadsheetId | Icon
-  [SHEET_TABS.METAS]:          ['ID', 'Nome', 'Atual', 'Meta', 'Previsao', 'Deadline', 'Notes', 'IsShared', 'OwnerSpreadsheetId', 'Icon'],
+  // ID | Nome | Atual | Meta | Previsao | Deadline | Notes | IsShared | OwnerSpreadsheetId | Icon | CriadaEm | TaxaMensal | Cor | Categoria | Pausada | InicioPlano
+  [SHEET_TABS.METAS]:          ['ID', 'Nome', 'Atual', 'Meta', 'Previsao', 'Deadline', 'Notes', 'IsShared', 'OwnerSpreadsheetId', 'Icon', 'CriadaEm', 'TaxaMensal', 'Cor', 'Categoria', 'Pausada', 'InicioPlano'],
+
+  // ID | MetaId | Pessoa | Valor | DesdeMes | AteMes | Tipo (recorrente | extraordinario)
+  [SHEET_TABS.PLANOS_APORTE]:  ['ID', 'MetaId', 'Pessoa', 'Valor', 'DesdeMes', 'AteMes', 'Tipo'],
 
   // ID | Nome | Limite | Usado | Cor | CorClara | Bandeira | DiaPagamento | DiaFechamento | Notes | FreedMonthKey | LastDigits | BankId | Priority
   [SHEET_TABS.CARTOES]:        ['ID', 'Nome', 'Limite', 'Usado', 'Cor', 'CorClara', 'Bandeira', 'DiaPagamento', 'DiaFechamento', 'Notes', 'FreedMonthKey', 'LastDigits', 'BankId', 'Priority'],

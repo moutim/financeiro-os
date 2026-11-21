@@ -1,7 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
-import type { Transaction, Income, Pending, SavingsGoal, Category, CreditCard, CategoryBudget } from '@/lib/types';
+import type { Transaction, Income, Pending, SavingsGoal, Category, CreditCard, CategoryBudget, ContributionPlan } from '@/lib/types';
 import { budgetHistoryIds, planDeactivateBudget, planSetBudget, type BudgetChangePlan } from '@/lib/budgets';
 import { isFixedTransaction } from '@/lib/fixedTransactions';
 import { splitBySubCategory } from '@/lib/taxonomy';
@@ -29,6 +29,8 @@ interface FinanceStore {
   cards: CreditCard[];
   /** Versões dos orçamentos por categoria (ver src/lib/budgets.ts) */
   budgets: CategoryBudget[];
+  /** Plano de aportes das metas, por pessoa (ver src/lib/goalPlanning.ts) */
+  plans: ContributionPlan[];
 
   // UI State
   selectedMonth: string;
@@ -84,6 +86,11 @@ interface FinanceStore {
   deactivateCategoryBudget: (category: string, subcategory: string | null, monthKey: string) => Promise<void>;
   /** Apaga todo o histórico do orçamento */
   deleteCategoryBudgetHistory: (category: string, subcategory: string | null) => Promise<void>;
+
+  /** Plano de aportes de uma meta (meta compartilhada: gravado na planilha do dono) */
+  addPlan: (plan: Omit<ContributionPlan, 'id'>) => Promise<ContributionPlan>;
+  updatePlan: (id: string, updates: Partial<Omit<ContributionPlan, 'id' | 'goalId'>>) => Promise<void>;
+  deletePlan: (id: string) => Promise<void>;
 
   // Computed
   getMonthTransactions: (monthKey: string) => Transaction[];
@@ -193,6 +200,7 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
   goals: [],
   cards: [],
   budgets: [],
+  plans: [],
   availableMonths: INITIAL_MONTHS,
   selectedMonth: CURRENT_MONTH_KEY,
   filterCategory: null,
@@ -204,7 +212,7 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
     const isInitialLoad = get().loadingState === 'idle';
     set({ loadingState: 'loading', error: null });
     try {
-      const [txRes, incRes, pendRes, goalsRes, cardsRes, budgetsRes] = await Promise.all([
+      const [txRes, incRes, pendRes, goalsRes, cardsRes, budgetsRes, plansRes] = await Promise.all([
         fetch('/api/transacoes', { cache: 'no-store' }),
         fetch('/api/receitas', { cache: 'no-store' }),
         fetch('/api/pendencias', { cache: 'no-store' }),
@@ -212,6 +220,8 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
         fetch('/api/cartoes', { cache: 'no-store' }),
         // orçamentos são opcionais: uma falha aqui não impede o app de abrir
         fetch('/api/orcamentos', { cache: 'no-store' }).catch(() => null),
+        // planos de aporte também são opcionais
+        fetch('/api/planos-aporte', { cache: 'no-store' }).catch(() => null),
       ]);
 
       if (!txRes.ok || !incRes.ok || !pendRes.ok || !goalsRes.ok || !cardsRes.ok) {
@@ -229,6 +239,9 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
       const budgets: CategoryBudget[] = budgetsRes?.ok
         ? await budgetsRes.json().catch(() => get().budgets)
         : get().budgets;
+      const plans: ContributionPlan[] = plansRes?.ok
+        ? await plansRes.json().catch(() => get().plans)
+        : get().plans;
 
       // A planilha também guarda os aportes de convidados nas minhas metas: ficam separados
       // para não aparecerem como lançamentos meus (nem em meses que só eles ocupam)
@@ -264,6 +277,7 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
         goals, 
         cards,
         budgets,
+        plans,
         availableMonths: finalMonths,
         selectedMonth: newSelectedMonth,
         loadingState: 'success' 
@@ -538,7 +552,11 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
       const err = await res.json();
       throw new Error(err.error ?? 'Erro ao excluir meta');
     }
-    set((state) => ({ goals: state.goals.filter((g) => g.id !== id) }));
+    // o plano de aportes é da meta: sai junto, mas só para o dono (quem sai de uma meta compartilhada não apaga o plano dela)
+    const removed = get().goals.find((g) => g.id === id);
+    const orphanPlans = removed && !removed.isShared ? get().plans.filter((p) => p.goalId === id) : [];
+    set((state) => ({ goals: state.goals.filter((g) => g.id !== id), plans: state.plans.filter((p) => !orphanPlans.some((o) => o.id === p.id)) }));
+    await Promise.allSettled(orphanPlans.map((p) => fetch(`/api/planos-aporte?${new URLSearchParams({ id: p.id, goalId: id })}`, { method: 'DELETE' })));
   },
 
   refreshGoals: async () => {
@@ -645,6 +663,55 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
   deleteCategoryBudgetHistory: async (category, subcategory) => {
     const ids = budgetHistoryIds(get().budgets, category, subcategory);
     await applyBudgetPlan(set, get, { create: [], update: [], remove: ids });
+  },
+
+  // ─── Plano de aportes ───────────────────────────────────────────────────────
+  addPlan: async (plan) => {
+    const ownerSpreadsheetId = get().goals.find((g) => g.id === plan.goalId)?.ownerSpreadsheetId ?? null;
+    const res = await fetch('/api/planos-aporte', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...plan, ownerSpreadsheetId }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error ?? 'Erro ao salvar o plano de aportes');
+    }
+    const created = await res.json() as ContributionPlan;
+    set((state) => ({ plans: [...state.plans, created] }));
+    return created;
+  },
+
+  updatePlan: async (id, updates) => {
+    const current = get().plans.find((p) => p.id === id);
+    if (!current) return;
+    const next = { ...current, ...updates };
+    set((state) => ({ plans: state.plans.map((p) => (p.id === id ? next : p)) }));
+    const ownerSpreadsheetId = get().goals.find((g) => g.id === current.goalId)?.ownerSpreadsheetId ?? null;
+    const res = await fetch(`/api/planos-aporte/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...next, ownerSpreadsheetId }),
+    });
+    if (!res.ok) {
+      set((state) => ({ plans: state.plans.map((p) => (p.id === id ? current : p)) }));
+      const err = await res.json();
+      throw new Error(err.error ?? 'Erro ao atualizar o plano de aportes');
+    }
+  },
+
+  deletePlan: async (id) => {
+    const current = get().plans.find((p) => p.id === id);
+    if (!current) return;
+    const ownerSpreadsheetId = get().goals.find((g) => g.id === current.goalId)?.ownerSpreadsheetId;
+    set((state) => ({ plans: state.plans.filter((p) => p.id !== id) }));
+    const query = new URLSearchParams({ id, goalId: current.goalId, ...(ownerSpreadsheetId ? { ownerSpreadsheetId } : {}) });
+    const res = await fetch(`/api/planos-aporte?${query}`, { method: 'DELETE' });
+    if (!res.ok) {
+      set((state) => ({ plans: [...state.plans, current] }));
+      const err = await res.json();
+      throw new Error(err.error ?? 'Erro ao excluir o plano de aportes');
+    }
   },
 
   deleteMonth: async (monthKey) => {
