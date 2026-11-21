@@ -81,7 +81,7 @@ export default function FreeIncomeChart({ months, baseMonths, plans, currentMont
               <ComposedChart data={rows} margin={{ top: 8, right: 4, left: -4, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--separator)" vertical={false} />
                 <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} interval={horizon > 12 ? 1 : 0} />
-                <YAxis tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} width={56} tickFormatter={formatCompact} />
+                <YAxis tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} width={72} tickFormatter={formatCompact} />
                 <ReferenceLine y={0} stroke="var(--text-tertiary)" />
                 <Tooltip
                   {...TOOLTIP_PROPS}
@@ -105,8 +105,7 @@ export default function FreeIncomeChart({ months, baseMonths, plans, currentMont
                     <Cell key={r.monthKey}
                       fill={r.free < 0 ? 'var(--red)' : KIND_COLOR.free}
                       fillOpacity={(selected && selected !== r.monthKey ? 0.5 : 1) * basisOpacity(r.month.basis)}
-                      stroke={selected === r.monthKey ? 'var(--text-primary)' : r.month.phase === 'current' ? 'var(--blue)' : 'none'}
-                      strokeWidth={selected === r.monthKey || r.month.phase === 'current' ? 2 : 0} />
+                    />
                   ))}
                 </Bar>
                 {baseMonths && <Line type="monotone" dataKey="baseFree" name="Sem a compra" stroke="var(--text-secondary)" strokeDasharray="5 4" strokeWidth={2} dot={{ r: 3 }} connectNulls isAnimationActive={false} />}
@@ -116,7 +115,6 @@ export default function FreeIncomeChart({ months, baseMonths, plans, currentMont
 
           <Legend items={[
             { color: KIND_COLOR.free, label: KIND_LABEL.free },
-            { color: KIND_COLOR.free, label: 'Barra clara: estimado por recorrência', faded: true },
             ...(baseMonths ? [{ color: 'var(--text-secondary)', label: 'Linha tracejada: cenário atual (sem a compra)' }] : []),
           ]} />
 

@@ -25,9 +25,10 @@ export const PAST_CONTEXT = 3;
 
 /** Cores semânticas: a mesma categoria tem a mesma cor em todos os gráficos */
 export const KIND_COLOR: Record<CommitmentKind | 'free', string> = {
-  installments: 'var(--orange)',
-  fixed: 'var(--indigo)',
-  other: 'var(--teal)',
+  // vermelho = parcelado, azul = fixas, amarelo = outros, verde = sobra
+  installments: 'var(--red)',
+  fixed: 'var(--blue)',
+  other: 'var(--yellow)',
   free: 'var(--green)',
 };
 
@@ -63,7 +64,7 @@ export const pct = (v: number, digits = 1) => `${v.toFixed(digits).replace('.', 
 
 /** Opacidade da barra: realizado e lançado são sólidos, estimado fica mais claro */
 export const basisOpacity = (basis: MonthProjection['basis']) =>
-  basis === 'estimated' ? 0.55 : basis === 'insufficient' ? 0.2 : 0.95;
+  basis === 'insufficient' ? 0.2 : 0.95; // estimativa não clareia a cor: o tom é sempre o mesmo
 
 export function bandOf(m: MonthProjection, bands: CommitmentBands): BandLevel | null {
   return m.committedPct === null ? null : classifyCommitment(m.committedPct, bands);
@@ -191,12 +192,12 @@ export function TooltipRow({ color, label, value, pct: share, strong }: { color?
   );
 }
 
-export function Legend({ items }: { items: { color: string; label: string; faded?: boolean }[] }) {
+export function Legend({ items }: { items: { color: string; label: string; faded?: boolean; dashed?: boolean }[] }) {
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 16px', fontSize: 12, color: 'var(--text-tertiary)' }}>
       {items.map((i) => (
         <span key={i.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ width: 10, height: 10, borderRadius: 3, background: i.color, opacity: i.faded ? 0.5 : 1 }} />
+          <span style={{ width: 10, height: 10, borderRadius: 3, background: i.dashed ? 'transparent' : i.color, border: i.dashed ? `1.5px dashed ${i.color}` : undefined, opacity: i.faded ? 0.5 : 1 }} />
           {i.label}
         </span>
       ))}
