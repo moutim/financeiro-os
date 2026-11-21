@@ -4,11 +4,12 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
-import { LayoutDashboard, Tags, Target, Wallet, CreditCard, LogOut, Settings } from 'lucide-react';
+import { LayoutDashboard, Tags, Target, Wallet, CreditCard, LogOut, Settings, CalendarRange } from 'lucide-react';
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/cartoes', icon: CreditCard, label: 'Cartões' },
+  { href: '/planejamento', icon: CalendarRange, label: 'Planejamento' },
   { href: '/categorias', icon: Tags, label: 'Categorias' },
   { href: '/metas', icon: Target, label: 'Metas' },
   { href: '/settings', icon: Settings, label: 'Configurações' },
