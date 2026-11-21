@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --test src/lib/projection/engine.test.ts"
+    "test": "node --test src/lib/*.test.ts src/lib/projection/*.test.ts"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",

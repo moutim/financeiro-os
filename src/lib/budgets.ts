@@ -136,7 +136,7 @@ export interface CategorySpending {
  * parcelas futuras. Pagar a fatura do cartão só marca as parcelas como pagas (isPaid), sem
  * lançamento novo, então o gasto não entra duas vezes.
  */
-function budgetSpending(transactions: Transaction[], monthKey: string): Transaction[] {
+export function budgetTransactions(transactions: Transaction[], monthKey: string): Transaction[] {
   return transactions
     .filter((t) => t.monthKey === monthKey)
     .flatMap(splitBySubCategory)
@@ -144,9 +144,14 @@ function budgetSpending(transactions: Transaction[], monthKey: string): Transact
     .filter((t) => isSpending(t) && t.transactionType !== 'investment' && t.category !== 'Investimentos');
 }
 
+/** Todo o gasto do mês que consome orçamento, com ou sem orçamento definido */
+export function totalBudgetSpending(transactions: Transaction[], monthKey: string): number {
+  return Math.round(budgetTransactions(transactions, monthKey).reduce((sum, t) => sum + t.amount, 0) * 100) / 100;
+}
+
 /** Gasto por categoria macro no mês */
 export function spendingByMacro(transactions: Transaction[], monthKey: string): Map<string, CategorySpending> {
-  return new Map(groupByCategory(budgetSpending(transactions, monthKey)).map((g) => [g.category, { total: g.total, count: g.count }]));
+  return new Map(groupByCategory(budgetTransactions(transactions, monthKey)).map((g) => [g.category, { total: g.total, count: g.count }]));
 }
 
 /**
@@ -162,7 +167,7 @@ export function spendingByBudgetKey(transactions: Transaction[], monthKey: strin
     entry.count += 1;
     result.set(key, entry);
   };
-  for (const t of budgetSpending(transactions, monthKey)) {
+  for (const t of budgetTransactions(transactions, monthKey)) {
     const category = t.category || 'Outros';
     bump(category, t.amount);
     const sub = t.subcategory?.trim();

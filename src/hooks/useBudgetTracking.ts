@@ -10,9 +10,10 @@ import {
   displayPct,
   spendingByBudgetKey,
   spendingByMacro,
-  STATUS_SEVERITY,
+  totalBudgetSpending,
   type BudgetStatus,
 } from '@/lib/budgets';
+import { buildBudgetAlerts, summarizeBudgetLines, type HistoryMonth } from '@/lib/budgetInsights';
 import type { CategoryBudget } from '@/lib/types';
 
 export interface BudgetRow {
@@ -62,20 +63,11 @@ export interface UnbudgetedRow {
   count: number;
 }
 
-export interface BudgetHistoryCell {
-  monthKey: string;
-  limit: number;
-  spent: number;
-  pct: number;
-  status: BudgetStatus;
-}
-
-const HISTORY_MONTHS = 6;
+/** Meses anteriores usados na média que detecta crescimento anormal */
+const GROWTH_BASELINE_MONTHS = 3;
+/** Meses carregados para o gráfico de histórico (a tela escolhe quantos mostrar) */
+const HISTORY_MONTHS = 12;
 const round = (n: number) => Math.round(n * 100) / 100;
-const macroOrder = (category: string) => {
-  const idx = (EXPENSE_MACROS as readonly string[]).indexOf(category);
-  return idx === -1 ? EXPENSE_MACROS.length : idx;
-};
 
 /** Nome do orçamento na mensagem: "Alimentação" ou "Delivery (Alimentação)" */
 export const budgetMessageLabel = (row: Pick<BudgetRow, 'category' | 'subcategory'>) =>
@@ -161,59 +153,67 @@ export function useBudgetTracking() {
       };
     }
 
-    // Cards de topo: categorias e subcategorias soltas (a ordem é escolhida no painel)
+    // Cards de topo: categorias e subcategorias soltas (a ordem é escolhida na tela)
     const rows = [...macroRows.values(), ...standaloneMicros].sort((a, b) => b.limit - a.limit);
 
+    // Sem orçamento: gasto das categorias sem limite, já descontado o que tem limite próprio de subcategoria
     const macroSpending = spendingByMacro(transactions, selectedMonth);
+    const standaloneOf = (category: string) => standaloneMicros.filter((r) => r.category === category);
     const unbudgeted: UnbudgetedRow[] = [...macroSpending.entries()]
-      .filter(([category, s]) => !macroRows.has(category) && s.total > 0)
-      .map(([category, s]) => ({ category, spent: round(s.total), count: s.count }))
+      .filter(([category]) => !macroRows.has(category))
+      .map(([category, s]) => {
+        const own = standaloneOf(category);
+        return {
+          category,
+          spent: round(s.total - own.reduce((sum, r) => sum + r.spent, 0)),
+          count: s.count - own.reduce((sum, r) => sum + r.count, 0),
+        };
+      })
+      .filter((u) => u.spent > 0)
       .sort((a, b) => b.spent - a.spent);
 
     // Consolidado: só os cards de topo (sub-limites já estão no total da categoria)
-    const totalLimit = rows.reduce((sum, r) => sum + r.limit, 0);
-    const totalSpent = rows.reduce((sum, r) => sum + r.spent, 0);
-    const overview = {
-      totalLimit,
-      totalSpent,
-      remaining: round(totalLimit - totalSpent),
-      pct: displayPct(totalSpent, totalLimit),
-      rawPct: totalLimit > 0 ? (totalSpent / totalLimit) * 100 : 0,
-      status: budgetStatus(totalSpent, totalLimit),
-      overCount: rows.filter((r) => r.status === 'over' || r.status === 'reached').length,
+    const totalSpending = totalBudgetSpending(transactions, selectedMonth);
+    const totals = summarizeBudgetLines(rows, totalSpending);
+    const summary = {
+      ...totals,
+      totalSpending,
+      /** Percentual exibido (nunca mostra 100% antes de bater o limite) */
+      pct: totals.consumptionPct === null ? null : displayPct(totals.budgetedSpent, totals.totalLimit),
+      status: budgetStatus(totals.budgetedSpent, totals.totalLimit),
       macroCount: macroRows.size,
       microCount: allRows.length - macroRows.size,
     };
 
-    const alerts = allRows
-      .filter((r) => STATUS_SEVERITY[r.status] >= STATUS_SEVERITY.alert)
-      .sort((a, b) => STATUS_SEVERITY[b.status] - STATUS_SEVERITY[a.status] || b.rawPct - a.rawPct);
+    // Média dos meses anteriores, para detectar crescimento anormal
+    const previous = availableMonths.filter((m) => m < selectedMonth).slice(-GROWTH_BASELINE_MONTHS);
+    const previousSpending = previous.map((m) => spendingByBudgetKey(transactions, m));
+    const previousAvg = new Map<string, { avg: number; months: number }>();
+    const addAverage = (key: string, valueOf: (spending: Map<string, { total: number }>) => number) => {
+      if (previous.length === 0) return;
+      previousAvg.set(key, { avg: round(previousSpending.reduce((sum, s) => sum + valueOf(s), 0) / previous.length), months: previous.length });
+    };
+    for (const row of rows) addAverage(row.key, (s) => s.get(row.key)?.total ?? 0);
+    for (const u of unbudgeted) {
+      addAverage(u.category, (s) => (s.get(u.category)?.total ?? 0) - standaloneOf(u.category).reduce((sum, r) => sum + (s.get(r.key)?.total ?? 0), 0));
+    }
 
-    // Histórico: últimos meses até o selecionado, com o limite que valia em cada um
-    const historyMonths = availableMonths.filter((m) => m <= selectedMonth).slice(-HISTORY_MONTHS);
-    const historyByMonth = historyMonths.map((monthKey) => ({
-      monthKey,
-      limits: budgetsForMonth(budgets, monthKey),
-      spending: spendingByBudgetKey(transactions, monthKey),
-    }));
-    const historyKeys = new Map<string, CategoryBudget>();
-    for (const { limits: l } of historyByMonth) for (const [key, b] of l) if (!historyKeys.has(key)) historyKeys.set(key, b);
-    const history = [...historyKeys.entries()]
-      .sort(([, a], [, b]) =>
-        macroOrder(a.category) - macroOrder(b.category)
-        || a.category.localeCompare(b.category)
-        || (a.subcategory ? 1 : 0) - (b.subcategory ? 1 : 0)
-        || (a.subcategory ?? '').localeCompare(b.subcategory ?? ''))
-      .map(([key, b]) => ({
-        key,
-        category: b.category,
-        subcategory: b.subcategory ?? null,
-        cells: historyByMonth.map(({ monthKey, limits: l, spending: s }): BudgetHistoryCell | null => {
-          const budget = l.get(key);
-          if (!budget) return null;
-          const spent = s.get(key)?.total ?? 0;
-          return { monthKey, limit: budget.limit, spent, pct: displayPct(spent, budget.limit), status: budgetStatus(spent, budget.limit) };
-        }),
+    const today = new Date();
+    const elapsed = selectedMonth === CURRENT_MONTH_KEY
+      ? today.getDate() / new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()
+      : null;
+    const alerts = buildBudgetAlerts({ lines: rows, unbudgeted, totalSpending, previousAvg, elapsed });
+
+    // Histórico: gasto real de cada mês e o limite que valia nele (sem limite = sem orçamento naquele mês)
+    const monthsWithData = new Set(transactions.map((t) => t.monthKey));
+    const history: HistoryMonth[] = availableMonths
+      .filter((m) => m <= selectedMonth)
+      .slice(-HISTORY_MONTHS)
+      .map((monthKey) => ({
+        monthKey,
+        hasData: monthsWithData.has(monthKey),
+        spentByKey: Object.fromEntries([...spendingByBudgetKey(transactions, monthKey)].map(([k, v]) => [k, v.total])),
+        limitByKey: Object.fromEntries([...budgetsForMonth(budgets, monthKey)].map(([k, b]) => [k, b.limit])),
       }));
 
     return {
@@ -221,9 +221,8 @@ export function useBudgetTracking() {
       isPastMonth: selectedMonth < CURRENT_MONTH_KEY,
       rows,
       unbudgeted,
-      overview,
+      summary,
       alerts,
-      historyMonths,
       history,
       /** Chaves (ver budgetKey) com orçamento ativo neste mês */
       takenKeys: new Set(limits.keys()),
